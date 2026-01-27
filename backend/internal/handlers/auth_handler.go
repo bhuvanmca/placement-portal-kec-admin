@@ -46,9 +46,9 @@ func RegisterUser(c *fiber.Ctx) error {
 
 	// 4. Save to Database
 	repo := repository.NewUserRepository(database.DB)
-	if err := repo.CreateUser(c.Context(), &user); err != nil {
+	if err := repo.CreateUser(c.Context(), &user, input.FullName); err != nil {
 		// Check for duplicate email error (Postgres error 23505)
-		return c.Status(500).JSON(fiber.Map{"error": "Could not create user, email might already exist"})
+		return c.Status(500).JSON(fiber.Map{"error": "Could not create user, email might already exist", "details": err.Error()})
 	}
 
 	// 5. Success
@@ -60,60 +60,112 @@ func RegisterUser(c *fiber.Ctx) error {
 
 // LoginUser handles authentication
 // @Summary Login user
-// @Description Authenticate user and return JWT token
-// @Tags Auth
+// Helper for authentication
+func authenticateUser(c *fiber.Ctx, email, password string) (*models.User, error) {
+	repo := repository.NewUserRepository(database.DB)
+
+	user, err := repo.GetUserByEmail(c.Context(), email)
+	if err != nil {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	if user.IsBlocked {
+		return nil, fmt.Errorf("your account has been blocked by Admin")
+	}
+
+	if err := repo.UpdateLastLogin(c.Context(), user.ID); err != nil {
+		fmt.Printf("Failed to update last_login: %v\n", err)
+	}
+
+	return user, nil
+}
+
+// AdminLogin handles admin authentication
+// @Summary Admin Login
+// @Description Authenticate admin user
+// @Tags Admin Auth
 // @Accept json
 // @Produce json
 // @Param credentials body models.LoginInput true "Login Credentials"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Failure 403 {object} map[string]interface{}
-// @Router /auth/login [post]
-func LoginUser(c *fiber.Ctx) error {
+// @Router /v1/admin/auth/login [post]
+func AdminLogin(c *fiber.Ctx) error {
 	var input models.LoginInput
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
 	}
 
-	repo := repository.NewUserRepository(database.DB)
-
-	// 1. Find User
-	user, err := repo.GetUserByEmail(c.Context(), input.Email)
+	user, err := authenticateUser(c, input.Email, input.Password)
 	if err != nil {
-		return c.Status(401).JSON(fiber.Map{"error": "Invalid email or password"})
+		if err.Error() == "your account has been blocked by Admin" {
+			return c.Status(403).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.Status(401).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// 2. Check Password
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
-	if err != nil {
-		return c.Status(401).JSON(fiber.Map{"error": "Invalid email or password"})
-	}
-
-	// 3. Security Checks
-	if user.IsBlocked {
-		return c.Status(403).JSON(fiber.Map{"error": "Your account has been blocked by Admin"})
-	}
-
-	// We do this in a "fire and forget" way (don't block login if this fails)
-	// or block if you want strict auditing. Let's block to be safe.
-	if err := repo.UpdateLastLogin(c.Context(), user.ID); err != nil {
-		// Optional: log the error but allow login, or return 500.
-		// For a student project, usually safe to ignore error or log it.
-		fmt.Printf("Failed to update last_login: %v\n", err)
+	if user.Role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: Access restricted to administrators"})
 	}
 
 	token, err := utils.GenerateToken(user.ID, user.Role)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not generate toekn"})
+		return c.Status(500).JSON(fiber.Map{"error": "Could not generate token"})
 	}
 
-	// 4. Success (In the next step, we will add JWT Token generation here)
 	return c.JSON(fiber.Map{
-		"message": "Login successful",
+		"message": "Admin login successful",
 		"token":   token,
 		"role":    user.Role,
 		"email":   user.Email,
+	})
+}
+
+// StudentLogin handles student authentication
+// @Summary Student Login
+// @Description Authenticate student user
+// @Tags Student Auth
+// @Accept json
+// @Produce json
+// @Param credentials body models.LoginInput true "Login Credentials"
+// @Router /v1/auth/login [post]
+func StudentLogin(c *fiber.Ctx) error {
+	var input models.LoginInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	user, err := authenticateUser(c, input.Email, input.Password)
+	if err != nil {
+		if err.Error() == "your account has been blocked by Admin" {
+			return c.Status(403).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.Status(401).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Strictly enforce student-only login
+	if user.Role != "student" {
+		return c.Status(403).JSON(fiber.Map{"error": "This portal is for students only"})
+	}
+
+	token, err := utils.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not generate token"})
+	}
+
+	// Check if profile is complete (heuristic: mobile_number is not 'NA' and not empty)
+	repo := repository.NewUserRepository(database.DB)
+	isProfileComplete := repo.IsStudentProfileComplete(c.Context(), user.ID)
+
+	return c.JSON(fiber.Map{
+		"message":             "Login successful",
+		"token":               token,
+		"role":                user.Role,
+		"email":               user.Email,
+		"is_profile_complete": isProfileComplete,
 	})
 }
 
@@ -123,38 +175,28 @@ func generateOTP() string {
 	return fmt.Sprintf("%06d", r.Intn(1000000))
 }
 
-// 1. Forgot Password (Request OTP)
-// @Summary Request Password Reset OTP
-// @Description Sends an OTP to the user's email for password reset
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body models.ForgotPasswordInput true "Email for OTP"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
-// @Router /auth/forgot-password [post]
-func ForgotPassword(c *fiber.Ctx) error {
+// AdminForgotPassword handles password reset request for admins
+func AdminForgotPassword(c *fiber.Ctx) error {
 	var input models.ForgotPasswordInput
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Email is required"})
 	}
 
-	// 1. Check if user exists (Optional: To prevent email enumeration, you might skip this, but for internal apps it's fine)
 	repo := repository.NewUserRepository(database.DB)
-	if _, err := repo.GetUserByEmail(c.Context(), input.Email); err != nil {
+	user, err := repo.GetUserByEmail(c.Context(), input.Email)
+	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
-	// 2. Generate & Save OTP
+	if user.Role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This feature is for admins only"})
+	}
+
 	otp := generateOTP()
 	if err := repo.SaveOTP(c.Context(), input.Email, otp); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
 	}
 
-	// 3. Send Email
-	// Run in Goroutine so API response is instant
 	go func() {
 		if err := utils.SendOTPEmail(input.Email, otp); err != nil {
 			fmt.Printf("Failed to send email to %s: %v\n", input.Email, err)
@@ -164,35 +206,36 @@ func ForgotPassword(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "OTP sent to your email"})
 }
 
-// 2. Reset Password (Verify OTP & Change)
-// @Summary Reset Password
-// @Description Verify OTP and set a new password
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param input body models.ResetPasswordInput true "Reset Password Details"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
-// @Router /auth/reset-password [post]
-func ResetPassword(c *fiber.Ctx) error {
+// AdminResetPassword handles password reset for admins
+func AdminResetPassword(c *fiber.Ctx) error {
 	var input models.ResetPasswordInput
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
 	}
 
+	// Additional Check: Verify user is admin before allowing reset?
+	// VerifyOTP checks email/OTP match.
+	// If the OTP was only issued to an admin (via AdminForgotPassword), it is safe.
+	// But double checking role doesn't hurt if we want to be strict.
+
 	repo := repository.NewUserRepository(database.DB)
 
-	// 1. Verify OTP
+	// Check user role first
+	user, err := repo.GetUserByEmail(c.Context(), input.Email)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+	if user.Role != "admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
 	isValid, err := repo.VerifyOTP(c.Context(), input.Email, input.Otp)
 	if err != nil || !isValid {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid or expired OTP"})
 	}
 
-	// 2. Hash New Password
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
 
-	// 3. Update Database
 	if err := repo.ResetPassword(c.Context(), input.Email, string(hashedPassword)); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to reset password"})
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/SysSyncer/placement-portal-kec/internal/config"
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
 	"github.com/SysSyncer/placement-portal-kec/internal/routes"
+	"github.com/SysSyncer/placement-portal-kec/internal/utils"
 	"github.com/SysSyncer/placement-portal-kec/internal/worker"
 )
 
@@ -47,6 +48,13 @@ func main() {
 
 	worker.StartScheduler()
 
+	// Initialize S3 Bucket
+	if err := utils.InitBucket(); err != nil {
+		log.Printf("Failed to initialize S3 bucket: %v", err)
+		// We don't exit here, as the app might still work for non-file operations,
+		// but it's good to log it clearly.
+	}
+
 	// Initialize the Fiber instance
 	// Prefork is disabled by default for easier local debugging; enable in prod for performance
 	app := fiber.New(fiber.Config{
@@ -66,7 +74,7 @@ func main() {
 	go func() {
 		port := os.Getenv("PORT")
 		if port == "" {
-			port = "3000" // Default fallback if env var is missing
+			port = "8080" // Default fallback if env var is missing
 		}
 		if err := app.Listen(":" + port); err != nil {
 			log.Panic(err)

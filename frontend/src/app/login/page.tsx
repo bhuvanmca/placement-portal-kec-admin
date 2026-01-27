@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -31,15 +31,17 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: FormData) => {
-    console.log('[LoginPage] Submitting login form', { email: data.email });
     setLoading(true);
     setError('');
     try {
-      await login(data);
-      console.log('[LoginPage] Login successful');
+      // Explicitly call with 'admin' type to use admin auth endpoint
+      const success = await login(data, 'admin');
+      if (success) {
+        console.log('[LoginPage] Admin Login successful');
+      }
     } catch (err: any) {
-      console.error('[LoginPage] Login failed', err);
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      console.error('[LoginPage] Unexpected login error', err);
+      setError('An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -55,13 +57,7 @@ export default function LoginPage() {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-[#002147]/80 backdrop-blur-sm" />
-
       <Card className="w-full max-w-[420px] bg-white shadow-2xl border-0 relative z-10 animate-in fade-in zoom-in duration-500 rounded-xl overflow-hidden">
-        {/* Decorative Top Bar */}
-        {/* <div className="h-2 w-full bg-[#002147]" /> */}
-        
         <CardHeader className="text-center flex flex-col items-center space-y-4 pt-10 pb-6">
           <div className="w-24 h-24 relative mb-2 bg-white rounded-full p-2 shadow-sm border border-gray-100 flex items-center justify-center">
              <img 
@@ -71,8 +67,11 @@ export default function LoginPage() {
              />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-[#002147] text-3xl font-bold tracking-tight">Welcome Back</CardTitle>
-            <CardDescription className="text-gray-500">Sign in to the Placement Portal</CardDescription>
+            <div className="flex items-center justify-center gap-2">
+                <ShieldCheck className="h-6 w-6 text-[#002147]" />
+                <CardTitle className="text-[#002147] text-3xl font-bold tracking-tight">Admin Portal</CardTitle>
+            </div>
+            <CardDescription className="text-gray-500">Secure access for Placement Cell</CardDescription>
           </div>
         </CardHeader>
 
@@ -85,7 +84,7 @@ export default function LoginPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="name@kongu.edu"
+                  placeholder="admin@kongu.edu"
                   {...register("email")}
                   className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#002147] focus:ring-[#002147] transition-all"
                 />
@@ -96,7 +95,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-                <a href="#" className="text-xs text-[#002147] hover:underline font-medium">Forgot Password?</a>
+                <a href="/admin/forgot-password" className="text-xs text-[#002147] hover:underline font-medium">Forgot Password?</a>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
@@ -126,10 +125,10 @@ export default function LoginPage() {
               {loading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Signing In...</span>
+                  <span>Admin Login</span>
                 </div>
               ) : (
-                'Sign In'
+                'Admin Login'
               )}
             </Button>
           </form>
@@ -137,15 +136,11 @@ export default function LoginPage() {
         
         <CardFooter className="flex justify-center py-6 bg-gray-50 border-t border-gray-100">
            <p className="text-xs text-gray-500 font-medium">
-             Protected Area • KEC Placement Cell
+             Authorized Personnel Only
            </p>
         </CardFooter>
       </Card>
       
-      {/* Footer text outside card */}
-      <div className="absolute bottom-6 text-white/60 text-xs font-medium tracking-wide z-10">
-        © 2026 Kongu Engineering College.
-      </div>
     </div>
   );
 }

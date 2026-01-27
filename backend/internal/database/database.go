@@ -31,10 +31,12 @@ func ConnectDB(connString string) {
 		log.Fatal("Failed to parse DB config:", err)
 	}
 
-	// Set constraints to prevent resource starvation
-	config.MaxConns = 10
-	config.MinConns = 2
-	config.MaxConnLifetime = time.Hour
+	// Set constraints to prevent resource starvation but allow scaling
+	// Pi 4 has enough RAM for ~50 connections if queries are optimized
+	config.MaxConns = 50
+	config.MinConns = 5
+	config.MaxConnLifetime = 30 * time.Minute
+	config.HealthCheckPeriod = 1 * time.Minute
 
 	// Establish connection
 	DB, err = pgxpool.NewWithConfig(context.Background(), config)

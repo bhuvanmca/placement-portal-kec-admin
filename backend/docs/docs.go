@@ -23,118 +23,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/forgot-password": {
-            "post": {
-                "description": "Sends an OTP to the user's email for password reset",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Request Password Reset OTP",
-                "parameters": [
-                    {
-                        "description": "Email for OTP",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.ForgotPasswordInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/login": {
-            "post": {
-                "description": "Authenticate user and return JWT token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Login user",
-                "parameters": [
-                    {
-                        "description": "Login Credentials",
-                        "name": "credentials",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.LoginInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/auth/logout": {
             "post": {
                 "description": "Logout user (symbolic in JWT)",
@@ -183,55 +71,6 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/reset-password": {
-            "post": {
-                "description": "Verify OTP and set a new password",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Reset Password",
-                "parameters": [
-                    {
-                        "description": "Reset Password Details",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.ResetPasswordInput"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -309,14 +148,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/admin/drives": {
+        "/v1/admin/auth/login": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new drive with companies details (Admin only)",
+                "description": "Authenticate admin user",
                 "consumes": [
                     "application/json"
                 ],
@@ -324,23 +158,126 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Drives"
+                    "Admin Auth"
+                ],
+                "summary": "Admin Login",
+                "parameters": [
+                    {
+                        "description": "Login Credentials",
+                        "name": "credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoginInput"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/v1/admin/drives": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of all drives without restriction",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List all placement drives for admin",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.PlacementDrive"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a drive with attachments",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
                 ],
                 "summary": "Create a new placement drive",
                 "parameters": [
                     {
-                        "description": "Drive Details",
-                        "name": "drive",
+                        "type": "string",
+                        "description": "Drive Data JSON",
+                        "name": "drive_data",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Attachments",
+                        "name": "attachments",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/v1/admin/drives/bulk-delete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete multiple drives by IDs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Bulk Delete Drives",
+                "parameters": [
+                    {
+                        "description": "List of Drive IDs",
+                        "name": "ids",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.CreateDriveInput"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "format": "int64"
+                                }
+                            }
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -370,15 +307,16 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update existing drive details (Admin only)",
+                "description": "Update existing drive details (Admin only). Supports multipart/form-data for adding files.",
                 "consumes": [
-                    "application/json"
+                    "application/json",
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Drives"
+                    "Admin"
                 ],
                 "summary": "Update a placement drive",
                 "parameters": [
@@ -390,10 +328,21 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Drive Details",
+                        "type": "string",
+                        "description": "Updated Drive Data JSON (if multipart)",
+                        "name": "drive_data",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "New Attachments (if multipart)",
+                        "name": "attachments",
+                        "in": "formData"
+                    },
+                    {
+                        "description": "Updated Drive Data (if json)",
                         "name": "drive",
                         "in": "body",
-                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/models.CreateDriveInput"
                         }
@@ -434,7 +383,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Drives"
+                    "Admin"
                 ],
                 "summary": "Delete a placement drive",
                 "parameters": [
@@ -486,7 +435,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Drives"
+                    "Admin"
                 ],
                 "summary": "Manually add a student to a drive",
                 "parameters": [
@@ -513,6 +462,277 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/drives/{id}/applicants": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch all students applied to a specific drive",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get Drive Applicants",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Drive ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.DriveApplicant"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/spocs": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add a new Single Point of Contact",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Spocs"
+                ],
+                "summary": "Create a new SPOC",
+                "parameters": [
+                    {
+                        "description": "SPOC Details",
+                        "name": "spoc",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateSpocInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.Spoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/spocs/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update SPOC details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Spocs"
+                ],
+                "summary": "Update SPOC",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "SPOC ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "SPOC Details",
+                        "name": "spoc",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateSpocInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Spoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a SPOC by ID",
+                "tags": [
+                    "Spocs"
+                ],
+                "summary": "Delete SPOC",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "SPOC ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/spocs/{id}/status": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Activate or deactivate a SPOC",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Spocs"
+                ],
+                "summary": "Toggle SPOC Status",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "SPOC ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status",
+                        "name": "status",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Spoc"
                         }
                     },
                     "400": {
@@ -576,6 +796,58 @@ const docTemplate = `{
                                 "type": "object",
                                 "additionalProperties": true
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin manually adds a student to the system",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create Student",
+                "parameters": [
+                    {
+                        "description": "Student Details",
+                        "name": "student",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateStudentInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
@@ -694,7 +966,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/admin/students/delete-many": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete multiple students using their IDs",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Bulk Delete Students by IDs",
+                "parameters": [
+                    {
+                        "description": "List of Student IDs",
+                        "name": "ids",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "format": "int64"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/v1/admin/students/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch full profile of a student by ID or Register Number",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get Student Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Student ID or Register Number",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.StudentFullProfile"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
@@ -728,6 +1100,85 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/admin/students/{student_id}/documents/{type}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generate a temporary presigned URL for accessing any student's documents",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get Student Document URL (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Student User ID",
+                        "name": "student_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "resume",
+                            "aadhar",
+                            "pan",
+                            "profile_photo"
+                        ],
+                        "type": "string",
+                        "description": "Document Type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -807,6 +1258,140 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/auth/login": {
+            "post": {
+                "description": "Authenticate student user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student Auth"
+                ],
+                "summary": "Student Login",
+                "parameters": [
+                    {
+                        "description": "Login Credentials",
+                        "name": "credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoginInput"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/v1/brands/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search for companies/brands by name",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Search Brands",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search Query",
+                        "name": "query",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/brands/{domain}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch company details like logo and name from Logo.dev",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Get Brand Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Company Domain (e.g. google.com)",
+                        "name": "domain",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/v1/drives": {
             "get": {
                 "security": [
@@ -814,31 +1399,25 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of drives with optional filtering",
+                "description": "Get a list of drives with optional filtering by department and batch",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Drives"
                 ],
-                "summary": "List all placement drives",
+                "summary": "List placement drives for students",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Company Category",
-                        "name": "category",
+                        "description": "Department",
+                        "name": "department",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Minimum Salary",
-                        "name": "min_salary",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Drive Type",
-                        "name": "type",
+                        "description": "Batch Year",
+                        "name": "batch",
                         "in": "query"
                     }
                 ],
@@ -914,7 +1493,199 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/drives/{id}/withdraw": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Allows a student to withdraw (opt-out) from a drive",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Application"
+                ],
+                "summary": "Withdraw application for a Placement Drive",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Drive ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/spocs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of all Single Points of Contact",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Spocs"
+                ],
+                "summary": "List all SPOCs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Spoc"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/student/documents/{type}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generate a temporary presigned URL for accessing student documents",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student"
+                ],
+                "summary": "Get Document URL",
+                "parameters": [
+                    {
+                        "enum": [
+                            "resume",
+                            "aadhar",
+                            "pan",
+                            "profile_photo"
+                        ],
+                        "type": "string",
+                        "description": "Document Type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/v1/student/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get full profile details of the logged-in student",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student"
+                ],
+                "summary": "Get My Profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.StudentFullProfile"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
             "put": {
                 "security": [
                     {
@@ -975,7 +1746,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Upload student documents like Resume, Aadhar, Pan Card etc. to Cloudinary",
+                "description": "Upload student documents like Resume, Aadhar, Pan Card etc. to MinIO S3 Storage",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -1033,9 +1804,77 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/user/fcm-token": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update the Firebase Cloud Messaging token for push notifications",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Student"
+                ],
+                "summary": "Update FCM Token",
+                "parameters": [
+                    {
+                        "description": "FCM Token",
+                        "name": "token",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "models.Attachment": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "models.CreateDriveInput": {
             "type": "object",
             "required": [
@@ -1043,6 +1882,15 @@ const docTemplate = `{
                 "job_role"
             ],
             "properties": {
+                "aggregate_percentage": {
+                    "type": "number"
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Attachment"
+                    }
+                },
                 "company_category": {
                     "type": "string"
                 },
@@ -1062,11 +1910,22 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "drive_date": {
-                    "description": "\"2026-05-20\"",
                     "type": "string"
                 },
                 "drive_type": {
                     "type": "string"
+                },
+                "eligible_batches": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "eligible_departments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "job_description": {
                     "type": "string"
@@ -1077,19 +1936,144 @@ const docTemplate = `{
                 "location": {
                     "type": "string"
                 },
+                "logo_url": {
+                    "description": "[NEW]",
+                    "type": "string"
+                },
                 "max_backlogs_allowed": {
                     "type": "integer"
                 },
                 "min_cgpa": {
+                    "description": "Eligibility",
                     "type": "number"
+                },
+                "pg_min_cgpa": {
+                    "type": "number"
+                },
+                "rounds": {
+                    "description": "Rounds \u0026 Attachments",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Round"
+                    }
+                },
+                "spoc_id": {
+                    "description": "[NEW]",
+                    "type": "integer"
+                },
+                "stipend_max": {
+                    "type": "integer"
+                },
+                "stipend_min": {
+                    "type": "integer"
+                },
+                "tenth_percentage": {
+                    "description": "Additional Academic Eligibility",
+                    "type": "number"
+                },
+                "twelfth_percentage": {
+                    "type": "number"
+                },
+                "ug_min_cgpa": {
+                    "type": "number"
+                },
+                "use_aggregate": {
+                    "type": "boolean"
+                },
+                "website": {
+                    "description": "[NEW]",
+                    "type": "string"
                 }
             }
         },
-        "models.ForgotPasswordInput": {
+        "models.CreateSpocInput": {
             "type": "object",
+            "required": [
+                "designation",
+                "email",
+                "mobile_number",
+                "name"
+            ],
             "properties": {
+                "designation": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
+                },
+                "mobile_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CreateStudentInput": {
+            "type": "object",
+            "required": [
+                "batch_year",
+                "department",
+                "email",
+                "full_name",
+                "mobile_number",
+                "register_number"
+            ],
+            "properties": {
+                "batch_year": {
+                    "type": "integer"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "mobile_number": {
+                    "type": "string"
+                },
+                "password": {
+                    "description": "Optional, default will be used if empty",
+                    "type": "string"
+                },
+                "register_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.DriveApplicant": {
+            "type": "object",
+            "properties": {
+                "applied_at": {
+                    "type": "string"
+                },
+                "cgpa": {
+                    "type": "number"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "register_number": {
+                    "type": "string"
+                },
+                "resume_url": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "'opted_in', 'shortlisted', 'placed', 'rejected'",
+                    "type": "string"
+                },
+                "student_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -1115,8 +2099,22 @@ const docTemplate = `{
         "models.PlacementDrive": {
             "type": "object",
             "properties": {
+                "aggregate_percentage": {
+                    "type": "number"
+                },
+                "applicant_count": {
+                    "description": "[NEW] Computed field",
+                    "type": "integer"
+                },
+                "attachments": {
+                    "description": "JSONB",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Attachment"
+                    }
+                },
                 "company_category": {
-                    "description": "'Core', 'IT', 'Service', 'Product', 'Non-Core'",
+                    "description": "'Core', 'IT', 'Service', 'Product', 'Start-up', 'MNC'",
                     "type": "string"
                 },
                 "company_name": {
@@ -1126,15 +2124,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ctc_display": {
-                    "description": "\"4L - 6L PA\"",
                     "type": "string"
                 },
                 "ctc_max": {
-                    "description": "600000",
                     "type": "integer"
                 },
                 "ctc_min": {
-                    "description": "Financials (Crucial: Input as numbers, Display as string)",
+                    "description": "Financials",
                     "type": "integer"
                 },
                 "deadline_date": {
@@ -1145,12 +2141,23 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2026-05-20"
                 },
-                "drive_objective": {
-                    "type": "string"
-                },
                 "drive_type": {
                     "description": "Filters \u0026 Categories",
                     "type": "string"
+                },
+                "eligible_batches": {
+                    "description": "JSONB",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "eligible_departments": {
+                    "description": "JSONB",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "id": {
                     "type": "integer"
@@ -1164,17 +2171,62 @@ const docTemplate = `{
                 "location": {
                     "type": "string"
                 },
+                "logo_url": {
+                    "description": "[NEW]",
+                    "type": "string"
+                },
                 "max_backlogs_allowed": {
                     "type": "integer"
                 },
                 "min_cgpa": {
-                    "description": "Eligibility (Stored as standard Go types)",
+                    "description": "Eligibility",
+                    "type": "number"
+                },
+                "pg_min_cgpa": {
                     "type": "number"
                 },
                 "posted_by": {
                     "type": "integer"
                 },
+                "rounds": {
+                    "description": "Rounds",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Round"
+                    }
+                },
+                "spoc_id": {
+                    "description": "[NEW] Single Point Of Contact ID",
+                    "type": "integer"
+                },
                 "status": {
+                    "type": "string"
+                },
+                "stipend_max": {
+                    "type": "integer"
+                },
+                "stipend_min": {
+                    "type": "integer"
+                },
+                "tenth_percentage": {
+                    "description": "Additional Academic Eligibility",
+                    "type": "number"
+                },
+                "twelfth_percentage": {
+                    "type": "number"
+                },
+                "ug_min_cgpa": {
+                    "type": "number"
+                },
+                "use_aggregate": {
+                    "type": "boolean"
+                },
+                "user_status": {
+                    "description": "[NEW] For student response ('opted_in', etc.)",
+                    "type": "string"
+                },
+                "website": {
+                    "description": "[NEW]",
                     "type": "string"
                 }
             }
@@ -1183,11 +2235,15 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "email",
+                "full_name",
                 "password",
                 "role"
             ],
             "properties": {
                 "email": {
+                    "type": "string"
+                },
+                "full_name": {
                     "type": "string"
                 },
                 "password": {
@@ -1203,28 +2259,60 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ResetPasswordInput": {
+        "models.Round": {
             "type": "object",
             "properties": {
-                "email": {
+                "date": {
+                    "description": "\"2026-05-21\"",
                     "type": "string"
                 },
-                "new_password": {
+                "description": {
+                    "description": "\"Online test via Hackerearth\"",
                     "type": "string"
                 },
-                "otp": {
+                "name": {
+                    "description": "\"Aptitude\", \"Technical\", \"HR\"",
                     "type": "string"
                 }
             }
         },
-        "models.UpdateProfileInput": {
+        "models.Spoc": {
             "type": "object",
             "properties": {
-                "address_line_1": {
+                "created_at": {
                     "type": "string"
                 },
-                "alternate_email": {
+                "designation": {
                     "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "mobile_number": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.StudentFullProfile": {
+            "type": "object",
+            "properties": {
+                "aadhar_card_url": {
+                    "type": "string"
+                },
+                "about_me": {
+                    "type": "string"
+                },
+                "batch_year": {
+                    "type": "integer"
                 },
                 "city": {
                     "type": "string"
@@ -1232,34 +2320,196 @@ const docTemplate = `{
                 "current_backlogs": {
                     "type": "integer"
                 },
+                "department": {
+                    "type": "string"
+                },
+                "diploma_mark": {
+                    "type": "number"
+                },
+                "dob": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "Personal Info",
+                    "type": "string"
+                },
+                "gap_reason": {
+                    "type": "string"
+                },
+                "gap_years": {
+                    "type": "integer"
+                },
+                "gender": {
+                    "type": "string"
+                },
                 "history_of_backlogs": {
                     "type": "integer"
                 },
+                "id": {
+                    "description": "User Info",
+                    "type": "integer"
+                },
+                "is_blocked": {
+                    "type": "boolean"
+                },
                 "language_skills": {
-                    "description": "Skills (JSONB in DB)",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
+                "last_login": {
+                    "type": "string"
+                },
                 "mobile_number": {
-                    "description": "Contact Info",
+                    "type": "string"
+                },
+                "pan_card_url": {
                     "type": "string"
                 },
                 "pg_cgpa": {
                     "type": "number"
                 },
-                "pincode": {
+                "placement_willingness": {
                     "type": "string"
+                },
+                "profile_photo_url": {
+                    "type": "string"
+                },
+                "register_number": {
+                    "type": "string"
+                },
+                "resume_url": {
+                    "description": "Documents (URLs)",
+                    "type": "string"
+                },
+                "social_links": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "state": {
                     "type": "string"
                 },
+                "student_type": {
+                    "type": "string"
+                },
+                "tenth_mark": {
+                    "description": "Academics",
+                    "type": "number"
+                },
+                "twelfth_mark": {
+                    "type": "number"
+                },
                 "ug_cgpa": {
-                    "description": "Academic Updates (The \"UG/PG Scores\" you asked for)",
+                    "type": "number"
+                }
+            }
+        },
+        "models.UpdateProfileInput": {
+            "type": "object",
+            "properties": {
+                "aadhar_card_url": {
+                    "type": "string"
+                },
+                "about_me": {
+                    "description": "Personal Identity",
+                    "type": "string"
+                },
+                "city": {
+                    "description": "Address",
+                    "type": "string"
+                },
+                "current_backlogs": {
+                    "type": "integer"
+                },
+                "diploma_institution": {
+                    "type": "string"
+                },
+                "diploma_mark": {
+                    "type": "number"
+                },
+                "diploma_year_pass": {
+                    "type": "integer"
+                },
+                "dob": {
+                    "type": "string"
+                },
+                "gap_reason": {
+                    "type": "string"
+                },
+                "gap_years": {
+                    "type": "integer"
+                },
+                "history_of_backlogs": {
+                    "type": "integer"
+                },
+                "language_skills": {
+                    "description": "e.g. [\"English\", \"Tamil\"]",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "mobile_number": {
+                    "type": "string"
+                },
+                "pan_card_url": {
+                    "type": "string"
+                },
+                "pg_cgpa": {
+                    "type": "number"
+                },
+                "placement_willingness": {
+                    "type": "string"
+                },
+                "profile_photo_url": {
+                    "type": "string"
+                },
+                "resume_url": {
+                    "description": "Documents",
+                    "type": "string"
+                },
+                "social_links": {
+                    "description": "Skills \u0026 Flexible Data",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "state": {
+                    "type": "string"
+                },
+                "tenth_board": {
+                    "type": "string"
+                },
+                "tenth_institution": {
+                    "type": "string"
+                },
+                "tenth_mark": {
+                    "description": "Academic Updates",
+                    "type": "number"
+                },
+                "tenth_year_pass": {
+                    "type": "integer"
+                },
+                "twelfth_board": {
+                    "type": "string"
+                },
+                "twelfth_institution": {
+                    "type": "string"
+                },
+                "twelfth_mark": {
+                    "type": "number"
+                },
+                "twelfth_year_pass": {
+                    "type": "integer"
+                },
+                "ug_cgpa": {
                     "type": "number"
                 }
             }

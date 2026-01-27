@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,20 +15,33 @@ func NewApplicationRepository(db *pgxpool.Pool) *ApplicationRepository {
 	return &ApplicationRepository{DB: db}
 }
 
-// ApplyForDrive calls our Stored Procedure
+// ApplyForDrive calls our Stored Procedure or uses direct logic
 func (r *ApplicationRepository) ApplyForDrive(ctx context.Context, studentID, driveID int64) (bool, string, error) {
-	var success bool
-	var message string
-
-	// We select the complex type fields individually
-	query := `SELECT (apply_for_drive($1, $2)).*`
-
-	err := r.DB.QueryRow(ctx, query, studentID, driveID).Scan(&success, &message)
+	// UPSERT to handle re-application
+	query := `
+		INSERT INTO drive_applications (drive_id, student_id, status, applied_at)
+		VALUES ($1, $2, 'opted_in', NOW())
+		ON CONFLICT (drive_id, student_id)
+		DO UPDATE SET status = 'opted_in', updated_at = NOW()
+	`
+	_, err := r.DB.Exec(ctx, query, driveID, studentID)
 	if err != nil {
-		return false, "", fmt.Errorf("database execution error: %w", err)
+		return false, err.Error(), err
 	}
+	return true, "Successfully applied", nil
+}
 
-	return success, message, nil
+// WithdrawApplication removes or updates the application status to 'withdrawn' or 'opted_out'
+func (r *ApplicationRepository) WithdrawApplication(ctx context.Context, studentID, driveID int64) error {
+	// UPSERT: If exists update, if not insert 'opted_out'
+	query := `
+		INSERT INTO drive_applications (drive_id, student_id, status, applied_at)
+		VALUES ($1, $2, 'opted_out', NOW())
+		ON CONFLICT (drive_id, student_id) 
+		DO UPDATE SET status = 'opted_out', updated_at = NOW()
+	`
+	_, err := r.DB.Exec(ctx, query, driveID, studentID)
+	return err
 }
 
 // GetStudentApplications lists what a student has applied to

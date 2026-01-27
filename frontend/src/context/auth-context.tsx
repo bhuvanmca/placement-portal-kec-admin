@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { User, LoginCredentials, AuthResponse } from '@/types/auth'; // Centralized types
 import { API_ROUTES } from '@/constants/config';
 import { APP_ROUTES as PAGE_ROUTES } from '@/constants/routes'; 
+import { isTokenExpired } from '@/utils/auth';
+import { toast } from 'sonner'; 
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (data: LoginCredentials) => Promise<void>;
+  login: (data: LoginCredentials, type?: 'admin' | 'student') => Promise<boolean>;
   logout: () => void;
 }
 
@@ -28,26 +30,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("[AuthProvider] Initializing auth...");
       const token = localStorage.getItem('token');
       if (token) {
-        console.log("[AuthProvider] Found token, setting authenticated state.");
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-             setUser(JSON.parse(storedUser));
+        if (isTokenExpired(token)) {
+            console.log("[AuthProvider] Token expired, logging out.");
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+            setIsAuthenticated(false);
+            toast.error("Session expired. Please login again.");
+            router.push(PAGE_ROUTES.LOGIN);
+        } else {
+            console.log("[AuthProvider] Found valid token, setting authenticated state.");
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                 setUser(JSON.parse(storedUser));
+            }
+            setIsAuthenticated(true);
+            // Optionally redirect to dashboard if on public page? 
+            // Better to handle that in the pages themselves or middleware.
         }
-        setIsAuthenticated(true);
       } else {
         console.log("[AuthProvider] No token found.");
+        setIsAuthenticated(false); // Ensure explicitly false
       }
       setIsLoading(false);
     };
     initAuth();
-  }, []);
+  }, [router]);
 
-  const login = async (data: LoginCredentials) => {
-    console.log("[AuthProvider] Login called with:", data);
+  const login = async (data: LoginCredentials, type: 'admin' | 'student' = 'admin'): Promise<boolean> => {
+    // For this admin portal, we default to 'admin' but keep flexibility if ever needed, or just force admin.
+    // The UI now strictly calls with 'admin' anyway, but defaulting here is safe.
+    console.log(`[AuthProvider] ${type} Login called with:`, data);
     try {
-      // Use API_ROUTES.LOGIN if defined, else just string (let's check my file creation)
-      // I defined API_ROUTES in config.ts
-      const response = await api.post('/auth/login', data); 
+      const endpoint = type === 'admin' ? API_ROUTES.ADMIN_AUTH.LOGIN : API_ROUTES.STUDENT_AUTH.LOGIN;
+      const response = await api.post(endpoint, data); 
       console.log("[AuthProvider] Login response:", response);
 
       const responseData = response.data;
@@ -56,6 +72,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (token) {
         console.log("[AuthProvider] Token received:", token);
+
+        // Double check role on client side just in case (though backend handles it now)
+        if (type === 'admin' && responseData.role !== 'admin') {
+           toast.error("Unauthorized access. Admin credentials required.");
+           return false;
+        }
+
         localStorage.setItem('token', token);
         
         const userData: User = {
@@ -69,13 +92,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(userData);
         setIsAuthenticated(true);
         router.push(PAGE_ROUTES.DASHBOARD);
+        return true;
       } else {
         console.error("[AuthProvider] Login successful but no token found in response:", responseData);
-        throw new Error("No access token received");
+        toast.error("Login failed. No token received.");
+        return false;
       }
-    } catch (error) {
-       console.error("[AuthProvider] Login error:", error);
-       throw error;
+    } catch (error: any) {
+       console.warn("[AuthProvider] Login handled:", error?.message || 'Auth error');
+       // Error is already handled by interceptor toast
+       return false;
     }
   };
 

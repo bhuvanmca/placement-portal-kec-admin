@@ -50,3 +50,30 @@ func ApplyForDrive(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"success": true, "message": message})
 }
+
+// WithdrawFromDrive
+// @Summary Withdraw application for a Placement Drive
+// @Description Allows a student to withdraw (opt-out) from a drive
+// @Tags Application
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Drive ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /v1/drives/{id}/withdraw [post]
+func WithdrawFromDrive(c *fiber.Ctx) error {
+	studentID := int64(c.Locals("user_id").(float64))
+	driveID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive ID"})
+	}
+
+	repo := repository.NewApplicationRepository(database.DB)
+	if err := repo.WithdrawApplication(c.Context(), studentID, driveID); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to withdraw: " + err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"success": true, "message": "Successfully withdrawn from drive"})
+}

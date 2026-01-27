@@ -1,0 +1,34 @@
+name: Deploy to Pi
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # (Optional) You can remove the 'Set up Docker Buildx' step unless you specifically need it for advanced caching. 
+    # The standard docker compose build works fine without it on a self-hosted runner.
+
+    - name: Build and Deploy
+      run: |
+        # 1. Stop old containers (if running)
+        docker compose down || true
+        
+        # 1.5 Force clean any lingering containers on port 8080
+        # If placement_api exists but is stopped/stuck, remove it
+        docker rm -f placement_api || true
+        
+        # 2. Rebuild the API image
+        docker compose build
+        
+        # 3. Start services in background
+        docker compose up -d
+        
+        # 4. Clean up dangling images to save SD card space
+        docker image prune -f

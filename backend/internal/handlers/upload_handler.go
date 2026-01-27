@@ -11,7 +11,7 @@ import (
 
 // UploadDocument - Uploads a document (resume, aadhar, pan, profile_pic)
 // @Summary Upload Document
-// @Description Upload student documents like Resume, Aadhar, Pan Card etc. to Cloudinary
+// @Description Upload student documents like Resume, Aadhar, Pan Card etc. to MinIO S3 Storage
 // @Tags Student
 // @Accept multipart/form-data
 // @Produce json
@@ -51,7 +51,14 @@ func UploadDocument(c *fiber.Ctx) error {
 	}
 
 	// 3. Upload using Register Number
-	url, err := utils.UploadToCloudinary(fileHeader, registerNumber, docType)
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to open file", "details": err.Error()})
+	}
+	defer file.Close()
+
+	path := fmt.Sprintf("students/%s/%s", registerNumber, docType)
+	url, err := utils.UploadToS3(file, fileHeader, path)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Upload failed", "details": err.Error()})
 	}

@@ -10,7 +10,7 @@ A robust, production-grade backend API built with **Go (Golang)** and **PostgreS
 * **Framework:** [Fiber v2](https://gofiber.io/) (Fastest HTTP engine for Go)
 * **Database:** PostgreSQL (with `pgx/v5` driver & connection pooling)
 * **Authentication:** JWT (Stateless, Secure)
-* **File Storage:** Cloudinary (Free Tier)
+* **File Storage:** MinIO (Self-Hosted S3-Compatible Storage)
 * **Automation:** Native Go Goroutines (Background Scheduler)
 * **Architecture:** Clean Architecture (Repository Pattern)
 
@@ -36,8 +36,16 @@ JWT_SECRET=your_internal_secret_key_2026
 SMTP_EMAIL=your_email@gmail.com
 SMTP_PASSWORD=your_16_char_app_password
 
-# File Storage (Cloudinary)
-CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
+# File Storage (MinIO - Self-Hosted S3)
+MINIO_PUBLIC_URL=http://localhost:9000
+SUPABASE_S3_ENDPOINT=http://localhost:9000
+SUPABASE_ACCESS_KEY_ID=admin
+SUPABASE_SECRET_ACCESS_KEY=password123
+SUPABASE_BUCKET=placement-portal-bucket
+SUPABASE_S3_REGION=ap-south-1
+
+# BrandFetch API (Optional - for company logos)
+BRANDFETCH_API_KEY=your_api_key_here
 
 ```
 

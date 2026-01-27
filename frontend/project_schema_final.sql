@@ -150,13 +150,15 @@ CREATE TABLE placement_drives (
     -- Job Details
     company_name VARCHAR(150) NOT NULL,
     job_role VARCHAR(150) NOT NULL,
-    description TEXT,
+    job_description TEXT,
     location VARCHAR(100),
+    website VARCHAR(255),  -- [NEW]
+    logo_url TEXT,         -- [NEW]
     
     -- Categories
     drive_type VARCHAR(50) CHECK (drive_type IN ('Full-Time', 'Internship', 'Freelance', 'Internship to Full-Time', 'Internship and Full-Time', 'Part-Time')),
     company_category VARCHAR(50) CHECK (company_category IN ('Core', 'IT', 'Service', 'Non-Tech', 'Product', 'Start-up', 'MNC')),
-    drive_objective VARCHAR(50) CHECK (drive_objective IN ('Placement', 'Academic Internship')),
+    spoc_id BIGINT REFERENCES spocs(id), -- [NEW] Replaced drive_objective with specific SPOC reference
     
     -- Financials
     ctc_min BIGINT,
@@ -168,16 +170,18 @@ CREATE TABLE placement_drives (
     -- Eligibility
     min_cgpa DECIMAL(4,2) DEFAULT 0.0,
     max_backlogs_allowed INT DEFAULT 0,
-    eligible_branches JSONB,       -- e.g. ["CSE", "IT", "ECE"]
-    eligible_batch_years JSONB,    -- e.g. [2024, 2025]
+    eligible_departments JSONB,       -- e.g. ["CSE", "IT", "ECE"]
+    eligible_batches JSONB,           -- e.g. [2024, 2025]
     
     -- Dates & Rounds
     drive_date DATE,
     deadline_date TIMESTAMP WITH TIME ZONE,
-    rounds_details JSONB, -- Stores interview rounds structure
+    rounds JSONB, -- Stores interview rounds structure
+    
+    attachments JSONB DEFAULT '[]', -- JDs, brochures, etc.
     
     status VARCHAR(20) DEFAULT 'open' 
-    CHECK (status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold')),
+    CHECK (status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold', 'draft')),
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -265,7 +269,7 @@ CREATE OR REPLACE FUNCTION apply_for_drive(
 ) 
 AS $$
 DECLARE
-    v_drive_deadline TIMESTAMP;
+    v_drive_deadline TIMESTAMP WITH TIME ZONE;
     v_drive_status VARCHAR;
     v_min_cgpa DECIMAL;
     v_max_backlogs INT;

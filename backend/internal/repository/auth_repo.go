@@ -19,14 +19,20 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 }
 
 // CreateUser inserts a new user safely
-func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
-	query := `
+func (r *UserRepository) CreateUser(ctx context.Context, user *models.User, fullName string) error {
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	queryUser := `
         INSERT INTO users (email, password_hash, role, is_active, is_blocked)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id, created_at
     `
 	// We use QueryRow because we want the ID back
-	err := r.DB.QueryRow(ctx, query,
+	err = tx.QueryRow(ctx, queryUser,
 		user.Email,
 		user.PasswordHash,
 		user.Role,
@@ -37,6 +43,23 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
+
+	// If Student, create profile
+	if user.Role == "student" {
+		queryProfile := `INSERT INTO student_personal (user_id, full_name) VALUES ($1, $2)`
+		if _, err := tx.Exec(ctx, queryProfile, user.ID, fullName); err != nil {
+			return fmt.Errorf("failed to create student profile: %w", err)
+		}
+
+		// Init other tables
+		tx.Exec(ctx, `INSERT INTO student_academics (user_id) VALUES ($1)`, user.ID)
+		tx.Exec(ctx, `INSERT INTO student_documents (user_id) VALUES ($1)`, user.ID)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return nil
 }
 

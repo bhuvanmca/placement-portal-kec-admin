@@ -38,17 +38,26 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('[API Response Error]', error.response?.status, error.response?.data);
+    // Use console.warn instead of console.error to avoid triggering Next.js error overlay
+    console.warn('[API Response Warning]', error.response?.status, error.response?.data);
     
-    if (error.response?.status === 500) {
+    const status = error.response?.status;
+    const errorMessage = error.response?.data?.error || error.response?.data?.message;
+
+    if (status === 401 || status === 403) {
+      // For auth errors, show a clean "Invalid credentials" message
+      toast.error('Invalid credentials');
+    } else if (status === 500) {
       toast.error('Internal Server Error. Please try again later.');
     } else if (error.code === 'ERR_NETWORK') {
       toast.error('Network Error. Please check your connection.');
     } else {
-      toast.error(error.response?.data?.message || 'An error occurred');
+      toast.error(errorMessage || 'An error occurred');
     }
 
-    return Promise.reject(error);
+    // Return a resolved promise with error info to prevent unhandled rejection
+    // The calling code should check for this pattern
+    return Promise.reject({ handled: true, status, message: errorMessage });
   }
 );
 

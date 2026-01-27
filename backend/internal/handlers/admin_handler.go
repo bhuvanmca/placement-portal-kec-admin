@@ -3,10 +3,12 @@ package handlers
 import (
 	"encoding/csv"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
 	"github.com/SysSyncer/placement-portal-kec/internal/repository"
+	"github.com/SysSyncer/placement-portal-kec/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -44,7 +46,7 @@ func BulkUploadStudents(c *fiber.Ctx) error {
 	}
 
 	// 4. Validation: Check headers
-	// Expected: email, full_name, register_number, department, password
+	// Expected key columns: email, name, regNo, dept, batch_year, password (6 columns)
 	if len(records) < 2 {
 		return c.Status(400).JSON(fiber.Map{"error": "CSV file is empty"})
 	}
@@ -57,6 +59,7 @@ func BulkUploadStudents(c *fiber.Ctx) error {
 	count, err := repo.BulkCreateStudents(c.Context(), dataRows)
 
 	if err != nil {
+		log.Println("Bulk upload error:", err)
 		// Return exactly which row failed
 		return c.Status(400).JSON(fiber.Map{
 			"error":             "Bulk upload failed",
@@ -89,6 +92,17 @@ func DeleteStudent(c *fiber.Ctx) error {
 	}
 
 	repo := repository.NewUserRepository(database.DB)
+
+	// 1. Cleanup S3 Folder
+	regNo, err := repo.GetRegisterNumber(c.Context(), id)
+	if err == nil && regNo != "" {
+		folderPath := fmt.Sprintf("students/%s/", regNo)
+		if err := utils.DeleteFolder(folderPath); err != nil {
+			fmt.Printf("Failed to delete student folder %s: %v\n", folderPath, err)
+		}
+	}
+
+	// 2. Delete from DB
 	if err := repo.DeleteStudentById(c.Context(), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Delete failed", "details": err.Error()})
 	}
@@ -125,6 +139,22 @@ func BulkDeleteStudents(c *fiber.Ctx) error {
 	}
 
 	repo := repository.NewUserRepository(database.DB)
+
+	// 1. Cleanup S3 Folders (Fetch students first to get Reg Nos)
+	// Passing limit: 10000 to fetch mostly all for cleanup (or we could fetch just RegNos via a specialized query, but this works given previous context)
+	students, _, err := repo.GetStudents(c.Context(), input.Department, input.BatchYear, "", 10000, 0)
+	if err == nil {
+		for _, s := range students {
+			if regNo, ok := s["register_number"].(string); ok && regNo != "" {
+				folderPath := fmt.Sprintf("students/%s/", regNo)
+				if err := utils.DeleteFolder(folderPath); err != nil {
+					fmt.Printf("Failed to delete student folder %s: %v\n", folderPath, err)
+				}
+			}
+		}
+	}
+
+	// 2. Delete from DB
 	count, err := repo.BulkDeleteStudents(c.Context(), input.Department, input.BatchYear)
 
 	if err != nil {
@@ -134,6 +164,58 @@ func BulkDeleteStudents(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Bulk delete successful",
 		"count":   count, // Tell admin how many were removed
+	})
+}
+
+// BulkDeleteStudentsByIds
+// @Summary Bulk Delete Students by IDs
+// @Description Delete multiple students using their IDs
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param ids body map[string][]int64 true "List of Student IDs"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /v1/admin/students/delete-many [post]
+func BulkDeleteStudentsByIds(c *fiber.Ctx) error {
+	var input struct {
+		IDs []int64 `json:"ids"`
+	}
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	if len(input.IDs) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "No IDs provided"})
+	}
+
+	repo := repository.NewUserRepository(database.DB)
+
+	// 1. Cleanup S3 Folders
+	regNos, err := repo.GetRegisterNumbersByIDs(c.Context(), input.IDs)
+	if err == nil {
+		for _, regNo := range regNos {
+			if regNo != "" {
+				folderPath := fmt.Sprintf("students/%s/", regNo)
+				if err := utils.DeleteFolder(folderPath); err != nil {
+					fmt.Printf("Failed to delete student folder %s: %v\n", folderPath, err)
+				}
+			}
+		}
+	}
+
+	// 2. Delete from DB
+	count, err := repo.BulkDeleteStudentsByIds(c.Context(), input.IDs)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Bulk delete failed", "details": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Selected students deleted successfully",
+		"count":   count,
 	})
 }
 
@@ -229,16 +311,114 @@ func ListStudents(c *fiber.Ctx) error {
 
 	batchStr := c.Query("batch")
 	batchYear := 0
-	if batchStr != "" {
+	if batchStr != "" && batchStr != "All" {
 		batchYear, _ = strconv.Atoi(batchStr)
 	}
 
+	// Pagination
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
 	repo := repository.NewUserRepository(database.DB)
-	students, err := repo.GetStudents(c.Context(), dept, batchYear, search)
+	students, total, err := repo.GetStudents(c.Context(), dept, batchYear, search, limit, offset)
 
 	if err != nil {
+		fmt.Println("Error fetching students:", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch students"})
 	}
 
-	return c.JSON(students)
+	return c.JSON(fiber.Map{
+		"data": students,
+		"meta": fiber.Map{
+			"total":       total,
+			"page":        page,
+			"limit":       limit,
+			"total_pages": (total + int64(limit) - 1) / int64(limit),
+		},
+	})
+}
+
+// GetStudentDetails
+// @Summary Get Student Details
+// @Description Fetch full profile of a student by ID or Register Number
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Student ID or Register Number"
+// @Success 200 {object} models.StudentFullProfile
+// @Failure 404 {object} map[string]interface{}
+// @Router /v1/admin/students/{id} [get]
+func GetStudentDetails(c *fiber.Ctx) error {
+	param := c.Params("id")
+
+	// Try parsing as ID (int64)
+	id, err := strconv.ParseInt(param, 10, 64)
+
+	repo := repository.NewUserRepository(database.DB)
+	// Note: previous code used NewStudentRepository, but I added method to UserRepository.
+	// Let's check imports. I might need to switch repo or move method.
+	// In snippet 164, it used repository.NewStudentRepository(database.DB).
+	// But I added GetStudentByRegisterNumber to UserRepository (snippet 160).
+	// I should verify where GetStudentFullProfile is defined.
+	// If it is in StudentRepository, I might need to consolidate or instantiate both?
+	// Actually, looking at snippet 160, UserRepository is in `user_repo.go`.
+	// `StudentRepository` might be in `student_repo.go` which I haven't seen.
+	// Assume I should use UserRepository for my new method.
+
+	if err == nil {
+		// valid integer ID
+		// Use existing logic if possible, or migrate.
+		// Existing: repo := repository.NewStudentRepository ... GetStudentFullProfile
+		// I don't want to break existing logic if I can help it.
+		// But I'd prefer consistent repos.
+		// Let's rely on the fact I likely need to check if existing repo supports it.
+		// I'll stick to the plan: if int, use existing. If string, use new method.
+
+		studentRepo := repository.NewStudentRepository(database.DB)
+		s, err := studentRepo.GetStudentFullProfile(c.Context(), id)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Student not found"})
+		}
+		return c.JSON(s)
+	}
+
+	// It's a string (Register Number)
+	s, err := repo.GetStudentByRegisterNumber(c.Context(), param)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Student not found"})
+	}
+	return c.JSON(s)
+}
+
+// GetDriveApplicants
+// @Summary Get Drive Applicants
+// @Description Fetch all students applied to a specific drive
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Drive ID"
+// @Success 200 {array} models.DriveApplicant
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /v1/admin/drives/{id}/applicants [get]
+func GetDriveApplicants(c *fiber.Ctx) error {
+	driveID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive ID"})
+	}
+
+	repo := repository.NewDriveRepository(database.DB)
+	applicants, err := repo.GetDriveApplicants(c.Context(), driveID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
+	}
+
+	return c.JSON(applicants)
 }
