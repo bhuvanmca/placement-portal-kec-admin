@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  # 1. Your Go Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/arm64 # Explicitly build for Raspberry Pi architecture
+    container_name: placement_api
+    restart: always
+    ports:
+      - "8080:8080" # Map host 8080 to container 8080
+    environment:
+      - PORT=8080
+      - DB_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
+      - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
+      - SMTP_EMAIL=harikrishnan4665@gmail.com
+      - SMTP_PASSWORD=sdhq hqbn fxpy lwtm
+      - LOGO_DEV_SECRET_KEY=${LOGO_DEV_SECRET_KEY}
+      # WhatsApp Cloud API Configuration
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
+      # MinIO Configuration replacing Supabase
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_PUBLIC_URL=http://172.20.10.6:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=password123
+      - MINIO_BUCKET=placement-portal-bucket
+      - MINIO_LOCATION=ap-south-1
+      - MINIO_USE_SSL=false
+    depends_on:
+      postgres:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    # Mount assets so Caddy on the host can verify them if needed (Optional but safe)
+    volumes:
+      - ./assets:/app/assets
+      - ./firebase-service-account.json:/app/firebase-service-account.json
+
+  # 2. Caddy Web Server (Reverse Proxy & HTTPS)
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./assets:/app/assets # Verify assets access
+    depends_on:
+      - api
+
+  # 3. Self-Hosted Database (Replacing Neon)
+  postgres:
+    image: postgres:15-alpine
+    container_name: local_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: placement_portal_kec_v2
+    volumes:
+      - ./project_schema.sql:/docker-entrypoint-initdb.d/init.sql # Auto-seed schema
+      - pg_data:/var/lib/postgresql/data # Persist data even if container dies
+
+  # 3. Self-Hosted Storage (Replacing Supabase)
+  minio:
+    image: minio/minio
+    container_name: local_storage
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    ports:
+      - "9000:9000" # API Port
+      - "9001:9001" # Web Console Port (Access at http://pi-ip:9001)
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
+  minio_data:
+  caddy_data:
+  caddy_config:

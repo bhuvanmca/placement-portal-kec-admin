@@ -1,0 +1,27 @@
+flutter_native_splash:
+  # Background color - white
+  color: "#FFFFFF"
+  color_dark: "#FFFFFF"
+  
+  # The image to use - will be centered and properly scaled
+  image: assets/images/kec_logo.png
+  
+  # Android 12+ specific settings
+  android_12:
+    image: assets/images/kec_logo.png
+    color: "#FFFFFF"
+    color_dark: "#FFFFFF"
+  
+  # iOS specific settings
+  ios: true
+  
+  # Web
+  web: false
+  
+  # This prevents the image from being stretched or filled
+  # The logo will maintain its aspect ratio and be centered
+  android_gravity: center
+  ios_content_mode: center
+  
+  # Fullscreen mode
+  fullscreen: false

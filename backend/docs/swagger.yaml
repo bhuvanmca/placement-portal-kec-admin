@@ -1,0 +1,1682 @@
+basePath: /api
+definitions:
+  models.Attachment:
+    properties:
+      name:
+        type: string
+      url:
+        type: string
+    type: object
+  models.CreateDriveInput:
+    properties:
+      aggregate_percentage:
+        type: number
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      company_category:
+        type: string
+      company_name:
+        type: string
+      ctc_display:
+        type: string
+      ctc_max:
+        type: integer
+      ctc_min:
+        type: integer
+      deadline_date:
+        type: string
+      drive_date:
+        type: string
+      drive_type:
+        type: string
+      eligible_batches:
+        items:
+          type: integer
+        type: array
+      eligible_departments:
+        items:
+          type: string
+        type: array
+      job_description:
+        type: string
+      job_role:
+        type: string
+      location:
+        type: string
+      logo_url:
+        description: '[NEW]'
+        type: string
+      max_backlogs_allowed:
+        type: integer
+      min_cgpa:
+        description: Eligibility
+        type: number
+      pg_min_cgpa:
+        type: number
+      rounds:
+        description: Rounds & Attachments
+        items:
+          $ref: '#/definitions/models.Round'
+        type: array
+      spoc_id:
+        description: '[NEW]'
+        type: integer
+      stipend_max:
+        type: integer
+      stipend_min:
+        type: integer
+      tenth_percentage:
+        description: Additional Academic Eligibility
+        type: number
+      twelfth_percentage:
+        type: number
+      ug_min_cgpa:
+        type: number
+      use_aggregate:
+        type: boolean
+      website:
+        description: '[NEW]'
+        type: string
+    required:
+    - company_name
+    - job_role
+    type: object
+  models.CreateSpocInput:
+    properties:
+      designation:
+        type: string
+      email:
+        type: string
+      mobile_number:
+        type: string
+      name:
+        type: string
+    required:
+    - designation
+    - email
+    - mobile_number
+    - name
+    type: object
+  models.CreateStudentInput:
+    properties:
+      batch_year:
+        type: integer
+      department:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      mobile_number:
+        type: string
+      password:
+        description: Optional, default will be used if empty
+        type: string
+      register_number:
+        type: string
+    required:
+    - batch_year
+    - department
+    - email
+    - full_name
+    - mobile_number
+    - register_number
+    type: object
+  models.DriveApplicant:
+    properties:
+      applied_at:
+        type: string
+      cgpa:
+        type: number
+      department:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      register_number:
+        type: string
+      resume_url:
+        type: string
+      status:
+        description: '''opted_in'', ''shortlisted'', ''placed'', ''rejected'''
+        type: string
+      student_id:
+        type: integer
+    type: object
+  models.LoginInput:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  models.ManualRegisterInput:
+    properties:
+      student_id:
+        type: integer
+    type: object
+  models.PlacementDrive:
+    properties:
+      aggregate_percentage:
+        type: number
+      applicant_count:
+        description: '[NEW] Computed field'
+        type: integer
+      attachments:
+        description: JSONB
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      company_category:
+        description: '''Core'', ''IT'', ''Service'', ''Product'', ''Start-up'', ''MNC'''
+        type: string
+      company_name:
+        type: string
+      created_at:
+        type: string
+      ctc_display:
+        type: string
+      ctc_max:
+        type: integer
+      ctc_min:
+        description: Financials
+        type: integer
+      deadline_date:
+        type: string
+      drive_date:
+        description: Dates
+        example: "2026-05-20"
+        type: string
+      drive_type:
+        description: Filters & Categories
+        type: string
+      eligible_batches:
+        description: JSONB
+        items:
+          type: integer
+        type: array
+      eligible_departments:
+        description: JSONB
+        items:
+          type: string
+        type: array
+      id:
+        type: integer
+      job_description:
+        type: string
+      job_role:
+        type: string
+      location:
+        type: string
+      logo_url:
+        description: '[NEW]'
+        type: string
+      max_backlogs_allowed:
+        type: integer
+      min_cgpa:
+        description: Eligibility
+        type: number
+      pg_min_cgpa:
+        type: number
+      posted_by:
+        type: integer
+      rounds:
+        description: Rounds
+        items:
+          $ref: '#/definitions/models.Round'
+        type: array
+      spoc_id:
+        description: '[NEW] Single Point Of Contact ID'
+        type: integer
+      status:
+        type: string
+      stipend_max:
+        type: integer
+      stipend_min:
+        type: integer
+      tenth_percentage:
+        description: Additional Academic Eligibility
+        type: number
+      twelfth_percentage:
+        type: number
+      ug_min_cgpa:
+        type: number
+      use_aggregate:
+        type: boolean
+      user_status:
+        description: '[NEW] For student response (''opted_in'', etc.)'
+        type: string
+      website:
+        description: '[NEW]'
+        type: string
+    type: object
+  models.RegisterInput:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      role:
+        enum:
+        - student
+        - admin
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    - role
+    type: object
+  models.Round:
+    properties:
+      date:
+        description: '"2026-05-21"'
+        type: string
+      description:
+        description: '"Online test via Hackerearth"'
+        type: string
+      name:
+        description: '"Aptitude", "Technical", "HR"'
+        type: string
+    type: object
+  models.Spoc:
+    properties:
+      created_at:
+        type: string
+      designation:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      mobile_number:
+        type: string
+      name:
+        type: string
+    type: object
+  models.StudentFullProfile:
+    properties:
+      aadhar_card_url:
+        type: string
+      about_me:
+        type: string
+      batch_year:
+        type: integer
+      city:
+        type: string
+      current_backlogs:
+        type: integer
+      department:
+        type: string
+      diploma_mark:
+        type: number
+      dob:
+        type: string
+      email:
+        type: string
+      full_name:
+        description: Personal Info
+        type: string
+      gap_reason:
+        type: string
+      gap_years:
+        type: integer
+      gender:
+        type: string
+      history_of_backlogs:
+        type: integer
+      id:
+        description: User Info
+        type: integer
+      is_blocked:
+        type: boolean
+      language_skills:
+        items:
+          type: string
+        type: array
+      last_login:
+        type: string
+      mobile_number:
+        type: string
+      pan_card_url:
+        type: string
+      pg_cgpa:
+        type: number
+      placement_willingness:
+        type: string
+      profile_photo_url:
+        type: string
+      register_number:
+        type: string
+      resume_url:
+        description: Documents (URLs)
+        type: string
+      social_links:
+        additionalProperties:
+          type: string
+        type: object
+      state:
+        type: string
+      student_type:
+        type: string
+      tenth_mark:
+        description: Academics
+        type: number
+      twelfth_mark:
+        type: number
+      ug_cgpa:
+        type: number
+    type: object
+  models.UpdateProfileInput:
+    properties:
+      aadhar_card_url:
+        type: string
+      about_me:
+        description: Personal Identity
+        type: string
+      city:
+        description: Address
+        type: string
+      current_backlogs:
+        type: integer
+      diploma_institution:
+        type: string
+      diploma_mark:
+        type: number
+      diploma_year_pass:
+        type: integer
+      dob:
+        type: string
+      gap_reason:
+        type: string
+      gap_years:
+        type: integer
+      history_of_backlogs:
+        type: integer
+      language_skills:
+        description: e.g. ["English", "Tamil"]
+        items:
+          type: string
+        type: array
+      mobile_number:
+        type: string
+      pan_card_url:
+        type: string
+      pg_cgpa:
+        type: number
+      placement_willingness:
+        type: string
+      profile_photo_url:
+        type: string
+      resume_url:
+        description: Documents
+        type: string
+      social_links:
+        additionalProperties:
+          type: string
+        description: Skills & Flexible Data
+        type: object
+      state:
+        type: string
+      tenth_board:
+        type: string
+      tenth_institution:
+        type: string
+      tenth_mark:
+        description: Academic Updates
+        type: number
+      tenth_year_pass:
+        type: integer
+      twelfth_board:
+        type: string
+      twelfth_institution:
+        type: string
+      twelfth_mark:
+        type: number
+      twelfth_year_pass:
+        type: integer
+      ug_cgpa:
+        type: number
+    type: object
+host: placement-portal-kec.onrender.com
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: API for KEC Placement Portal
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Placement Portal KEC API
+  version: "1.0"
+paths:
+  /auth/logout:
+    post:
+      description: Logout user (symbolic in JWT)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Logout user
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with email, password and role
+      parameters:
+      - description: User Registration Details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.RegisterInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register a new user
+      tags:
+      - Auth
+  /v1/admin/applications/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of a student application (shortlisted, placed,
+        rejected)
+      parameters:
+      - description: Status Update Data
+        in: body
+        name: input
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Application Status
+      tags:
+      - Admin
+  /v1/admin/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate admin user
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginInput'
+      produces:
+      - application/json
+      responses: {}
+      summary: Admin Login
+      tags:
+      - Admin Auth
+  /v1/admin/drives:
+    get:
+      description: Get a list of all drives without restriction
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.PlacementDrive'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all placement drives for admin
+      tags:
+      - Admin
+    post:
+      consumes:
+      - multipart/form-data
+      description: Creates a drive with attachments
+      parameters:
+      - description: Drive Data JSON
+        in: formData
+        name: drive_data
+        required: true
+        type: string
+      - description: Attachments
+        in: formData
+        name: attachments
+        type: file
+      produces:
+      - application/json
+      responses: {}
+      summary: Create a new placement drive
+      tags:
+      - Admin
+  /v1/admin/drives/{id}:
+    delete:
+      description: Delete a drive by ID (Admin only)
+      parameters:
+      - description: Drive ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a placement drive
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      - multipart/form-data
+      description: Update existing drive details (Admin only). Supports multipart/form-data
+        for adding files.
+      parameters:
+      - description: Drive ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated Drive Data JSON (if multipart)
+        in: formData
+        name: drive_data
+        type: string
+      - description: New Attachments (if multipart)
+        in: formData
+        name: attachments
+        type: file
+      - description: Updated Drive Data (if json)
+        in: body
+        name: drive
+        schema:
+          $ref: '#/definitions/models.CreateDriveInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a placement drive
+      tags:
+      - Admin
+  /v1/admin/drives/{id}/add-student:
+    post:
+      consumes:
+      - application/json
+      description: Admin forces a student registration for a drive
+      parameters:
+      - description: Drive ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Student ID
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/models.ManualRegisterInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Manually add a student to a drive
+      tags:
+      - Admin
+  /v1/admin/drives/{id}/applicants:
+    get:
+      description: Fetch all students applied to a specific drive
+      parameters:
+      - description: Drive ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.DriveApplicant'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Drive Applicants
+      tags:
+      - Admin
+  /v1/admin/drives/bulk-delete:
+    post:
+      consumes:
+      - application/json
+      description: Delete multiple drives by IDs
+      parameters:
+      - description: List of Drive IDs
+        in: body
+        name: ids
+        required: true
+        schema:
+          additionalProperties:
+            items:
+              format: int64
+              type: integer
+            type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk Delete Drives
+      tags:
+      - Admin
+  /v1/admin/spocs:
+    post:
+      consumes:
+      - application/json
+      description: Add a new Single Point of Contact
+      parameters:
+      - description: SPOC Details
+        in: body
+        name: spoc
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateSpocInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Spoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new SPOC
+      tags:
+      - Spocs
+  /v1/admin/spocs/{id}:
+    delete:
+      description: Delete a SPOC by ID
+      parameters:
+      - description: SPOC ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete SPOC
+      tags:
+      - Spocs
+    put:
+      consumes:
+      - application/json
+      description: Update SPOC details
+      parameters:
+      - description: SPOC ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: SPOC Details
+        in: body
+        name: spoc
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateSpocInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Spoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update SPOC
+      tags:
+      - Spocs
+  /v1/admin/spocs/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Activate or deactivate a SPOC
+      parameters:
+      - description: SPOC ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Status
+        in: body
+        name: status
+        required: true
+        schema:
+          additionalProperties:
+            type: boolean
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Spoc'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Toggle SPOC Status
+      tags:
+      - Spocs
+  /v1/admin/students:
+    get:
+      description: Get a list of students with optional filtering by department, batch,
+        or search
+      parameters:
+      - description: Department Code
+        in: query
+        name: dept
+        type: string
+      - description: Batch Year
+        in: query
+        name: batch
+        type: integer
+      - description: Search Term (Name/RegNum)
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List Students
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      description: Admin manually adds a student to the system
+      parameters:
+      - description: Student Details
+        in: body
+        name: student
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateStudentInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Student
+      tags:
+      - Admin
+  /v1/admin/students/{id}:
+    delete:
+      description: Delete a student by ID
+      parameters:
+      - description: Student ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Student
+      tags:
+      - Admin
+    get:
+      description: Fetch full profile of a student by ID or Register Number
+      parameters:
+      - description: Student ID or Register Number
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.StudentFullProfile'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Student Details
+      tags:
+      - Admin
+  /v1/admin/students/{student_id}/documents/{type}:
+    get:
+      consumes:
+      - application/json
+      description: Generate a temporary presigned URL for accessing any student's
+        documents
+      parameters:
+      - description: Student User ID
+        in: path
+        name: student_id
+        required: true
+        type: integer
+      - description: Document Type
+        enum:
+        - resume
+        - aadhar
+        - pan
+        - profile_photo
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Student Document URL (Admin)
+      tags:
+      - Admin
+  /v1/admin/students/bulk:
+    delete:
+      consumes:
+      - application/json
+      description: Delete multiple students based on department and batch year
+      parameters:
+      - description: JSON with department and batch_year
+        in: body
+        name: filters
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk Delete Students
+      tags:
+      - Admin
+  /v1/admin/students/bulk-upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a CSV file to add multiple students at once
+      parameters:
+      - description: CSV File
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk Upload Students
+      tags:
+      - Admin
+  /v1/admin/students/delete-many:
+    post:
+      consumes:
+      - application/json
+      description: Delete multiple students using their IDs
+      parameters:
+      - description: List of Student IDs
+        in: body
+        name: ids
+        required: true
+        schema:
+          additionalProperties:
+            items:
+              format: int64
+              type: integer
+            type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Bulk Delete Students by IDs
+      tags:
+      - Admin
+  /v1/admin/users/{id}/block:
+    put:
+      consumes:
+      - application/json
+      description: Block or Unblock a user to prevent login
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Block status {block: true/false}'
+        in: body
+        name: input
+        required: true
+        schema:
+          additionalProperties:
+            type: boolean
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Block/Unblock User
+      tags:
+      - Admin
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate student user
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginInput'
+      produces:
+      - application/json
+      responses: {}
+      summary: Student Login
+      tags:
+      - Student Auth
+  /v1/brands/{domain}:
+    get:
+      consumes:
+      - application/json
+      description: Fetch company details like logo and name from Logo.dev
+      parameters:
+      - description: Company Domain (e.g. google.com)
+        in: path
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Brand Details
+      tags:
+      - Brands
+  /v1/brands/search:
+    get:
+      consumes:
+      - application/json
+      description: Search for companies/brands by name
+      parameters:
+      - description: Search Query
+        in: query
+        name: query
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Search Brands
+      tags:
+      - Brands
+  /v1/drives:
+    get:
+      description: Get a list of drives with optional filtering by department and
+        batch
+      parameters:
+      - description: Department
+        in: query
+        name: department
+        type: string
+      - description: Batch Year
+        in: query
+        name: batch
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.PlacementDrive'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List placement drives for students
+      tags:
+      - Drives
+  /v1/drives/{id}/apply:
+    post:
+      consumes:
+      - application/json
+      description: Allows a student to apply for a specific placement drive
+      parameters:
+      - description: Drive ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Apply for a Placement Drive
+      tags:
+      - Application
+  /v1/drives/{id}/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Allows a student to withdraw (opt-out) from a drive
+      parameters:
+      - description: Drive ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Withdraw application for a Placement Drive
+      tags:
+      - Application
+  /v1/spocs:
+    get:
+      description: Get a list of all Single Points of Contact
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Spoc'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all SPOCs
+      tags:
+      - Spocs
+  /v1/student/documents/{type}:
+    get:
+      consumes:
+      - application/json
+      description: Generate a temporary presigned URL for accessing student documents
+      parameters:
+      - description: Document Type
+        enum:
+        - resume
+        - aadhar
+        - pan
+        - profile_photo
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Document URL
+      tags:
+      - Student
+  /v1/student/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get full profile details of the logged-in student
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.StudentFullProfile'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get My Profile
+      tags:
+      - Student
+    put:
+      consumes:
+      - application/json
+      description: Update student profile information
+      parameters:
+      - description: Profile Data
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateProfileInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Profile
+      tags:
+      - Student
+  /v1/student/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload student documents like Resume, Aadhar, Pan Card etc. to
+        MinIO S3 Storage
+      parameters:
+      - description: Document Type (resume, aadhar, pan, profile_pic)
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Document
+      tags:
+      - Student
+  /v1/user/fcm-token:
+    post:
+      consumes:
+      - application/json
+      description: Update the Firebase Cloud Messaging token for push notifications
+      parameters:
+      - description: FCM Token
+        in: body
+        name: token
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update FCM Token
+      tags:
+      - Student
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

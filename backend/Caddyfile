@@ -1,0 +1,17 @@
+{
+    # Global options
+    email your-email@example.com
+}
+
+# Local Host Deployment (Native IP)
+http://172.20.10.2 {
+    # Reverse proxy to the API container
+    # 'api' is the service name in docker-compose.yml
+    reverse_proxy api:8080
+
+    # Serve static assets
+    handle /assets/* {
+        root * /app/assets
+        file_server
+    }
+}
