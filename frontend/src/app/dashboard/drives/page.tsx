@@ -45,7 +45,7 @@ export default function DriveListPage() {
       const data = await driveService.getAdminDrives();
       setDrives(data);
     } catch (error) {
-      console.error("Failed to fetch drives", error);
+      // console.error("Failed to fetch drives", error);
       toast.error("Failed to load drives");
     } finally {
       setLoading(false);
@@ -67,6 +67,18 @@ export default function DriveListPage() {
     }
   };
 
+  const handleStatusChange = async (id: number, newStatus: string) => {
+      try {
+          const formData = new FormData();
+          formData.append('drive_data', JSON.stringify({ status: newStatus }));
+          await driveService.updateDrive(id, formData);
+          toast.success(`Status updated to ${newStatus}`);
+          fetchDrives();
+      } catch (e) {
+          toast.error("Failed to update status");
+      }
+  };
+
 
   const toggleSelect = (id: number) => {
      setSelectedDrives(prev => 
@@ -84,7 +96,8 @@ export default function DriveListPage() {
 
   const filteredDrives = (drives || []).filter(drive => 
     drive.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    drive.job_role.toLowerCase().includes(searchTerm.toLowerCase())
+    drive.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    drive.roles.some(r => r.role_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // ... inside component ...
@@ -164,9 +177,13 @@ export default function DriveListPage() {
              </div>
            ) : (
              filteredDrives.map((drive) => (
-               <div key={drive.id} className={`group flex flex-col md:flex-row md:items-center justify-between p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow ${selectedDrives.includes(drive.id) ? 'border-[#002147]' : ''}`}>
+               <div 
+                  key={drive.id} 
+                  onClick={() => toggleSelect(drive.id)}
+                  className={`group flex flex-col md:flex-row md:items-center justify-between p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer ${selectedDrives.includes(drive.id) ? 'border-[#002147] bg-blue-50/20' : ''}`}
+               >
                   <div className="flex items-start gap-4 mb-4 md:mb-0">
-                     <div className="mt-1">
+                     <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                         <Checkbox 
                            checked={selectedDrives.includes(drive.id)}
                            onCheckedChange={() => toggleSelect(drive.id)}
@@ -184,19 +201,48 @@ export default function DriveListPage() {
                              {drive.company_name}
                            </h3>
                            <Badge variant="secondary" className="font-normal">{drive.drive_type}</Badge>
-                           <Badge variant={drive.status === 'open' ? 'default' : 'secondary'} className={drive.status === 'open' ? 'bg-green-600' : ''}>
-                             {drive.status}
-                           </Badge>
+                           <Badge variant="outline" className="font-normal">{drive.roles.length} Role{drive.roles.length !== 1 ? 's' : ''}</Badge>
+                           
+                           {/* Status Action */}
+                           <div onClick={(e) => e.stopPropagation()}>
+                               <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                      <Badge 
+                                         variant={drive.status === 'open' ? 'default' : 'secondary'} 
+                                         className={`cursor-pointer hover:opacity-80 ${drive.status === 'open' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                      >
+                                         {drive.status}
+                                      </Badge>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start">
+                                     <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                                     <DropdownMenuSeparator />
+                                     {['closed', 'completed', 'cancelled', 'on_hold', 'draft'].map(s => (
+                                        <DropdownMenuItem 
+                                            key={s} 
+                                            onClick={() => handleStatusChange(drive.id, s)}
+                                            className={drive.status === s ? 'bg-accent' : ''}
+                                        >
+                                           {s.charAt(0).toUpperCase() + s.slice(1)}
+                                        </DropdownMenuItem>
+                                     ))}
+                                  </DropdownMenuContent>
+                               </DropdownMenu>
+                           </div>
                         </div>
-                        <p className="font-medium">{drive.job_role}</p>
+                        <p className="font-medium">
+                            {drive.roles.length > 0 
+                                ? `${drive.roles[0].role_name}${drive.roles.length > 1 ? ` +${drive.roles.length - 1} more` : ''}`
+                                : 'No Roles Defined'}
+                        </p>
                         <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
                            <div className="flex items-center gap-1">
                               <IndianRupee className="h-3 w-3" />
-                              <span>{drive.ctc_display}</span>
+                              <span>{drive.roles[0]?.ctc || 'N/A'}</span>
                            </div>
                            <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
-                              <span>{drive.location}</span>
+                              <span>{drive.location || 'N/A'}</span>
                            </div>
                            <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
@@ -210,27 +256,37 @@ export default function DriveListPage() {
                      {/* Stats Placeholder */}
                      <div className="hidden md:flex flex-col items-end mr-4 text-sm">
                         <span className="font-medium text-gray-900">{drive.applicant_count || 0} Applicants</span>
-                        <span className="text-gray-500">View Analytics</span>
+                        <Link 
+                           href={`/dashboard/drives/${drive.id}/analytics`}
+                           className="text-blue-600 hover:underline cursor-pointer font-medium"
+                           onClick={(e) => e.stopPropagation()}
+                        >
+                           View Analytics
+                        </Link>
                      </div>
 
-                     <Link href={`/dashboard/drives/${drive.id}`}>
-                       <Button variant="outline">Manage</Button>
-                     </Link>
+                     <div onClick={(e) => e.stopPropagation()}>
+                         <Link href={`/dashboard/drives/${drive.id}`}>
+                           <Button variant="outline">Manage</Button>
+                         </Link>
+                     </div>
                      
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                             <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                           <DropdownMenuSeparator />
-                           <DropdownMenuItem onClick={() => router.push(`/dashboard/drives/${drive.id}/edit`)}>Edit Details</DropdownMenuItem>
-                           <DropdownMenuItem onClick={() => router.push(`/dashboard/drives/${drive.id}?tab=applicants`)}>View Applicants</DropdownMenuItem>
-                           <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(drive.id)}>Delete Drive</DropdownMenuItem>
-                        </DropdownMenuContent>
-                     </DropdownMenu>
+                     <div onClick={(e) => e.stopPropagation()}>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                 <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                               <DropdownMenuSeparator />
+                               <DropdownMenuItem onClick={() => router.push(`/dashboard/drives/${drive.id}/edit`)}>Edit Details</DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => router.push(`/dashboard/drives/${drive.id}?tab=applicants`)}>View Applicants</DropdownMenuItem>
+                               <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(drive.id)}>Delete Drive</DropdownMenuItem>
+                            </DropdownMenuContent>
+                         </DropdownMenu>
+                     </div>
                   </div>
                </div>
              ))

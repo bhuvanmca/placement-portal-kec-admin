@@ -21,7 +21,7 @@ class WelcomeScreen extends StatelessWidget {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withOpacity(0.1),
+                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(60),
                 ),
                 child: const Icon(
@@ -34,26 +34,26 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 'Welcome to KEC',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppConstants.primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: AppConstants.primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
                 'Placement Portal',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppConstants.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: AppConstants.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               Text(
                 "Let's complete your profile to get started with placement opportunities.",
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppConstants.textSecondary,
-                    ),
+                  color: AppConstants.textSecondary,
+                ),
                 textAlign: TextAlign.center,
               ),
               const Spacer(),

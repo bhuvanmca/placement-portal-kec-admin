@@ -14,24 +14,39 @@ class AddressScreen extends ConsumerStatefulWidget {
 
 class _AddressScreenState extends ConsumerState<AddressScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _addressController = TextEditingController();
-  final _cityController = TextEditingController();
+  final _addressLine1Controller = TextEditingController();
+  final _addressLine2Controller = TextEditingController();
   final _stateController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize controllers with existing provider data
+    final state = ref.read(onboardingProvider);
+    _addressLine1Controller.text = state.addressLine1 ?? '';
+    _addressLine2Controller.text = state.addressLine2 ?? '';
+    _stateController.text = state.state ?? '';
+  }
+
+  @override
   void dispose() {
-    _addressController.dispose();
-    _cityController.dispose();
+    _addressLine1Controller.dispose();
+    _addressLine2Controller.dispose();
     _stateController.dispose();
     super.dispose();
   }
 
   void _next() {
     if (_formKey.currentState!.validate()) {
-      ref.read(onboardingProvider.notifier).updateAddress(
-            _cityController.text,
+      // Dismiss keyboard to prevent overflow flash during navigation
+      FocusScope.of(context).unfocus();
+
+      ref
+          .read(onboardingProvider.notifier)
+          .updateAddress(
+            _addressLine1Controller.text,
+            _addressLine2Controller.text,
             _stateController.text,
-            _addressController.text,
           );
       context.go('/onboarding/profile-pic');
     }
@@ -50,7 +65,10 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-        borderSide: const BorderSide(color: AppConstants.primaryColor, width: 2),
+        borderSide: const BorderSide(
+          color: AppConstants.primaryColor,
+          width: 2,
+        ),
       ),
     );
   }
@@ -86,77 +104,106 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                 Text(
                   'Where do you live?',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppConstants.textPrimary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppConstants.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Your home address for communication purposes.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppConstants.textSecondary,
-                      ),
+                    color: AppConstants.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
-                  controller: _addressController,
-                  maxLines: 3,
+                  controller: _addressLine1Controller,
+                  maxLines: 2,
                   decoration: InputDecoration(
-                    labelText: 'Full Address',
-                    hintText: 'Enter your complete address',
+                    labelText: 'Address Line 1',
+                    hintText: 'Door No, Street Name',
                     alignLabelWithHint: true,
                     prefixIcon: const Padding(
-                      padding: EdgeInsets.only(bottom: 48),
+                      padding: EdgeInsets.only(bottom: 24),
                       child: Icon(Icons.home_outlined),
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadius,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                      borderSide: const BorderSide(color: AppConstants.borderColor),
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadius,
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppConstants.borderColor,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                      borderSide: const BorderSide(color: AppConstants.primaryColor, width: 2),
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadius,
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppConstants.primaryColor,
+                        width: 2,
+                      ),
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Please enter your address';
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter address line 1';
+                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _cityController,
-                        decoration: _inputDecoration('City', Icons.location_city_outlined),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return 'Required';
-                          return null;
-                        },
+                TextFormField(
+                  controller: _addressLine2Controller,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Address Line 2',
+                    hintText: 'Area, Landmark (Optional)',
+                    alignLabelWithHint: true,
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(bottom: 24),
+                      child: Icon(Icons.location_on_outlined),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadius,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _stateController,
-                        decoration: _inputDecoration('State', Icons.map_outlined),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return 'Required';
-                          return null;
-                        },
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadius,
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppConstants.borderColor,
                       ),
                     ),
-                  ],
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadius,
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppConstants.primaryColor,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _stateController,
+                  decoration: _inputDecoration('State', Icons.map_outlined),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Required';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 48),
-                AppButton(
-                  label: 'Continue',
-                  onPressed: _next,
-                ),
+                AppButton(label: 'Continue', onPressed: _next),
               ],
             ),
           ),

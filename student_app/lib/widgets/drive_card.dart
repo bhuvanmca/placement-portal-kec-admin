@@ -32,7 +32,7 @@ class DriveCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          // border: Border.all(color: AppConstants.borderColor, width: 0),
+          border: Border.all(color: AppConstants.borderColor, width: 0),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,6 +51,7 @@ class DriveCard extends StatelessWidget {
                           drive['logo_url'].toString().isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: AppConstants.sanitizeUrl(drive['logo_url']),
+                          memCacheHeight: 150, // Optimize memory usage
                           placeholder: (context, url) =>
                               Container(color: Colors.grey[200]),
                           errorWidget: (context, url, error) =>
@@ -70,9 +71,11 @@ class DriveCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        drive['job_role'] ?? 'Role',
+                        _getRoleText(drive),
                         style: const TextStyle(
                           color: AppConstants.textSecondary,
                           fontSize: 14,
@@ -100,10 +103,7 @@ class DriveCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow(
-              Icons.currency_rupee,
-              drive['ctc_display'] ?? 'Not Disclosed',
-            ),
+            _buildInfoRow(Icons.currency_rupee, _getCtcText(drive)),
             const SizedBox(height: 8),
             _buildInfoRow(
               Icons.location_on_outlined,
@@ -116,7 +116,7 @@ class DriveCard extends StatelessWidget {
                 Expanded(
                   child: _buildInfoRow(
                     Icons.calendar_today_outlined,
-                    'Date: ${Formatters.formatDate(drive['drive_date'])}',
+                    'Date: ${Formatters.formatDateTime(drive['drive_date'])}',
                   ),
                 ),
               ],
@@ -127,7 +127,7 @@ class DriveCard extends StatelessWidget {
                 Expanded(
                   child: _buildInfoRow(
                     Icons.timer_outlined,
-                    'Deadline: ${Formatters.formatDate(drive['deadline_date'])}',
+                    'Deadline: ${Formatters.formatDateTime(drive['deadline_date'])}',
                     color: Colors.orange[800], // Highlight deadline
                   ),
                 ),
@@ -143,7 +143,7 @@ class DriveCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -165,18 +165,46 @@ class DriveCard extends StatelessWidget {
 
   Widget _buildInfoRow(IconData icon, String text, {Color? color}) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 16, color: color ?? AppConstants.textSecondary),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: color ?? AppConstants.textSecondary,
-            fontSize: 13,
-            fontWeight: color != null ? FontWeight.w500 : FontWeight.normal,
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: color ?? AppConstants.textSecondary,
+              fontSize: 13,
+              fontWeight: color != null ? FontWeight.w500 : FontWeight.normal,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
     );
+  }
+
+  String _getRoleText(Map<String, dynamic> drive) {
+    final roles = drive['roles'] as List? ?? [];
+    if (roles.isEmpty) return 'No Roles';
+    if (roles.length == 1) return roles.first['role_name'] ?? 'Unknown Role';
+    return '${roles.length} Roles Available';
+  }
+
+  String _getCtcText(Map<String, dynamic> drive) {
+    final roles = drive['roles'] as List? ?? [];
+    if (roles.isEmpty) return 'Not Disclosed';
+
+    // Collect unique CTCs
+    final ctcs = roles
+        .map((r) => r['ctc'])
+        .where((c) => c != null && c.toString().isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (ctcs.isEmpty) return 'Not Disclosed';
+    if (ctcs.length == 1) return ctcs.first;
+    return 'View Details';
   }
 }

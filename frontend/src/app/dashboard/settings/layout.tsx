@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Users, Settings as SettingsIcon, UserCog, FileEdit, FileText } from 'lucide-react';
+import { Building2, Users, Settings as SettingsIcon, UserCog, FileEdit, FileText, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const settingsNavItems = [
@@ -26,6 +26,11 @@ const settingsNavItems = [
     name: 'Account Settings',
     href: '/dashboard/settings/account',
     icon: SettingsIcon,
+  },
+  {
+    name: 'Academic Config',
+    href: '/dashboard/settings/academic',
+    icon: GraduationCap,
   },
   {
     name: 'Platform Settings',
@@ -62,7 +67,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-[#002147] text-white'
+                    ? 'bg-[#002147] hover:bg-gray-100 hover:text-slate-500 text-white hover:text-slate-700'
                     : 'text-gray-700 hover:bg-gray-100'
                 )}
               >

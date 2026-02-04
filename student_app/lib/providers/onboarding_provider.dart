@@ -13,35 +13,35 @@ class OnboardingState {
   final double? pgCgpa;
 
   // Address
-  final String? city;
+  final String? addressLine1;
+  final String? addressLine2;
   final String? state;
-  final String? fullAddress;
 
   // Socials
   final Map<String, String>? socialLinks;
 
-  // Documents
+  // Documents & Identity
   final String? profilePhotoUrl;
   final String? resumeUrl;
-  final String? aadharUrl;
-  final String? panUrl;
+  final String? aadharNumber;
+  final String? panNumber;
 
   OnboardingState({
     this.mobileNumber,
     this.dob,
-    this.placementWillingness = 'Interested', // Default value
+    this.placementWillingness = 'Interested',
     this.tenthMark,
     this.twelfthMark,
     this.ugCgpa,
     this.pgCgpa,
     this.socialLinks,
-    this.city,
+    this.addressLine1,
+    this.addressLine2,
     this.state,
-    this.fullAddress,
     this.profilePhotoUrl,
     this.resumeUrl,
-    this.aadharUrl,
-    this.panUrl,
+    this.aadharNumber,
+    this.panNumber,
   });
 
   OnboardingState copyWith({
@@ -53,13 +53,13 @@ class OnboardingState {
     double? ugCgpa,
     double? pgCgpa,
     Map<String, String>? socialLinks,
-    String? city,
+    String? addressLine1,
+    String? addressLine2,
     String? state,
-    String? fullAddress,
     String? profilePhotoUrl,
     String? resumeUrl,
-    String? aadharUrl,
-    String? panUrl,
+    String? aadharNumber,
+    String? panNumber,
   }) {
     return OnboardingState(
       mobileNumber: mobileNumber ?? this.mobileNumber,
@@ -70,13 +70,13 @@ class OnboardingState {
       ugCgpa: ugCgpa ?? this.ugCgpa,
       pgCgpa: pgCgpa ?? this.pgCgpa,
       socialLinks: socialLinks ?? this.socialLinks,
-      city: city ?? this.city,
+      addressLine1: addressLine1 ?? this.addressLine1,
+      addressLine2: addressLine2 ?? this.addressLine2,
       state: state ?? this.state,
-      fullAddress: fullAddress ?? this.fullAddress,
       profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
       resumeUrl: resumeUrl ?? this.resumeUrl,
-      aadharUrl: aadharUrl ?? this.aadharUrl,
-      panUrl: panUrl ?? this.panUrl,
+      aadharNumber: aadharNumber ?? this.aadharNumber,
+      panNumber: panNumber ?? this.panNumber,
     );
   }
 
@@ -90,13 +90,13 @@ class OnboardingState {
       'ug_cgpa': ugCgpa,
       'pg_cgpa': pgCgpa ?? 0.0,
       'social_links': socialLinks ?? {},
-      'city': city,
+      'address_line_1': addressLine1,
+      'address_line_2': addressLine2,
       'state': state,
-      'address': fullAddress,
       'profile_photo_url': profilePhotoUrl,
       'resume_url': resumeUrl,
-      'aadhar_card_url': aadharUrl,
-      'pan_card_url': panUrl,
+      'aadhar_number': aadharNumber,
+      'pan_number': panNumber,
     };
   }
 }
@@ -133,19 +133,27 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     );
   }
 
-  void updateAddress(String city, String stateVal, String address) {
-    state = state.copyWith(city: city, state: stateVal, fullAddress: address);
+  void updateAddress(String addr1, String addr2, String stateVal) {
+    state = state.copyWith(
+      addressLine1: addr1,
+      addressLine2: addr2,
+      state: stateVal,
+    );
   }
 
   void updateProfilePhoto(String url) {
     state = state.copyWith(profilePhotoUrl: url);
   }
 
-  void updateDocuments({String? resume, String? aadhar, String? pan}) {
+  void updateDocuments({
+    String? resume,
+    String? aadharNumber,
+    String? panNumber,
+  }) {
     state = state.copyWith(
       resumeUrl: resume ?? state.resumeUrl,
-      aadharUrl: aadhar ?? state.aadharUrl,
-      panUrl: pan ?? state.panUrl,
+      aadharNumber: aadharNumber ?? state.aadharNumber,
+      panNumber: panNumber ?? state.panNumber,
     );
   }
 }

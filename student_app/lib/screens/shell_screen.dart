@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:go_router/go_router.dart';
 import '../utils/constants.dart';
 
@@ -22,7 +23,7 @@ class ShellScreen extends StatelessWidget {
               elevation: 0,
               backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
-              indicatorColor: AppConstants.primaryColor.withOpacity(0.12),
+              indicatorColor: AppConstants.primaryColor.withValues(alpha: 0.12),
               indicatorShape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -36,12 +37,7 @@ class ShellScreen extends StatelessWidget {
               },
               destinations: [
                 NavigationDestination(
-                  icon: Icon(
-                    Icons.work_outline_rounded,
-                    color: navigationShell.currentIndex == 0
-                        ? AppConstants.primaryColor
-                        : AppConstants.textSecondary,
-                  ),
+                  icon: const Icon(Icons.work_outline_rounded),
                   selectedIcon: const Icon(
                     Icons.work_rounded,
                     color: AppConstants.primaryColor,
@@ -49,12 +45,7 @@ class ShellScreen extends StatelessWidget {
                   label: 'Drives',
                 ),
                 NavigationDestination(
-                  icon: Icon(
-                    Icons.emoji_events_outlined,
-                    color: navigationShell.currentIndex == 1
-                        ? AppConstants.primaryColor
-                        : AppConstants.textSecondary,
-                  ),
+                  icon: const Icon(Icons.emoji_events_outlined),
                   selectedIcon: const Icon(
                     Icons.emoji_events_rounded,
                     color: AppConstants.primaryColor,
@@ -62,12 +53,7 @@ class ShellScreen extends StatelessWidget {
                   label: 'Placed',
                 ),
                 NavigationDestination(
-                  icon: Icon(
-                    Icons.person_outline_rounded,
-                    color: navigationShell.currentIndex == 2
-                        ? AppConstants.primaryColor
-                        : AppConstants.textSecondary,
-                  ),
+                  icon: const Icon(Icons.person_outline_rounded),
                   selectedIcon: const Icon(
                     Icons.person_rounded,
                     color: AppConstants.primaryColor,

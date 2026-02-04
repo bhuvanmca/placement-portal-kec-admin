@@ -61,13 +61,22 @@ export default function MainContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="industry">Website</Label>
+              <Label htmlFor="website">Website</Label>
               <Input 
-                id="industry" 
-                value={state.companyInformation.industry}
-                onChange={(e) => handleInputChange('companyInformation', 'industry', e.target.value)}
-                placeholder="Enter company website"
+                id="website" 
+                value={state.companyInformation.website}
+                onChange={(e) => handleInputChange('companyInformation', 'website', e.target.value)}
+                placeholder="Enter company website (e.g. https://google.com)"
               />
+            </div>
+            <div className="space-y-2">
+               <Label htmlFor="logoUrl">Logo URL</Label>
+               <Input 
+                 id="logoUrl"
+                 value={state.companyInformation.logoUrl}
+                 onChange={(e) => handleInputChange('companyInformation', 'logoUrl', e.target.value)}
+                 placeholder="Enter logo URL"
+               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
@@ -126,7 +135,36 @@ export default function MainContent() {
                 placeholder="Enter drive name"
               />
              </div>
-             {/* Add more fields similarly */}
+             
+             <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                   <Label>Status</Label>
+                   <Select 
+                     value={state.driveInformation.status}
+                     onValueChange={(val) => handleInputChange('driveInformation', 'status', val)}
+                   >
+                     <SelectTrigger>
+                        <SelectValue placeholder="Select Status" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="ongoing">Ongoing</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                     </SelectContent>
+                   </Select>
+                </div>
+                <div className="space-y-2">
+                   <Label>SPOC ID</Label>
+                   <Input 
+                      type="number"
+                      value={state.driveInformation.driveSpoc}
+                      onChange={(e) => handleInputChange('driveInformation', 'driveSpoc', e.target.value)}
+                      placeholder="Enter SPOC ID"
+                   />
+                </div>
+             </div>
+
              <div className="space-y-2">
                <Label>Description</Label>
                <Textarea 

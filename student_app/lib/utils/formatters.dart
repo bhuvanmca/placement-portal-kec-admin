@@ -14,6 +14,28 @@ class Formatters {
     }
   }
 
+  static String formatDateTime(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'N/A';
+    try {
+      final date = DateTime.parse(dateStr).toLocal(); // Convert to local time
+      final day = date.day;
+      final month = _getMonthName(date.month);
+      final year = date.year;
+      final suffix = _getOrdinalSuffix(day);
+
+      // Time Formatting
+      final hour = date.hour > 12
+          ? date.hour - 12
+          : (date.hour == 0 ? 12 : date.hour);
+      final minute = date.minute.toString().padLeft(2, '0');
+      final period = date.hour >= 12 ? 'PM' : 'AM';
+
+      return '$day$suffix $month $year, $hour:$minute $period';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
   static String _getOrdinalSuffix(int day) {
     if (day >= 11 && day <= 13) {
       return 'th';

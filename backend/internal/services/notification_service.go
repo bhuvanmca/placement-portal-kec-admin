@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	firebase "firebase.google.com/go"
-	"firebase.google.com/go/messaging"
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/messaging"
 	"google.golang.org/api/option"
 )
 
@@ -16,9 +16,8 @@ type NotificationService struct {
 
 // NewNotificationService initializes the Firebase Messaging Client
 func NewNotificationService(credentialsFile string) (*NotificationService, error) {
-	// If file doesn't exist, we might want to return a dummy service or error
-	// For now, let's assume valid setup or graceful degradation
-	opt := option.WithCredentialsFile(credentialsFile)
+	// Use WithAuthCredentialsFile with ServiceAccount to avoid deprecation warning
+	opt := option.WithAuthCredentialsFile(option.ServiceAccount, credentialsFile)
 	app, err := firebase.NewApp(context.Background(), nil, opt)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing firebase app: %v", err)
@@ -58,7 +57,8 @@ func (s *NotificationService) SendMulticastNotification(ctx context.Context, tok
 		Data: data,
 	}
 
-	br, err := s.Client.SendMulticast(ctx, message)
+	// SendEachForMulticast uses the new HTTP v1 API
+	br, err := s.Client.SendEachForMulticast(ctx, message)
 	if err != nil {
 		return 0, err
 	}

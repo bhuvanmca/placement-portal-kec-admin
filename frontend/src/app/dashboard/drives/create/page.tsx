@@ -18,7 +18,8 @@ import {
   ArrowUp,
   Settings,
   Pencil,
-  FileText
+  FileText,
+  RefreshCw
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import FileUpload from '@/components/ui/file-upload';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
@@ -40,24 +41,20 @@ import { cn } from "@/lib/utils";
 import { driveService } from '@/services/drive.service';
 import { spocService, Spoc } from '@/services/spoc.service';
 import { toast } from 'sonner';
-import { DEPARTMENTS } from '@/constants/departments';
-import { useScrollSpy } from '@/hooks/use-scroll-spy';
+import { configService, Department, Batch } from '@/services/config.service';
+// ... imports
 
 // --- Zod Schema ---
 const driveSchema = z.object({
   company_name: z.string().min(2, "Company Name is required"),
   website: z.string().optional(),
   logo_url: z.string().optional(),
-  job_role: z.string().min(2, "Job Role is required"),
   job_description: z.string().optional(),
   location: z.string().min(2, "Location is required"),
+  location_type: z.enum(['On-Site', 'Hybrid', 'Remote']).default('On-Site'),
   drive_type: z.string().min(1, "Drive type is required"),
-  domain: z.string().min(1, "Category is required"),
   company_category: z.string().min(1, "Category is required"),
   spoc_id: z.coerce.number().min(1, "SPOC is required"),
-  ctc_min: z.coerce.number().min(0),
-  ctc_max: z.coerce.number().min(0),
-  ctc_display: z.string().min(1, "CTC Display is required (e.g. 6LPA)"),
   
   // Eligibility
   min_cgpa: z.coerce.number().min(0).max(10),
@@ -82,6 +79,13 @@ const driveSchema = z.object({
     description: z.string()
   })),
   
+  roles: z.array(z.object({
+    role_name: z.string().min(1, "Role Name is required"),
+    ctc: z.string().min(1, "CTC is required"),
+    salary: z.coerce.number().optional(), 
+    stipend: z.string().optional(),
+  })).min(1, "At least one role is required"),
+
   attachments: z.array(z.object({
     name: z.string(),
     url: z.string()
@@ -90,7 +94,6 @@ const driveSchema = z.object({
 
 type DriveFormValues = z.infer<typeof driveSchema>;
 
-const BATCHES = ['2023', '2024', '2025', '2026', '2027']; 
 const SECTIONS = [
     { id: 'company-details', label: 'Company Details' },
     { id: 'eligibility', label: 'Eligibility Criteria' },
@@ -120,17 +123,44 @@ export default function CreateDrivePage() {
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [spocs, setSpocs] = useState<Spoc[]>([]);
   
-  // Fetch SPOCs with error handling
+  // Config State
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+
+  // Fetch Config
   useEffect(() => {
-    const fetchSpocs = async () => {
-      try {
-        const data = await spocService.getAllSpocs();
-        setSpocs(data || []);
-      } catch (error) {
-        console.error('Failed to fetch SPOCs:', error);
-        setSpocs([]); 
-      }
+    const fetchConfig = async () => {
+        try {
+            const [d, b] = await Promise.all([
+                configService.getAllDepartments(),
+                configService.getAllBatches()
+            ]);
+            setDepartments(d || []);
+            setBatches(b || []);
+        } catch(e) {
+            toast.error("Failed to load config");
+        }
     };
+    fetchConfig();
+  }, []);
+  
+  // Fetch SPOCs with error handling
+  const [loadingSpocs, setLoadingSpocs] = useState(false);
+  const fetchSpocs = async () => {
+    setLoadingSpocs(true);
+    try {
+      const data = await spocService.getAllSpocs();
+      setSpocs(data || []);
+      if(data?.length > 0) toast.success("SPOCs refreshed");
+    } catch (error) {
+    //   console.error('Failed to fetch SPOCs:', error);
+      toast.error("Failed to load SPOCs");
+    } finally {
+        setLoadingSpocs(false);
+    }
+  };
+
+  useEffect(() => {
     fetchSpocs();
   }, []);
 
@@ -143,7 +173,7 @@ export default function CreateDrivePage() {
                 const results = await driveService.searchCompany(companyQuery);
                 setCompanyResults(results);
             } catch (error) {
-                console.error("Search error", error);
+                // console.error("Search error", error);
                 setCompanyResults([]);
             } finally {
                 setLoadingCompanies(false);
@@ -177,12 +207,9 @@ export default function CreateDrivePage() {
     resolver: zodResolver(driveSchema) as Resolver<DriveFormValues>,
     defaultValues: {
       company_name: '',
-      job_role: '',
-      job_description: '',
       location: '',
-      ctc_display: '',
-      ctc_min: 0,
-      ctc_max: 0,
+      location_type: 'On-Site',
+      roles: [{ role_name: '', ctc: '', stipend: '' }], // Start with 1 empty role
       min_cgpa: 0,
       max_backlogs_allowed: 0,
       // New fields default
@@ -196,8 +223,8 @@ export default function CreateDrivePage() {
       eligible_batches: [],
       eligible_departments: [],
       eligible_gender: 'All',
-      domain: '',
       rounds: [{ name: 'Online Assessment', date: '', description: '' }],
+      // roles: [], -- Removed duplicate
       attachments: [],
       drive_type: 'Full-Time',
       company_category: 'Core',
@@ -210,6 +237,11 @@ export default function CreateDrivePage() {
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "rounds"
+  });
+
+  const { fields: roleFields, append: appendRole, remove: removeRole } = useFieldArray({
+    control: form.control,
+    name: "roles"
   });
   
   const { fields: attachmentFields, append: appendAttachment, remove: removeAttachment } = useFieldArray({
@@ -229,7 +261,7 @@ export default function CreateDrivePage() {
                  localStorage.setItem('drive_eligibility_templates', JSON.stringify(unique));
              }
          } catch(e) {
-             console.error("Failed to parse templates", e);
+            //  console.error("Failed to parse templates", e);
          }
      }
   }, []);
@@ -345,7 +377,7 @@ export default function CreateDrivePage() {
       toast.success("Drive Created Successfully! 🎉");
       router.push('/dashboard/drives');
     } catch (error: any) {
-      console.error(error);
+    //   console.error(error);
       toast.error(error.response?.data?.error || "Failed to create drive");
       setShowProgressDialog(false); // Hide on error
     } finally {
@@ -415,7 +447,7 @@ export default function CreateDrivePage() {
                                                 </div>
                                             )}
                                             
-                                            {!loadingCompanies && companyResults.length > 0 && (
+                                            {!loadingCompanies && companyResults?.length > 0 && (
                                                 <div className="p-1">
                                                     {companyResults.map((company) => (
                                                         <div
@@ -423,7 +455,6 @@ export default function CreateDrivePage() {
                                                             onClick={() => {
                                                                 form.setValue('company_name', company.name);
                                                                 form.setValue('website', company.domain);
-                                                                form.setValue('domain', company.domain);
                                                                 if (company.icon) form.setValue('logo_url', company.icon);
                                                                 setCompanyQuery(company.name);
                                                                 setOpenCompanySearch(false);
@@ -442,12 +473,11 @@ export default function CreateDrivePage() {
                                             
                                             {!loadingCompanies && companyQuery && (
                                                 <>
-                                                    {companyResults.length > 0 && <div className="border-t border-gray-200 my-1" />}
+                                                    {companyResults?.length > 0 && <div className="border-t border-gray-200 my-1" />}
                                                     <div
                                                         onClick={() => {
                                                             form.setValue('company_name', companyQuery);
                                                             form.setValue('website', '');
-                                                            form.setValue('domain', 'custom');
                                                             setOpenCompanySearch(false);
                                                         }}
                                                         className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer rounded-sm transition-colors m-1"
@@ -470,20 +500,68 @@ export default function CreateDrivePage() {
                         </div>
 
                         <div className="space-y-2">
-                             <Label>Job Role <span className="text-red-500">*</span></Label>
-                             <Input {...form.register('job_role')} placeholder="e.g. Software Developer" />
-                             {form.formState.errors.job_role && <p className="text-red-500 text-xs">{form.formState.errors.job_role.message}</p>}
-                        </div>
-
-                        <div className="space-y-2">
-                             <Label>Location <span className="text-red-500">*</span></Label>
-                             <div className="relative">
-                                <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input className="pl-9" {...form.register('location')} placeholder="e.g. Chennai" />
+                             <Label>Location</Label>
+                             <div className="flex gap-2">
+                                 <Input {...form.register('location')} placeholder="e.g. Bangalore, India" className="flex-1" />
+                                 <Controller
+                                    name="location_type"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="On-Site">On-Site</SelectItem>
+                                                <SelectItem value="Hybrid">Hybrid</SelectItem>
+                                                <SelectItem value="Remote">Remote</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                 />
                              </div>
                         </div>
 
-                        <div className="space-y-2">
+                        {/* ROLES SECTION */}
+                        <div className="col-span-1 md:col-span-2 space-y-4">
+                             <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Job Roles</Label>
+                                <Button type="button" variant="outline" size="sm" onClick={() => appendRole({ role_name: '', ctc: '', stipend: '' })}>
+                                    <Plus className="h-4 w-4 mr-2" /> Add Role
+                                </Button>
+                             </div>
+                             
+                             {roleFields.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start border p-4 rounded-lg bg-blue-50/50 relative">
+                                    <div className="md:col-span-4 space-y-2">
+                                        <Label>Role Name <span className="text-red-500">*</span></Label>
+                                        <Input {...form.register(`roles.${index}.role_name` as const)} placeholder="e.g. SDE-1" />
+                                        {form.formState.errors.roles?.[index]?.role_name && <p className="text-red-500 text-xs">{form.formState.errors.roles[index]?.role_name?.message}</p>}
+                                    </div>
+                                    <div className="md:col-span-3 space-y-2">
+                                        <Label>CTC <span className="text-red-500">*</span></Label>
+                                        <Input {...form.register(`roles.${index}.ctc` as const)} placeholder="e.g. 10 LPA" />
+                                         {form.formState.errors.roles?.[index]?.ctc && <p className="text-red-500 text-xs">{form.formState.errors.roles[index]?.ctc?.message}</p>}
+                                    </div>
+                                    {/* Added Salary (Numeric) Input hidden or explicit? For now implied from CTC or added explicit? 
+                                        Let's add explicit Salary input for filtering correctness as per backend changes.
+                                    */}
+                                    <div className="md:col-span-2 space-y-2">
+                                        <Label>Salary (Numeric)</Label>
+                                        <Input type="number" {...form.register(`roles.${index}.salary` as const)} placeholder="600000" />
+                                    </div>
+                                    <div className="md:col-span-2 space-y-2">
+                                        <Label>Stipend</Label>
+                                        <Input {...form.register(`roles.${index}.stipend` as const)} placeholder="e.g. 30k" />
+                                    </div>
+
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeRole(index)} className="absolute top-2 right-2 text-red-500 hover:bg-red-50 h-6 w-6">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                             ))}
+                             {roleFields.length > 0 && <p className="text-xs text-muted-foreground">Adding roles here allows students to select specific roles.</p>}
+                        </div>
+
+                        <div className="col-span-1 md:col-span-2 space-y-2">
                             <Label>Category</Label>
                             <Controller
                                 name="company_category"
@@ -501,25 +579,6 @@ export default function CreateDrivePage() {
                             />
                         </div>
 
-                        <div className="space-y-2">
-                             <Label>CTC Display <span className="text-red-500">*</span></Label>
-                             <div className="relative">
-                                <Banknote className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input className="pl-9" {...form.register('ctc_display')} placeholder="e.g. 6.5 LPA" />
-                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Min CTC</Label>
-                                <Input type="number" {...form.register('ctc_min')} onWheel={(e) => e.currentTarget.blur()} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Max CTC</Label>
-                                <Input type="number" {...form.register('ctc_max')} onWheel={(e) => e.currentTarget.blur()} />
-                            </div>
-                        </div>
-
                          <div className="space-y-2">
                             <Label>Drive Type</Label>
                             <Controller
@@ -531,7 +590,8 @@ export default function CreateDrivePage() {
                                         <SelectContent>
                                             <SelectItem value="Full-Time">Full-Time</SelectItem>
                                             <SelectItem value="Internship">Internship</SelectItem>
-                                            <SelectItem value="Internship and Full-Time">Internship + FT</SelectItem>
+                                            <SelectItem value="Internship to Full-Time">Internship to Full-Time</SelectItem>
+                                            <SelectItem value="Internship and Full-Time">Internship and Full-Time</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 )}
@@ -540,7 +600,19 @@ export default function CreateDrivePage() {
 
                         {/* SPOC Field */}
                         <div className="col-span-1 md:col-span-2 space-y-2">
-                             <Label>SPOC (Single Point of Contact)</Label>
+                             <div className="flex items-center justify-between">
+                                <Label>SPOC (Single Point of Contact)</Label>
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={fetchSpocs} 
+                                    disabled={loadingSpocs}
+                                    title="Refresh SPOC List"
+                                >
+                                    <RefreshCw className={`h-3 w-3 ${loadingSpocs ? 'animate-spin' : ''}`} />
+                                </Button>
+                             </div>
                              {spocs.length === 0 ? (
                                  <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center bg-gray-50">
                                      <p className="text-sm text-gray-600 mb-2">No SPOCs available</p>
@@ -599,17 +671,21 @@ export default function CreateDrivePage() {
                         <div className="h-8 w-1 bg-[#002147] rounded-full"></div>
                         <h2 className="text-2xl font-semibold text-gray-800">Eligibility Criteria</h2>
                     </div>
-                    {/* Template Controls */}
+                     {/* Template Controls */}
                         <div className="flex gap-2">
                              <Select onValueChange={(val) => {
                                  const template = savedTemplates.find(t => t.name === val);
                                  if(template) handleApplyTemplate(template.data);
                              }}>
                                 <SelectTrigger className="w-[180px] h-9">
-                                    <SelectValue placeholder="Load Template" />
+                                    <SelectValue placeholder={savedTemplates.length === 0 ? "No templates available" : "Load Template"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {savedTemplates.map((t, i) => <SelectItem key={i} value={t.name}>{t.name}</SelectItem>)}
+                                    {savedTemplates.length === 0 ? (
+                                        <div className="p-2 text-sm text-gray-500 text-center">No saved templates</div>
+                                    ) : (
+                                        savedTemplates.map((t, i) => <SelectItem key={i} value={t.name}>{t.name}</SelectItem>)
+                                    )}
                                 </SelectContent>
                             </Select>
                             <Button variant="outline" size="sm" type="button" className="h-9" onClick={() => setManageTemplatesOpen(true)} title="Manage Templates">
@@ -623,7 +699,7 @@ export default function CreateDrivePage() {
 
                 <Card className="border-none shadow-sm bg-white/50">
                     <CardContent className="space-y-8 pt-6">
-                        {/* Departments & Batches */}
+                         {/* Departments & Batches */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div className="space-y-2">
                                   <Label>Eligible Departments <span className="text-red-500">*</span></Label>
@@ -632,7 +708,7 @@ export default function CreateDrivePage() {
                                      control={form.control}
                                      render={({ field }) => (
                                          <MultiSelect
-                                             options={[...DEPARTMENTS]}
+                                             options={departments.map(d => d.code)}
                                              selected={field.value || []}
                                              onChange={field.onChange}
                                              placeholder="Select Departments..."
@@ -649,7 +725,7 @@ export default function CreateDrivePage() {
                                      control={form.control}
                                      render={({ field }) => (
                                          <MultiSelect
-                                             options={BATCHES}
+                                             options={batches.map(b => b.year.toString())}
                                              selected={field.value ? field.value.map(String) : []}
                                              onChange={(vals) => field.onChange(vals.map(Number))}
                                              placeholder="Select Batches..."
@@ -677,14 +753,11 @@ export default function CreateDrivePage() {
                                 <Input type="number" step="0.01" {...form.register('ug_min_cgpa')} placeholder="e.g. 6.0" onWheel={(e) => e.currentTarget.blur()} />
                             </div>
 
-                            {/* Conditional PG Field */}
-                            {hasPgDepartments && (
-                                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                                    <Label className="text-[#002147] font-semibold">PG Min CGPA</Label>
-                                    <Input type="number" step="0.01" {...form.register('pg_min_cgpa')} placeholder="e.g. 6.0" className="border-[#002147]/20 bg-blue-50/30" onWheel={(e) => e.currentTarget.blur()} />
-                                    <p className="text-[10px] text-muted-foreground">Required for PG students only</p>
-                                </div>
-                            )}
+                            <div className="space-y-2">
+                                <Label>PG Min CGPA</Label>
+                                <Input type="number" step="0.01" {...form.register('pg_min_cgpa')} placeholder="e.g. 6.0" onWheel={(e) => e.currentTarget.blur()} />
+                                <p className="text-[10px] text-muted-foreground">Required for PG students only</p>
+                            </div>
                         </div>
 
                         <Separator />
@@ -736,9 +809,9 @@ export default function CreateDrivePage() {
                                     name="deadline_date"
                                     control={form.control}
                                     render={({ field }) => (
-                                        <DatePicker 
+                                        <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
-                                            setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd'T'HH:mm") : '')} 
+                                            setDate={(date) => field.onChange(date ? date.toISOString() : '')} 
                                         />
                                     )}
                                 />
@@ -750,9 +823,9 @@ export default function CreateDrivePage() {
                                     name="drive_date"
                                     control={form.control}
                                     render={({ field }) => (
-                                        <DatePicker 
+                                        <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
-                                            setDate={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                            setDate={(date) => field.onChange(date ? date.toISOString() : '')}
                                         />
                                     )}
                                 />
@@ -784,9 +857,9 @@ export default function CreateDrivePage() {
                                         control={form.control}
                                         name={`rounds.${index}.date`}
                                         render={({ field }) => (
-                                            <DatePicker 
+                                            <DateTimePicker 
                                                 date={field.value ? new Date(field.value) : undefined}
-                                                setDate={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                                setDate={(date) => field.onChange(date ? date.toISOString() : '')}
                                                 className="w-full"
                                             />
                                         )}

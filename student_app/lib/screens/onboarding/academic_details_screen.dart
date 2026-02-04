@@ -23,6 +23,26 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   bool _isPGStudent = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize controllers with existing provider data
+    final state = ref.read(onboardingProvider);
+    if (state.tenthMark != null) {
+      _tenthMarkController.text = state.tenthMark.toString();
+    }
+    if (state.twelfthMark != null) {
+      _twelfthMarkController.text = state.twelfthMark.toString();
+    }
+    if (state.ugCgpa != null) {
+      _ugController.text = state.ugCgpa.toString();
+    }
+    if (state.pgCgpa != null && state.pgCgpa! > 0) {
+      _isPGStudent = true;
+      _pgController.text = state.pgCgpa.toString();
+    }
+  }
+
+  @override
   void dispose() {
     _tenthMarkController.dispose();
     _twelfthMarkController.dispose();
@@ -33,6 +53,9 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
 
   void _next() {
     if (_formKey.currentState!.validate()) {
+      // Dismiss keyboard to prevent overflow flash during navigation
+      FocusScope.of(context).unfocus();
+
       final tenth = double.tryParse(_tenthMarkController.text) ?? 0.0;
       final twelfth = double.tryParse(_twelfthMarkController.text) ?? 0.0;
       final ug = double.tryParse(_ugController.text) ?? 0.0;

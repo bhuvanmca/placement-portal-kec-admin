@@ -358,43 +358,17 @@ func ListStudents(c *fiber.Ctx) error {
 func GetStudentDetails(c *fiber.Ctx) error {
 	param := c.Params("id")
 
-	// Try parsing as ID (int64)
-	id, err := strconv.ParseInt(param, 10, 64)
-
+	// 1. Strictly find by Register Number
+	// We no longer support fetching by internal integer ID for security and UX consistency.
 	repo := repository.NewUserRepository(database.DB)
-	// Note: previous code used NewStudentRepository, but I added method to UserRepository.
-	// Let's check imports. I might need to switch repo or move method.
-	// In snippet 164, it used repository.NewStudentRepository(database.DB).
-	// But I added GetStudentByRegisterNumber to UserRepository (snippet 160).
-	// I should verify where GetStudentFullProfile is defined.
-	// If it is in StudentRepository, I might need to consolidate or instantiate both?
-	// Actually, looking at snippet 160, UserRepository is in `user_repo.go`.
-	// `StudentRepository` might be in `student_repo.go` which I haven't seen.
-	// Assume I should use UserRepository for my new method.
-
+	userProfile, err := repo.GetStudentByRegisterNumber(c.Context(), param)
 	if err == nil {
-		// valid integer ID
-		// Use existing logic if possible, or migrate.
-		// Existing: repo := repository.NewStudentRepository ... GetStudentFullProfile
-		// I don't want to break existing logic if I can help it.
-		// But I'd prefer consistent repos.
-		// Let's rely on the fact I likely need to check if existing repo supports it.
-		// I'll stick to the plan: if int, use existing. If string, use new method.
-
-		studentRepo := repository.NewStudentRepository(database.DB)
-		s, err := studentRepo.GetStudentFullProfile(c.Context(), id)
-		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "Student not found"})
-		}
-		return c.JSON(s)
+		return c.JSON(userProfile)
 	}
+	// Log the error for debugging but return 404 to client
+	// fmt.Printf("DEBUG: GetStudentByRegisterNumber failed for %s: %v\n", param, err)
 
-	// It's a string (Register Number)
-	s, err := repo.GetStudentByRegisterNumber(c.Context(), param)
-	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Student not found"})
-	}
-	return c.JSON(s)
+	return c.Status(404).JSON(fiber.Map{"error": "Student not found"})
 }
 
 // GetDriveApplicants

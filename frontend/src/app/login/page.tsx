@@ -40,7 +40,7 @@ export default function LoginPage() {
         console.log('[LoginPage] Admin Login successful');
       }
     } catch (err: any) {
-      console.error('[LoginPage] Unexpected login error', err);
+      // console.error('[LoginPage] Unexpected login error', err);
       setError('An unexpected error occurred.');
     } finally {
       setLoading(false);

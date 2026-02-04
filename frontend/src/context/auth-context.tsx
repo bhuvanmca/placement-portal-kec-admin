@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         router.push(PAGE_ROUTES.DASHBOARD);
         return true;
       } else {
-        console.error("[AuthProvider] Login successful but no token found in response:", responseData);
+        // console.error("[AuthProvider] Login successful but no token found in response:", responseData);
         toast.error("Login failed. No token received.");
         return false;
       }

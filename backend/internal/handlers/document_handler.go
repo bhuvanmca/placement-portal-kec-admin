@@ -58,10 +58,6 @@ func GetDocumentURL(c *fiber.Ctx) error {
 	switch dbField {
 	case "resume_url":
 		documentURL = profile.ResumeURL
-	case "aadhar_card_url":
-		documentURL = profile.AadharCardURL
-	case "pan_card_url":
-		documentURL = profile.PanCardURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
 	}
@@ -172,10 +168,6 @@ func GetStudentDocumentURL(c *fiber.Ctx) error {
 	switch dbField {
 	case "resume_url":
 		documentURL = profile.ResumeURL
-	case "aadhar_card_url":
-		documentURL = profile.AadharCardURL
-	case "pan_card_url":
-		documentURL = profile.PanCardURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
 	}

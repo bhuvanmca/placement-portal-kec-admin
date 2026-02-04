@@ -16,15 +16,20 @@ func NewApplicationRepository(db *pgxpool.Pool) *ApplicationRepository {
 }
 
 // ApplyForDrive calls our Stored Procedure or uses direct logic
-func (r *ApplicationRepository) ApplyForDrive(ctx context.Context, studentID, driveID int64) (bool, string, error) {
+func (r *ApplicationRepository) ApplyForDrive(ctx context.Context, studentID, driveID int64, roleIDs []int64) (bool, string, error) {
 	// UPSERT to handle re-application
+	// Ensure roles is roughly empty list if nil, though pgx handles nil slice as null often, we want [] for jsonb
+	// Actually pgx handles []int64 -> int8[] by default?
+	// But the column is JSONB. So we pass it as a []int64 and let Go serialize or cast.
+	// DB wants JSONB.
+
 	query := `
-		INSERT INTO drive_applications (drive_id, student_id, status, applied_at)
-		VALUES ($1, $2, 'opted_in', NOW())
+		INSERT INTO drive_applications (drive_id, student_id, status, applied_at, applied_role_ids)
+		VALUES ($1, $2, 'opted_in', NOW(), $3)
 		ON CONFLICT (drive_id, student_id)
-		DO UPDATE SET status = 'opted_in', updated_at = NOW()
+		DO UPDATE SET status = 'opted_in', applied_role_ids = $3, updated_at = NOW()
 	`
-	_, err := r.DB.Exec(ctx, query, driveID, studentID)
+	_, err := r.DB.Exec(ctx, query, driveID, studentID, roleIDs)
 	if err != nil {
 		return false, err.Error(), err
 	}
@@ -32,15 +37,15 @@ func (r *ApplicationRepository) ApplyForDrive(ctx context.Context, studentID, dr
 }
 
 // WithdrawApplication removes or updates the application status to 'withdrawn' or 'opted_out'
-func (r *ApplicationRepository) WithdrawApplication(ctx context.Context, studentID, driveID int64) error {
+func (r *ApplicationRepository) WithdrawApplication(ctx context.Context, studentID, driveID int64, reason string) error {
 	// UPSERT: If exists update, if not insert 'opted_out'
 	query := `
-		INSERT INTO drive_applications (drive_id, student_id, status, applied_at)
-		VALUES ($1, $2, 'opted_out', NOW())
+		INSERT INTO drive_applications (drive_id, student_id, status, applied_at, opt_out_reason)
+		VALUES ($1, $2, 'opted_out', NOW(), $3)
 		ON CONFLICT (drive_id, student_id) 
-		DO UPDATE SET status = 'opted_out', updated_at = NOW()
+		DO UPDATE SET status = 'opted_out', opt_out_reason = $3, updated_at = NOW()
 	`
-	_, err := r.DB.Exec(ctx, query, driveID, studentID)
+	_, err := r.DB.Exec(ctx, query, driveID, studentID, reason)
 	return err
 }
 

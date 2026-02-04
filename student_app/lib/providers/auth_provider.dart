@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/auth_service.dart';
+import '../services/api_client.dart';
 
 part 'auth_provider.g.dart';
 
 @riverpod
 AuthService authService(Ref ref) {
-  return AuthService();
+  return AuthService(ref.read(apiClientProvider));
 }
 
 /// State class to hold login result
@@ -39,6 +40,10 @@ class AuthController extends _$AuthController {
       final response = await ref
           .read(authServiceProvider)
           .login(email, password);
+
+      // CRITICAL: Invalidate self to trigger rebuild and router redirect
+      ref.invalidateSelf();
+
       return AuthState(isProfileComplete: response.isProfileComplete);
     });
   }

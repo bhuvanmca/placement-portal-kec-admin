@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
@@ -17,6 +16,7 @@ import (
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Drive ID"
+// @Param input body map[string][]int64 false "Selected Role IDs"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
@@ -31,13 +31,16 @@ func ApplyForDrive(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive ID"})
 	}
 
-	fmt.Println(studentID, driveID)
+	// 3. Parse Role IDs (Optional/Required based on drive)
+	var input struct {
+		RoleIDs []int64 `json:"role_ids"`
+	}
+	// We ignore parsing error as body might be empty for simple drives
+	c.BodyParser(&input)
 
-	// 3. Call Repo
+	// 4. Call Repo
 	repo := repository.NewApplicationRepository(database.DB)
-	success, message, err := repo.ApplyForDrive(c.Context(), studentID, driveID)
-
-	fmt.Println(success, message)
+	success, message, err := repo.ApplyForDrive(c.Context(), studentID, driveID, input.RoleIDs)
 
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Internal Server Error" + err.Error()})
@@ -59,6 +62,7 @@ func ApplyForDrive(c *fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Drive ID"
+// @Param input body map[string]string true "Reason"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
@@ -70,8 +74,13 @@ func WithdrawFromDrive(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive ID"})
 	}
 
+	var input struct {
+		Reason string `json:"reason"`
+	}
+	c.BodyParser(&input)
+
 	repo := repository.NewApplicationRepository(database.DB)
-	if err := repo.WithdrawApplication(c.Context(), studentID, driveID); err != nil {
+	if err := repo.WithdrawApplication(c.Context(), studentID, driveID, input.Reason); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to withdraw: " + err.Error()})
 	}
 

@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
 import Providers from "@/components/providers";
 import { Toaster } from "sonner";
+import { ConnectivityOverlay } from "@/components/connectivity-overlay";
+import { ServerErrorOverlay } from "@/components/server-error-overlay"; // [NEW]
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +37,8 @@ export default function RootLayout({
           <Providers>
             {children}
             <Toaster richColors position="top-center" />
+            <ConnectivityOverlay />
+            <ServerErrorOverlay /> {/* [NEW] */}
           </Providers>
         </AuthProvider>
       </body>

@@ -95,8 +95,16 @@ func HandleWhatsAppWebhook(c *fiber.Ctx) error {
 		} else {
 			response = "🚀 *Active Drives* 🚀\n\n"
 			for _, d := range drives {
+				roleNames := []string{}
+				for _, r := range d.Roles {
+					roleNames = append(roleNames, r.RoleName)
+				}
+				rolesStr := "Multiple Roles"
+				if len(roleNames) > 0 {
+					rolesStr = strings.Join(roleNames, ", ")
+				}
 				response += fmt.Sprintf("🏢 *%s*\n💼 %s\n📅 %s\n\n",
-					d.CompanyName, d.JobRole, d.DeadlineDate.Format("02 Jan"))
+					d.CompanyName, rolesStr, d.DeadlineDate.Format("02 Jan"))
 			}
 		}
 

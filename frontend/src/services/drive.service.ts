@@ -7,53 +7,89 @@ export interface Round {
   description: string;
 }
 
+export interface Attachment {
+  name: string;
+  url: string;
+}
+
+export interface JobRole {
+  role_name: string;
+  ctc: string; 
+  salary: number;
+  stipend: string;
+}
+
+export interface DriveApplicant {
+  student_id: number;
+  full_name: string;
+  register_number: string;
+  email: string;
+  department: string;
+  cgpa: number;
+  status: string;
+  resume_url: string;
+  applied_at: string;
+}
+
 export interface Drive {
   id: number;
   company_name: string;
-  job_role: string;
   job_description: string;
   location: string;
+  location_type: 'On-Site' | 'Hybrid' | 'Remote';
   website?: string;
   logo_url?: string;
   drive_type: string;
   company_category: string;
   spoc_id: number;
-  ctc_min: number;
-  ctc_max: number;
-  ctc_display: string;
+  roles: JobRole[];
   min_cgpa: number;
+  tenth_percentage?: number;
+  twelfth_percentage?: number;
+  ug_min_cgpa?: number;
+  pg_min_cgpa?: number;
+  use_aggregate?: boolean;
+  aggregate_percentage?: number;
   max_backlogs_allowed: number;
   eligible_batches: number[];
   eligible_departments: string[];
   eligible_gender: string;
   rounds: Round[];
+  attachments: Attachment[];
   drive_date: string;
   deadline_date: string;
   status: string;
-  applicant_count?: number; // [NEW] Added for dashboard
+  applicant_count?: number; 
+  user_status?: string;
 }
 
 export interface CreateDriveInput {
   company_name: string;
-  job_role: string;
   job_description: string;
   location: string;
+  location_type: 'On-Site' | 'Hybrid' | 'Remote';
   website?: string;
   logo_url?: string;
   drive_type: string;
   company_category: string;
-  spoc_id: number; // Single Point Of Contact
-  ctc_min: number;
-  ctc_max: number;
-  ctc_display: string;
+  spoc_id: number;
+  roles: JobRole[];
   min_cgpa: number;
+  tenth_percentage?: number;
+  twelfth_percentage?: number;
+  ug_min_cgpa?: number;
+  pg_min_cgpa?: number;
+  use_aggregate?: boolean;
+  aggregate_percentage?: number;
   max_backlogs_allowed: number;
   eligible_batches: number[];
   eligible_departments: string[];
-  eligible_gender: string;
+  eligible_gender?: string;
   rounds: Round[];
+  attachments: Attachment[];
   drive_date: string;
   deadline_date: string;
+  status: string;
 }
 
 export const driveService = {

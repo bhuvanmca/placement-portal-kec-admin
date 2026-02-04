@@ -16,6 +16,13 @@ export interface Student {
   cgpa?: number;
   backlogs?: number;
   profile_photo_url?: string;
+  placement_stats?: {
+    eligible_drives: number;
+    opted_in: number;
+    opted_out: number;
+    attended: number;
+    offers_received: number;
+  };
 }
 
 export interface PaginatedResponse<T> {

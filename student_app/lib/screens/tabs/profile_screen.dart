@@ -1,11 +1,22 @@
+import 'dart:io';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/student_service.dart';
 import '../../utils/constants.dart';
 import '../edit_profile_screen.dart';
+import '../change_password_screen.dart'; // [NEW]
+import '../../widgets/haptic_refresh_indicator.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -14,9 +25,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
+    with AutomaticKeepAliveClientMixin {
   final StudentService _studentService = StudentService();
   late Future<Map<String, dynamic>> _profileFuture;
+
+  int _selectedSectionIndex = 0;
+  final List<String> _sections = ['Personal', 'Academic', 'Placement'];
 
   @override
   void initState() {
@@ -25,11 +40,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _refresh() async {
+    HapticFeedback.selectionClick();
     setState(() {
       _profileFuture = _studentService.getProfile();
     });
     await _profileFuture;
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Future<void> _launchURL(String url) async {
     if (url.isEmpty) return;
@@ -54,42 +73,155 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _openDocument(String documentType) async {
     try {
-      // Show loading
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Loading document...'),
-            duration: Duration(seconds: 1),
+            content: Text('Downloading document...'),
+            duration: Duration(seconds: 2),
           ),
         );
       }
 
-      // Fetch presigned URL from backend
       final presignedURL = await _studentService.getDocumentURL(documentType);
 
-      // Launch the presigned URL directly - DO NOT sanitize/modify presigned URLs
-      // as they contain signed query parameters that will become invalid if changed
-      if (presignedURL.isEmpty) return;
+      if (presignedURL.isEmpty) {
+        throw 'Document URL not found';
+      }
 
-      final Uri uri = Uri.parse(presignedURL);
-      try {
-        if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-          throw 'Could not launch $presignedURL';
+      final response = await http.get(Uri.parse(presignedURL));
+
+      if (response.statusCode != 200) {
+        throw 'Failed to download document (Status: ${response.statusCode})';
+      }
+
+      String extension = 'pdf';
+      final contentType = response.headers['content-type']?.toLowerCase();
+      if (contentType != null) {
+        if (contentType.contains('image/jpeg') ||
+            contentType.contains('image/jpg')) {
+          extension = 'jpg';
+        } else if (contentType.contains('image/png')) {
+          extension = 'png';
+        } else if (contentType.contains('application/pdf')) {
+          extension = 'pdf';
         }
-      } catch (e) {
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/${documentType}_document.$extension');
+      await file.writeAsBytes(response.bodyBytes);
+
+      final result = await OpenFilex.open(file.path);
+
+      if (result.type != ResultType.done) {
+        throw result.message;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open document: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        File imageFile = File(pickedFile.path);
+        int fileSize = await imageFile.length();
+
+        // 1MB = 1,048,576 bytes
+        if (fileSize > 1048576) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Compressing image...')),
+            );
+          }
+
+          final dir = await getTemporaryDirectory();
+          final targetPath =
+              '${dir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+          var result = await FlutterImageCompress.compressAndGetFile(
+            imageFile.absolute.path,
+            targetPath,
+            quality: 70, // Start with aggressive quality reduction
+            minWidth: 1080,
+            minHeight: 1080,
+          );
+
+          if (result != null) {
+            imageFile = File(result.path);
+            // Verify size again? Optional. 70 quality usually does the trick for standard photos.
+          }
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not launch document: $e')),
+            const SnackBar(content: Text('Uploading profile photo...')),
           );
+        }
+
+        await _studentService.uploadFile(imageFile.path, 'profile_pic');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile photo updated successfully')),
+          );
+          _refresh();
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to open document: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update profile photo: $e')),
+        );
       }
     }
+  }
+
+  void _showImageSourceActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Photo Library'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Camera'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   String _formatValue(dynamic value) {
@@ -104,11 +236,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
         title: const Text(
-          'My Profile',
+          'Profile',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppConstants.backgroundColor,
@@ -117,7 +250,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         foregroundColor: AppConstants.textPrimary,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.red),
+            icon: Listener(
+              onPointerDown: (_) => HapticFeedback.selectionClick(),
+              child: const Icon(Icons.logout_rounded, color: Colors.red),
+            ),
             tooltip: 'Logout',
             onPressed: () async {
               await ref.read(authControllerProvider.notifier).logout();
@@ -128,14 +264,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: HapticRefreshIndicator(
         onRefresh: _refresh,
         color: AppConstants.primaryColor,
         child: FutureBuilder<Map<String, dynamic>>(
           future: _profileFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const Column(
+                children: [
+                  LinearProgressIndicator(
+                    color: AppConstants.primaryColor,
+                    backgroundColor: Colors.transparent,
+                  ),
+                  Expanded(child: SizedBox()),
+                ],
+              );
             } else if (snapshot.hasError) {
               return Center(
                 child: Column(
@@ -163,7 +307,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             final data = snapshot.data!;
             final socialLinks =
                 data['social_links'] as Map<String, dynamic>? ?? {};
-            final languageSkills = data['language_skills'] as List? ?? [];
 
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -171,305 +314,204 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header Section
-                  Center(
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppConstants.primaryColor,
-                          ),
-                          child: ClipOval(
-                            child:
-                                data['profile_photo_url'] != null &&
-                                    data['profile_photo_url']
-                                        .toString()
-                                        .isNotEmpty
-                                ? Image.network(
-                                    AppConstants.sanitizeUrl(
-                                      data['profile_photo_url'],
-                                    ),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const Icon(
+                  // --- Header Section ---
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Profile Photo
+                      GestureDetector(
+                        onTap: () => _showImageSourceActionSheet(context),
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 100,
+                              height: 100,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppConstants.primaryColor,
+                              ),
+                              child: ClipOval(
+                                child:
+                                    data['profile_photo_url'] != null &&
+                                        data['profile_photo_url']
+                                            .toString()
+                                            .isNotEmpty
+                                    ? CachedNetworkImage(
+                                        key: ValueKey(
+                                          data['profile_photo_url'],
+                                        ),
+                                        imageUrl: AppConstants.sanitizeUrl(
+                                          data['profile_photo_url'],
+                                        ),
+                                        fit: BoxFit.cover,
+                                        memCacheHeight: 300,
+                                        placeholder: (context, url) =>
+                                            const Center(
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                        errorWidget: (context, url, error) {
+                                          return const Icon(
+                                            Icons.person,
+                                            size: 60,
+                                            color: Colors.white,
+                                          );
+                                        },
+                                      )
+                                    : const Icon(
                                         Icons.person,
                                         size: 60,
                                         color: Colors.white,
-                                      );
-                                    },
-                                  )
-                                : const Icon(
-                                    Icons.person,
-                                    size: 60,
-                                    color: Colors.white,
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _formatValue(data['full_name']),
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppConstants.textPrimary,
+                                      ),
                               ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_formatValue(data['register_number'])} | ${_formatValue(data['department'])}',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppConstants.textSecondary),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Batch ${_formatValue(data['batch_year'])} • ${_formatValue(data['student_type'])}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppConstants.textSecondary),
-                        ),
-                        const SizedBox(height: 16),
-                        // Social Icons
-                        if (socialLinks.isNotEmpty)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (socialLinks.containsKey('linkedin'))
-                                IconButton(
-                                  icon: const Icon(Icons.business_center),
-                                  color: Colors.blue[700],
-                                  tooltip: 'LinkedIn',
-                                  onPressed: () => _launchURL(
-                                    socialLinks['linkedin'].toString(),
-                                  ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
                                 ),
-                              if (socialLinks.containsKey('github'))
-                                IconButton(
-                                  icon: const Icon(Icons.code),
-                                  color: Colors.black87,
-                                  tooltip: 'GitHub',
-                                  onPressed: () => _launchURL(
-                                    socialLinks['github'].toString(),
-                                  ),
-                                ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Edit Profile Button
-                  Center(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final result = await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                EditProfileScreen(profileData: data),
-                          ),
-                        );
-                        if (result == true && mounted) {
-                          _refresh();
-                        }
-                      },
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit Profile'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        side: const BorderSide(
-                          color: AppConstants.primaryColor,
-                        ),
-                        foregroundColor: AppConstants.primaryColor,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(8)),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Personal Details
-                  _buildSectionHeader('Personal Details'),
-                  _buildDetailItem('Email', data['email']),
-                  _buildDetailItem('Mobile Number', data['mobile_number']),
-                  _buildDetailItem('Date of Birth', data['dob']),
-                  _buildDetailItem('Gender', data['gender']),
-                  _buildDetailItem('City', data['city']),
-                  _buildDetailItem('State', data['state']),
-                  if (data['about_me'] != null &&
-                      data['about_me'].toString().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'About Me',
-                            style: TextStyle(
-                              color: AppConstants.textSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatValue(data['about_me']),
-                            style: const TextStyle(
-                              color: AppConstants.textPrimary,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (languageSkills.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Language Skills',
-                            style: TextStyle(
-                              color: AppConstants.textSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: languageSkills
-                                .map(
-                                  (lang) => Chip(
-                                    label: Text(lang.toString()),
-                                    backgroundColor:
-                                        AppConstants.backgroundColor,
-                                    side: const BorderSide(
-                                      color: AppConstants.borderColor,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: data['is_blocked'] == true
+                                        ? Colors.red
+                                        : Colors.green,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
                                     ),
                                   ),
-                                )
-                                .toList(),
-                          ),
-                        ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 20),
 
-                  const SizedBox(height: 24),
+                      // Details & Social
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatValue(data['full_name']),
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppConstants.textPrimary,
+                                    fontSize: 22,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${_formatValue(data['register_number'])} | ${_formatValue(data['department'])}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: AppConstants.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Batch ${_formatValue(data['batch_year'])} • ${_formatValue(data['student_type'])}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppConstants.textSecondary),
+                            ),
+                            const SizedBox(height: 12),
 
-                  // Academic Details
-                  _buildSectionHeader('Academic Details'),
-                  _buildDetailItem(
-                    '10th Mark',
-                    '${_formatValue(data['tenth_mark'])}%',
-                  ),
-                  _buildDetailItem(
-                    '12th Mark',
-                    '${_formatValue(data['twelfth_mark'])}%',
-                  ),
-                  if ((data['diploma_mark'] ?? 0.0) > 0)
-                    _buildDetailItem(
-                      'Diploma Mark',
-                      '${_formatValue(data['diploma_mark'])}%',
-                    ),
-                  _buildDetailItem('UG CGPA', _formatValue(data['ug_cgpa'])),
-                  if ((data['pg_cgpa'] ?? 0.0) > 0)
-                    _buildDetailItem('PG CGPA', _formatValue(data['pg_cgpa'])),
-                  _buildDetailItem(
-                    'Current Backlogs',
-                    _formatValue(data['current_backlogs']),
-                  ),
-                  _buildDetailItem(
-                    'History of Backlogs',
-                    _formatValue(data['history_of_backlogs']),
-                  ),
-                  if ((data['gap_years'] ?? 0) > 0) ...[
-                    _buildDetailItem(
-                      'Gap Years',
-                      _formatValue(data['gap_years']),
-                    ),
-                    _buildDetailItem(
-                      'Gap Reason',
-                      _formatValue(data['gap_reason']),
-                    ),
-                  ],
-                  _buildDetailItem(
-                    'Placement Willingness',
-                    _formatValue(data['placement_willingness']),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Documents
-                  _buildSectionHeader('Documents'),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (data['resume_url'] != null &&
-                          data['resume_url'].toString().isNotEmpty)
-                        _buildDocumentChip('Resume', 'resume'),
-                      if (data['aadhar_card_url'] != null &&
-                          data['aadhar_card_url'].toString().isNotEmpty)
-                        _buildDocumentChip('Aadhar Card', 'aadhar'),
-                      if (data['pan_card_url'] != null &&
-                          data['pan_card_url'].toString().isNotEmpty)
-                        _buildDocumentChip('PAN Card', 'pan'),
+                            if (socialLinks.isNotEmpty)
+                              Row(
+                                children: [
+                                  if (socialLinks.containsKey('linkedin') &&
+                                      socialLinks['linkedin']
+                                          .toString()
+                                          .isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: IconButton(
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                        icon: const FaIcon(
+                                          FontAwesomeIcons.linkedin,
+                                          color: Color(0xFF0077B5),
+                                          size: 22,
+                                        ),
+                                        tooltip: 'LinkedIn',
+                                        onPressed: () => _launchURL(
+                                          socialLinks['linkedin'].toString(),
+                                        ),
+                                      ),
+                                    ),
+                                  if (socialLinks.containsKey('github') &&
+                                      socialLinks['github']
+                                          .toString()
+                                          .isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: IconButton(
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                        icon: const FaIcon(
+                                          FontAwesomeIcons.github,
+                                          color: Colors.black87,
+                                          size: 22,
+                                        ),
+                                        tooltip: 'GitHub',
+                                        onPressed: () => _launchURL(
+                                          socialLinks['github'].toString(),
+                                        ),
+                                      ),
+                                    ),
+                                  if (socialLinks.containsKey('leetcode') &&
+                                      socialLinks['leetcode']
+                                          .toString()
+                                          .isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: IconButton(
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                        icon: const FaIcon(
+                                          FontAwesomeIcons.code,
+                                          color: Color(0xFFFFA116),
+                                          size: 20,
+                                        ),
+                                        tooltip: 'LeetCode',
+                                        onPressed: () => _launchURL(
+                                          socialLinks['leetcode'].toString(),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                  if ((data['resume_url'] ?? '').toString().isEmpty &&
-                      (data['aadhar_card_url'] ?? '').toString().isEmpty &&
-                      (data['pan_card_url'] ?? '').toString().isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'No documents uploaded yet',
-                        style: TextStyle(
-                          color: AppConstants.textSecondary,
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(height: 48),
-
-                  // Change Password Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Change Password functionality coming soon',
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.lock_outline),
-                      label: const Text('Change Password'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: AppConstants.borderColor),
-                        foregroundColor: AppConstants.textPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.borderRadius,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 24),
+
+                  // --- Section Tabs ---
+                  _buildSectionTabs(),
+                  const SizedBox(height: 24),
+
+                  // --- Content Sections ---
+                  KeyedSubtree(
+                    key: ValueKey<int>(_selectedSectionIndex),
+                    child: _buildSelectedSection(data),
+                  ),
+
+                  const SizedBox(height: 40),
                 ],
               ),
             );
@@ -479,33 +521,372 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+  Widget _buildSelectedSection(Map<String, dynamic> data) {
+    switch (_selectedSectionIndex) {
+      case 0:
+        return _buildPersonalSection(context, data);
+      case 1:
+        return _buildAcademicSection(data);
+      case 2:
+        return _buildPlacementStats(data['placement_stats']);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildSectionTabs() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(_sections.length, (index) {
+          final isSelected = _selectedSectionIndex == index;
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () {
+                // HapticFeedback.selectionClick();
+                setState(() {
+                  _selectedSectionIndex = index;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppConstants.primaryColor
+                      : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(isSelected ? 20 : 10),
+                ),
+                child: Text(
+                  _sections[index],
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildPersonalSection(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) {
+    final languageSkills = data['language_skills'] as List? ?? [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Contact Details
+        _buildSectionCard('Contact Details', [
+          _buildDetailItem('Email', data['email']),
+          _buildDetailItem('Mobile Number', data['mobile_number']),
+        ]),
+
+        // Address
+        _buildSectionCard('Address', [
+          _buildDetailItem('Address Line 1', data['address_line_1']),
+          _buildDetailItem('Address Line 2', data['address_line_2']),
+          _buildDetailItem('State', data['state']),
+        ]),
+
+        // Identity
+        _buildSectionCard('Identity', [
+          _buildDetailItem('Date of Birth', data['dob']),
+          _buildDetailItem('Gender', data['gender']),
+          _buildDetailItem('Aadhar Number', data['aadhar_number']),
+          _buildDetailItem('PAN Number', data['pan_number']),
+        ]),
+
+        // Skills & Documents
+        if (languageSkills.isNotEmpty ||
+            (data['resume_url'] != null &&
+                data['resume_url'].toString().isNotEmpty))
+          _buildSectionCard('Skills & Documents', [
+            if (languageSkills.isNotEmpty) ...[
+              const Text(
+                'Language Skills',
+                style: TextStyle(
+                  color: AppConstants.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: languageSkills
+                    .map(
+                      (lang) => Chip(
+                        label: Text(lang.toString()),
+                        backgroundColor: AppConstants.backgroundColor,
+                        side: const BorderSide(color: AppConstants.borderColor),
+                      ),
+                    )
+                    .toList(),
+              ),
+              if (data['resume_url'] != null &&
+                  data['resume_url'].toString().isNotEmpty)
+                const SizedBox(height: 16),
+            ],
+            if (data['resume_url'] != null &&
+                data['resume_url'].toString().isNotEmpty)
+              InkWell(
+                onTap: () => _openDocument('resume'),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppConstants.backgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppConstants.borderColor),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.description,
+                        color: AppConstants.primaryColor,
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'View Resume',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppConstants.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ]),
+
+        const SizedBox(height: 24),
+
+        // Action Buttons
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              EditProfileScreen(profileData: data),
+                        ),
+                      );
+                      if (result == true && mounted) {
+                        _refresh();
+                      }
+                    },
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit Profile'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: AppConstants.borderColor),
+                      foregroundColor: AppConstants.textPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.borderRadius,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const ChangePasswordScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.lock_outline),
+                    label: const Text('Change Password'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: AppConstants.borderColor),
+                      foregroundColor: AppConstants.textPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.borderRadius,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAcademicSection(Map<String, dynamic> data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 10th
+        _buildSectionCard('10th Grade', [
+          _buildDetailItem('Mark', '${_formatValue(data['tenth_mark'])}%'),
+          _buildDetailItem('Board', data['tenth_board']),
+          _buildDetailItem('Institution', data['tenth_institution']),
+          _buildDetailItem('Year of Passing', data['tenth_year_pass']),
+        ]),
+
+        // 12th
+        _buildSectionCard('12th Grade', [
+          _buildDetailItem('Mark', '${_formatValue(data['twelfth_mark'])}%'),
+          _buildDetailItem('Board', data['twelfth_board']),
+          _buildDetailItem('Institution', data['twelfth_institution']),
+          _buildDetailItem('Year of Passing', data['twelfth_year_pass']),
+        ]),
+
+        // Diploma (Only show if data exists/significant)
+        if (_formatValue(data['diploma_mark']) != 'N/A' &&
+            data['diploma_mark'] != 0)
+          _buildSectionCard('Diploma', [
+            _buildDetailItem('Mark', '${_formatValue(data['diploma_mark'])}%'),
+            _buildDetailItem('Institution', data['diploma_institution']),
+            _buildDetailItem('Year of Passing', data['diploma_year_pass']),
+          ]),
+
+        // UG
+        _buildSectionCard('Undergraduate (UG)', [
+          _buildDetailItem('CGPA', data['ug_cgpa']),
+          const SizedBox(height: 12),
+          const Text(
+            'Semester GPAs',
+            style: TextStyle(
+              color: AppConstants.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildGpaBadge('S1', data['ug_gpa_s1']),
+              _buildGpaBadge('S2', data['ug_gpa_s2']),
+              _buildGpaBadge('S3', data['ug_gpa_s3']),
+              _buildGpaBadge('S4', data['ug_gpa_s4']),
+              _buildGpaBadge('S5', data['ug_gpa_s5']),
+              _buildGpaBadge('S6', data['ug_gpa_s6']),
+              _buildGpaBadge('S7', data['ug_gpa_s7']),
+              _buildGpaBadge('S8', data['ug_gpa_s8']),
+            ],
+          ),
+        ]),
+
+        // PG (Show if data valid or student type implies PG)
+        // Adjust check: Show if PG CGPA is available OR Department Type is PG
+        if (data['department_type'] == 'PG' ||
+            (data['pg_cgpa'] != null && data['pg_cgpa'] > 0))
+          _buildSectionCard('Postgraduate (PG)', [
+            _buildDetailItem('CGPA', data['pg_cgpa']),
+            const SizedBox(height: 12),
+            const Text(
+              'Semester GPAs',
+              style: TextStyle(
+                color: AppConstants.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildGpaBadge('S1', data['pg_gpa_s1']),
+                _buildGpaBadge('S2', data['pg_gpa_s2']),
+                _buildGpaBadge('S3', data['pg_gpa_s3']),
+                _buildGpaBadge('S4', data['pg_gpa_s4']),
+                _buildGpaBadge('S5', data['pg_gpa_s5']),
+                _buildGpaBadge('S6', data['pg_gpa_s6']),
+                _buildGpaBadge('S7', data['pg_gpa_s7']),
+                _buildGpaBadge('S8', data['pg_gpa_s8']),
+              ],
+            ),
+          ]),
+
+        // Backlogs
+        _buildSectionCard('Backlogs & History', [
+          _buildDetailItem('Current Backlogs', data['current_backlogs']),
+          _buildDetailItem('History of Backlogs', data['history_of_backlogs']),
+          _buildDetailItem('Gap Years', data['gap_years']),
+          _buildDetailItem('Gap Reason', data['gap_reason']),
+        ]),
+      ],
+    );
+  }
+
+  Widget _buildSectionCard(String title, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        border: Border.all(color: AppConstants.borderColor, width: 0),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: AppConstants.textPrimary,
             ),
           ),
-          const SizedBox(height: 8),
-          const Divider(height: 1, color: AppConstants.borderColor),
+          const SizedBox(height: 12),
+          ...children,
         ],
       ),
     );
   }
 
-  Widget _buildDetailItem(String label, dynamic value) {
+  Widget _buildDetailItem(
+    String label,
+    dynamic value, {
+    bool alwaysShow = true,
+  }) {
     final displayValue = _formatValue(value);
-    // Skip rendering if N/A with % or just %
-    if (displayValue == 'N/A%' ||
+    final bool isEmpty =
+        displayValue == 'N/A%' ||
         displayValue == '%' ||
-        displayValue == 'N/A') {
+        displayValue == 'N/A' ||
+        displayValue.isEmpty;
+
+    if (!alwaysShow && isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -518,8 +899,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             flex: 2,
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppConstants.textSecondary,
+              style: TextStyle(
+                color: isEmpty
+                    ? AppConstants.textSecondary.withValues(alpha: 0.5)
+                    : AppConstants.textSecondary,
                 fontSize: 14,
               ),
             ),
@@ -527,11 +910,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Expanded(
             flex: 3,
             child: Text(
-              displayValue,
-              style: const TextStyle(
-                color: AppConstants.textPrimary,
+              isEmpty ? 'N/A' : displayValue,
+              style: TextStyle(
+                color: isEmpty
+                    ? AppConstants.textSecondary.withValues(alpha: 0.4)
+                    : AppConstants.textPrimary,
                 fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontWeight: isEmpty ? FontWeight.normal : FontWeight.w500,
               ),
             ),
           ),
@@ -540,13 +925,97 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildDocumentChip(String label, String documentType) {
-    return ActionChip(
-      avatar: const Icon(Icons.description_outlined, size: 16),
-      label: Text(label),
-      onPressed: () => _openDocument(documentType),
-      side: const BorderSide(color: AppConstants.borderColor),
-      backgroundColor: Colors.transparent,
+  Widget _buildGpaBadge(String semester, dynamic value) {
+    final displayValue = _formatValue(value);
+    final bool isEmpty =
+        displayValue == 'N/A' ||
+        displayValue.isEmpty ||
+        (value is num && value == 0);
+
+    return Chip(
+      label: Text(
+        '$semester: ${isEmpty ? 'N/A' : displayValue}',
+        style: TextStyle(
+          fontSize: 13,
+          color: isEmpty
+              ? AppConstants.textSecondary.withValues(alpha: 0.5)
+              : AppConstants.textPrimary,
+          fontWeight: isEmpty ? FontWeight.normal : FontWeight.w500,
+        ),
+      ),
+      backgroundColor: isEmpty
+          ? AppConstants.backgroundColor.withValues(alpha: 0.5)
+          : AppConstants.backgroundColor,
+      side: BorderSide(
+        color: isEmpty
+            ? AppConstants.borderColor.withValues(alpha: 0.5)
+            : AppConstants.borderColor,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    );
+  }
+
+  Widget _buildPlacementStats(Map<String, dynamic>? stats) {
+    if (stats == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.6,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          children: [
+            _buildStatCard(
+              'Eligible Drives',
+              stats['eligible_drives'],
+              Colors.blue,
+            ),
+            _buildStatCard('Opted In', stats['opted_in'], Colors.green),
+            _buildStatCard('Attended', stats['attended'], Colors.purple),
+            _buildStatCard('Offers', stats['offers_received'], Colors.orange),
+            _buildStatCard('Opted Out', stats['opted_out'], Colors.grey),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, dynamic value, MaterialColor color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color[50], // using bracket notation for MaterialColor shades
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color[100]!),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value?.toString() ?? '0', // [FIX] Show 0 instead of N/A for stats
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color[800],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: color[700],
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

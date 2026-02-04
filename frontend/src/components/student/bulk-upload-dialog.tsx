@@ -63,7 +63,7 @@ export function BulkUploadDialog({ isOpen, onClose, onSuccess }: BulkUploadDialo
           }, 1500); 
       }
     } catch (err: any) {
-      console.error(err);
+      // console.error(err);
       setError(err.response?.data?.message || 'Failed to upload students. Please check your CSV format.');
     } finally {
       setUploading(false);

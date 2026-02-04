@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart'; // [FIX] Added import
+import 'package:path_provider/path_provider.dart'; // [FIX] Added for temp dir
 import '../../providers/onboarding_provider.dart';
 import '../../services/student_service.dart';
 import '../../utils/constants.dart';
@@ -28,31 +30,101 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
         setState(() {
           _imageFile = File(pickedFile.path);
         });
-        await _uploadImage(pickedFile.path);
+        // Auto upload after picking
+        await _uploadImage(File(pickedFile.path));
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
+      _showError('Failed to pick image');
+    }
+  }
+
+  // [FIX] Compress Image function
+  Future<File?> _compressImage(File file) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final targetPath =
+          '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      final result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 70, // 70% quality
+        minWidth: 1024, // Resize to max 1024px width
+        minHeight: 1024,
+      );
+
+      if (result == null) return null;
+      return File(result.path);
+    } catch (e) {
+      debugPrint('Compression error: $e');
+      return file; // Fallback to original
+    }
+  }
+
+  Future<void> _uploadImage(File rawFile) async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Compress
+      File fileToUpload = rawFile;
+      final compressed = await _compressImage(rawFile);
+      if (compressed != null) {
+        fileToUpload = compressed;
+        debugPrint(
+          "Original size: ${await rawFile.length()} | Compressed: ${await fileToUpload.length()}",
+        );
+      }
+
+      // 2. Upload
+      final url = await _studentService.uploadFile(
+        fileToUpload.path,
+        'profile_pic',
+      );
+
+      // 3. Update State
+      ref.read(onboardingProvider.notifier).updateProfilePhoto(url);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: $e')),
+        const SnackBar(
+          content: Text('Profile picture updated successfully!'),
+          backgroundColor: AppConstants.successColor,
+        ),
+      );
+    } catch (e) {
+      errorLog(e); // Helper to log but not show
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // [FIX] Sanitized Error Handling
+  void errorLog(dynamic e) {
+    debugPrint('Upload Error: $e');
+    String userMessage = 'Failed to upload profile picture.';
+
+    // Check for common network errors
+    final errStr = e.toString().toLowerCase();
+    if (errStr.contains('socketexception') ||
+        errStr.contains('broken pipe') ||
+        errStr.contains('clientexception')) {
+      userMessage =
+          'Network error. Please check your connection and try again.';
+    } else if (errStr.contains('payload too large')) {
+      userMessage = 'Image is too large. Please choose a smaller one.';
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userMessage), backgroundColor: Colors.redAccent),
       );
     }
   }
 
-  Future<void> _uploadImage(String filePath) async {
-    setState(() => _isLoading = true);
-    try {
-      final url = await _studentService.uploadFile(filePath, 'profile_pic');
-      ref.read(onboardingProvider.notifier).updateProfilePhoto(url);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile picture uploaded successfully!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+    );
   }
 
   void _next() {
@@ -63,7 +135,8 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
   Widget build(BuildContext context) {
     // Check if we have a URL in provider to show (if coming back)
     final providerState = ref.watch(onboardingProvider);
-    final hasImage = _imageFile != null || providerState.profilePhotoUrl != null;
+    final hasImage =
+        _imageFile != null || providerState.profilePhotoUrl != null;
 
     ImageProvider? imageProvider;
     if (_imageFile != null) {
@@ -83,7 +156,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
         title: const Text('Profile Picture'),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppConstants.spacingLarge),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -99,17 +172,17 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
               Text(
                 'Almost Done!',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppConstants.textPrimary,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: AppConstants.textPrimary,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 'Add a profile picture to personalize your account.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppConstants.textSecondary,
-                    ),
+                  color: AppConstants.textSecondary,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
@@ -122,11 +195,14 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                       color: AppConstants.borderColor,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppConstants.primaryColor.withOpacity(0.3),
+                        color: AppConstants.primaryColor.withValues(alpha: 0.3),
                         width: 3,
                       ),
                       image: imageProvider != null
-                          ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
+                          ? DecorationImage(
+                              image: imageProvider,
+                              fit: BoxFit.cover,
+                            )
                           : null,
                     ),
                     child: !hasImage
@@ -148,7 +224,10 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.camera_alt_rounded, color: Colors.white),
+                        icon: const Icon(
+                          Icons.camera_alt_rounded,
+                          color: Colors.white,
+                        ),
                         onPressed: () => _pickImage(ImageSource.camera),
                       ),
                     ),
@@ -160,7 +239,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                 onPressed: () => _pickImage(ImageSource.gallery),
                 child: const Text('Choose from Gallery'),
               ),
-              const Spacer(),
+              const SizedBox(height: 48),
               AppButton(
                 label: 'Continue',
                 isLoading: _isLoading,
@@ -171,9 +250,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                 onPressed: _isLoading ? null : _next,
                 child: Text(
                   'Skip for now',
-                  style: TextStyle(
-                    color: AppConstants.textSecondary,
-                  ),
+                  style: TextStyle(color: AppConstants.textSecondary),
                 ),
               ),
               const SizedBox(height: 16),

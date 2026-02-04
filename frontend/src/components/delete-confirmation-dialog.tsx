@@ -41,7 +41,7 @@ export function DeleteConfirmationDialog({
       onClose();
       setInputValue(''); // Reset on success
     } catch (error) {
-      console.error("Delete failed", error);
+      // console.error("Delete failed", error);
       // Ideally, error handling should be in the parent, but we ensure loading stops
     } finally {
       setLoading(false);
@@ -72,7 +72,7 @@ export function DeleteConfirmationDialog({
           )}
           
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-gray-700 mb-4">
               To confirm, type <span className="font-bold select-all">{confirmationKeyword}</span> below:
             </label>
             <Input

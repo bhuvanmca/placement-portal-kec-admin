@@ -6,6 +6,8 @@ import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 export interface CompanyInfo {
   companyName: string;
   industry: string;
+  website: string;
+  logoUrl: string;
   location: string;
   driveCategory: string;
   placementCategory: string;
@@ -19,9 +21,12 @@ export interface DriveInfo {
   driveAttachments: FileList | null;
   driveSpoc: string;
   driveDate: string;
+  status: string;
   numberOfRounds: string;
   optionalInformation: string;
 }
+
+
 
 export interface SalaryDetails {
   enabled: boolean;
@@ -86,6 +91,8 @@ const initialState: FormState = {
   companyInformation: {
     companyName: '',
     industry: '',
+    website: '',
+    logoUrl: '',
     location: '',
     driveCategory: 'Core',
     placementCategory: 'Dream'
@@ -98,6 +105,7 @@ const initialState: FormState = {
     driveAttachments: null,
     driveSpoc: '',
     driveDate: '',
+    status: 'open',
     numberOfRounds: 'Not Applicable',
     optionalInformation: ''
   },

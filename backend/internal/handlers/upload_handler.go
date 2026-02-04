@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
 	"github.com/SysSyncer/placement-portal-kec/internal/repository"
@@ -39,6 +40,13 @@ func UploadDocument(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "File is required"})
 	}
 
+	// Max 1MB
+	if fileHeader.Size > 1024*1024 {
+		return c.Status(400).JSON(
+			fiber.Map{"error": "File size exceeds 1MB limit"},
+		)
+	}
+
 	// 2. Fetch Register Number
 	repo := repository.NewUserRepository(database.DB)
 	registerNumber, err := repo.GetRegisterNumber(c.Context(), userID)
@@ -64,6 +72,11 @@ func UploadDocument(c *fiber.Ctx) error {
 	}
 
 	// 4. Update Database
+	// [NEW] Cache Busting: Append timestamp version to profile_pic URL
+	if docType == "profile_pic" {
+		url = fmt.Sprintf("%s?v=%d", url, time.Now().Unix())
+	}
+
 	if err := repo.UpdateDocumentPath(c.Context(), userID, docType, url); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Database update failed"})
 	}

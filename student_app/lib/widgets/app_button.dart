@@ -28,7 +28,10 @@ class AppButton extends StatelessWidget {
     final buttonStyle = isOutlined
         ? OutlinedButton.styleFrom(
             foregroundColor: AppConstants.primaryColor,
-            side: const BorderSide(color: AppConstants.primaryColor, width: 1.5),
+            side: const BorderSide(
+              color: AppConstants.primaryColor,
+              width: 1.5,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8), // shadcn radius
@@ -39,7 +42,7 @@ class AppButton extends StatelessWidget {
             backgroundColor: AppConstants.primaryColor,
             foregroundColor: Colors.white,
             elevation: 2,
-            shadowColor: AppConstants.primaryColor.withOpacity(0.3),
+            shadowColor: AppConstants.primaryColor.withValues(alpha: 0.3),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8), // shadcn radius

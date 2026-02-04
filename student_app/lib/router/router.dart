@@ -13,9 +13,10 @@ import '../screens/onboarding/academic_details_screen.dart';
 import '../screens/onboarding/address_screen.dart';
 import '../screens/onboarding/profile_pic_screen.dart';
 import '../screens/onboarding/documents_screen.dart';
+import '../screens/loading_screen.dart'; // [NEW]
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
+// final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   // We use a Listenable to notify GoRouter of updates.
@@ -35,7 +36,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     refreshListenable: authNotifier,
-    initialLocation: '/drives', // Default to home, redirect will handle login
+    initialLocation: '/drives', // Default to drives, redirect will handle auth
     redirect: (context, state) {
       // Read the current source of truth directly
       final authState = ref.read(authControllerProvider);
@@ -45,17 +46,22 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isLoginRoute = state.matchedLocation == '/login';
       final isOnboardingRoute = state.matchedLocation.startsWith('/onboarding');
+      final isLoadingRoute = state.matchedLocation == '/loading';
 
-      // If loading, do not interfere with navigation yet
-      if (isLoading) return null;
+      // If loading, show loading screen
+      if (isLoading) return '/loading';
 
-      if (!isAuthenticated) {
-        return '/login';
+      // If finished loading and still on loading screen, redirect based on auth
+      if (!isLoading && isLoadingRoute) {
+        return isAuthenticated
+            ? (authState.value!.isProfileComplete
+                  ? '/drives'
+                  : '/onboarding/welcome')
+            : '/login';
       }
 
-      if (isAuthenticated && isLoginRoute) {
-        // If logged in and trying to go to login, go to drives
-        return '/drives';
+      if (!isAuthenticated) {
+        return isLoginRoute ? null : '/login';
       }
 
       // Check profile completion if authenticated
@@ -73,6 +79,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Loading Screen
+      GoRoute(
+        path: '/loading',
+        builder: (context, state) => const LoadingScreen(),
+      ),
+
       // Login
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
 

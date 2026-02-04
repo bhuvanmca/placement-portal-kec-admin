@@ -22,6 +22,8 @@ func SetupRoutes(app *fiber.App) {
 	auth := api.Group("/v1/auth")
 	auth.Post("/login", handlers.StudentLogin)
 	auth.Post("/logout", handlers.LogoutUser)
+	auth.Post("/forgot-password", handlers.StudentForgotPassword) // [NEW]
+	auth.Post("/reset-password", handlers.StudentResetPassword)   // [NEW]
 	// Public Webhooks
 	api.All("/webhooks/whatsapp", handlers.HandleWhatsAppWebhook)
 
@@ -67,6 +69,7 @@ func SetupRoutes(app *fiber.App) {
 	v1.Post("/drives/:id/withdraw", handlers.WithdrawFromDrive) // [NEW]
 	v1.Post("/student/upload", handlers.UploadDocument)
 	v1.Put("/student/profile", handlers.UpdateProfile)
+	v1.Put("/student/password", handlers.ChangePassword)        // [NEW] Change Password
 	v1.Get("/student/profile", handlers.GetMyProfile)           // [NEW] Fetch Own Profile
 	v1.Get("/student/documents/:type", handlers.GetDocumentURL) // [NEW] Get presigned URL for student documents
 	v1.Post("/user/fcm-token", handlers.UpdateFCMToken)         // [NEW] Update FCM Token
@@ -78,6 +81,18 @@ func SetupRoutes(app *fiber.App) {
 	admin.Put("/spocs/:id", handlers.UpdateSpoc)              // [NEW] Update SPOC
 	admin.Delete("/spocs/:id", handlers.DeleteSpoc)           // [NEW] Delete SPOC
 	admin.Put("/spocs/:id/status", handlers.ToggleSpocStatus) // [NEW] Toggle SPOC Status
+
+	// Config Management (Departments & Batches)
+	v1.Get("/config/departments", handlers.GetDepartments)
+	v1.Get("/config/batches", handlers.GetBatches)
+
+	admin.Post("/config/departments", handlers.AddDepartment)
+	admin.Put("/config/departments/:id", handlers.UpdateDepartment)
+	admin.Delete("/config/departments/:id", handlers.DeleteDepartment)
+
+	admin.Post("/config/batches", handlers.AddBatch)
+	admin.Put("/config/batches/:id", handlers.UpdateBatch)
+	admin.Delete("/config/batches/:id", handlers.DeleteBatch)
 
 	// Example: Only logged-in users can see this
 	v1.Get("/profile", func(c *fiber.Ctx) error {

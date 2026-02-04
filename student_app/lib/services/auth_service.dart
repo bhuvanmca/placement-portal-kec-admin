@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'api_client.dart';
+import 'notification_service.dart';
 
 /// Login response containing token and profile status
 class LoginResponse {
@@ -28,24 +30,43 @@ class LoginResponse {
 }
 
 class AuthService {
+  final ApiClient _apiClient;
+
+  AuthService(this._apiClient);
+
   /// Login with email and password
   /// Returns LoginResponse with profile completion status
   Future<LoginResponse> login(String email, String password) async {
     final url = Uri.parse('${AppConstants.baseUrl}${AppConstants.loginRoute}');
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
-      );
-      
+      final response = await _apiClient
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception(
+                'Request timed out. Please check your connection.',
+              );
+            },
+          );
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['token'] != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', data['token']);
-          await prefs.setBool('is_profile_complete', data['is_profile_complete'] ?? false);
-          
+          await prefs.setBool(
+            'is_profile_complete',
+            data['is_profile_complete'] ?? false,
+          );
+
+          // [NEW] Sync FCM Token immediately after login
+          NotificationService.syncToken();
+
           return LoginResponse.fromJson(data);
         } else {
           throw Exception('Token not found in response');

@@ -22,6 +22,17 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
   final _githubController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize controllers with existing provider data
+    final state = ref.read(onboardingProvider);
+    _mobileController.text = state.mobileNumber ?? '';
+    _dobController.text = state.dob ?? '';
+    _linkedinController.text = state.socialLinks?['linkedin'] ?? '';
+    _githubController.text = state.socialLinks?['github'] ?? '';
+  }
+
+  @override
   void dispose() {
     _mobileController.dispose();
     _dobController.dispose();
@@ -32,6 +43,9 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
 
   void _next() {
     if (_formKey.currentState!.validate()) {
+      // Dismiss keyboard to prevent overflow flash during navigation
+      FocusScope.of(context).unfocus();
+
       ref
           .read(onboardingProvider.notifier)
           .updateContact(
@@ -57,7 +71,7 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
         title: const Text('Contact Details'),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppConstants.spacingLarge),
           child: Form(
             key: _formKey,
@@ -231,7 +245,7 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                     ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 32),
                 AppButton(label: 'Continue', onPressed: _next),
                 const SizedBox(height: 16),
               ],

@@ -45,9 +45,9 @@ import { studentService, Student } from '@/services/student.service';
 import { toast } from 'sonner';
 
 import { AddStudentDialog } from '@/components/student/add-student-dialog'; 
-import { DEPARTMENTS } from '@/constants/departments';
+import { configService, Department, Batch } from '@/services/config.service';
 
-import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
+// ... imports
 
 export default function StudentsPage() {
   const router = useRouter();
@@ -55,40 +55,43 @@ export default function StudentsPage() {
   // Data State
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Config State
+  const [deptOptions, setDeptOptions] = useState<Department[]>([]);
+  const [batchOptions, setBatchOptions] = useState<Batch[]>([]);
+
   // Pagination State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  const [selectedStudents, setSelectedStudents] = useState<number[]>([]); // Changed to number ID
+  const [selectedStudents, setSelectedStudents] = useState<number[]>([]); 
 
   // Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBatch, setFilterBatch] = useState('All');
   const [filterDept, setFilterDept] = useState('All');
   
-  // Advanced Filter Dialog State
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [advFilters, setAdvFilters] = useState({
-    studentType: [] as string[],
-    gender: [] as string[],
-    willingness: [] as string[],
-  });
+  // ... (Dialog states remain)
 
-  // Column Visibility State
-  const [visibleColumns, setVisibleColumns] = useState({
-    profile: true,
-    regNo: true,
-    batch: true,
-    dept: true,
-    mobile: true,
-    actions: true,
-  });
+  // Fetch Config Data
+  useEffect(() => {
+    const fetchConfig = async () => {
+        try {
+            const [d, b] = await Promise.all([
+                configService.getAllDepartments(),
+                configService.getAllBatches()
+            ]);
+            setDeptOptions(d || []);
+            setBatchOptions(b || []);
+        } catch (e) {
+            toast.error("Failed to load filter options");
+        }
+    };
+    fetchConfig();
+  }, []);
 
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false); // [NEW] State
-
-  // Fetch Data
+  // Fetch Students (Updated to use dynamic batch/dept if needed, though API handles strings fine)
   const fetchStudents = async () => {
     setLoading(true);
     try {
@@ -99,11 +102,9 @@ export default function StudentsPage() {
         page: page,
         limit: pageSize,
       });
-      // Handle the new response structure
       setStudents(response.data || []);
       setTotalRecords(response.meta.total);
     } catch (error) {
-      console.error("Failed to fetch students", error);
       toast.error("Failed to load students");
     } finally {
       setLoading(false);
@@ -112,129 +113,116 @@ export default function StudentsPage() {
 
   // Initial Fetch & Filter Change
   useEffect(() => {
-    // Debounce search
     const timer = setTimeout(() => {
       fetchStudents();
     }, 500);
     return () => clearTimeout(timer);
   }, [filterDept, filterBatch, searchTerm, page, pageSize]);
 
+  // Dialog & Filter State
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [advFilters, setAdvFilters] = useState({
+      studentType: [] as string[],
+      gender: [] as string[],
+      willingness: [] as string[]
+  });
+  const [visibleColumns, setVisibleColumns] = useState({
+      profile: true,
+      regNo: true,
+      batch: true,
+      dept: true,
+      mobile: true,
+      actions: true
+  });
+
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+
   // Handlers
-  const toggleSelectAll = () => {
-    if (selectedStudents.length === students.length) {
-      setSelectedStudents([]);
-    } else {
+  const handleRowClick = (student: Student) => {
+    router.push(`/dashboard/students/${student.register_number}`);
+  };
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
       setSelectedStudents(students.map(s => s.id));
+    } else {
+      setSelectedStudents([]);
     }
   };
 
   const toggleSelect = (id: number) => {
-    if (selectedStudents.includes(id)) {
-      setSelectedStudents(prev => prev.filter(s => s !== id));
-    } else {
-      setSelectedStudents(prev => [...prev, id]);
-    }
+    setSelectedStudents(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this student?')) return;
-    try {
-      await studentService.deleteStudent(id);
-      toast.success("Student deleted");
-      fetchStudents(); // Refresh
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Delete failed");
-    }
+      if(!confirm("Are you sure you want to delete this student?")) return;
+      try {
+          await studentService.deleteStudent(id);
+          toast.success("Student deleted");
+          fetchStudents();
+      } catch(e) {
+          toast.error("Failed to delete");
+      }
   };
 
   const handleBlockToggle = async (id: number, currentStatus: boolean) => {
       try {
-          await studentService.toggleBlockStatus(id, !currentStatus);
-          toast.success(currentStatus ? "Student unblocked" : "Student blocked");
+          const newStatus = !currentStatus;
+          await studentService.toggleBlockStatus(id, newStatus);
+          toast.success(newStatus ? "Student blocked" : "Student unblocked");
           fetchStudents();
-      } catch (err) {
+      } catch(e) {
           toast.error("Failed to update status");
       }
   };
 
-  const handleRowClick = (id: number) => {
-    router.push(`/dashboard/students/${id}`);
+  const handleBulkUploadSuccess = () => {
+      toast.success("Bulk upload processed successfully");
+      setIsBulkUploadOpen(false);
+      fetchStudents();
   };
 
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
+  // Render
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] space-y-4 p-8 pt-6">
-      {/* Dialog */}
-      <DeleteConfirmationDialog 
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={async () => {
-             await studentService.bulkDeleteStudents(selectedStudents);
-             toast.success("Students deleted successfully");
-             setSelectedStudents([]);
-             fetchStudents();
+      <AddStudentDialog 
+        isOpen={isAddStudentOpen} 
+        onClose={() => setIsAddStudentOpen(false)} 
+        onSuccess={() => {
+            fetchStudents();
+            setIsAddStudentOpen(false);
         }}
-        title="Delete Students"
-        description="This action cannot be undone. This will permanently delete the selected students and their complete academic history."
-        itemCount={selectedStudents.length}
+      />
+      
+      <BulkUploadDialog 
+        isOpen={isBulkUploadOpen} 
+        onClose={() => setIsBulkUploadOpen(false)} 
+        onSuccess={handleBulkUploadSuccess}
       />
 
       <div className="flex items-center justify-between space-y-2">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-[#002147]">Manage Students</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-[#002147]">Students</h2>
           <p className="text-muted-foreground">
-            View and manage student details, academic records, and placement status.
+            Manage student records, track placement status, and more.
           </p>
         </div>
         <div className="flex items-center space-x-2">
-            {selectedStudents.length > 0 && (
-              <Button 
-                variant="destructive"
-                onClick={() => setIsDeleteDialogOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected ({selectedStudents.length})
-              </Button>
-            )}
-           <Button variant="outline">
-             <Download className="mr-2 h-4 w-4" />
-             Export
-           </Button>
-           <Button 
-              variant="outline" 
-              className="text-[#002147] border-[#002147] hover:bg-[#002147]/5 hover:text-[#002147]"
-              onClick={() => setIsUploadOpen(true)}
-           >
-              Bulk Upload
-           </Button>
-           <Button 
-             className="bg-[#002147] hover:bg-[#003366]"
-             onClick={() => setIsAddStudentOpen(true)}
-           >
-             Add Student
-           </Button>
+          <Button variant="outline" onClick={() => setIsBulkUploadOpen(true)}>
+            <Download className="mr-2 h-4 w-4" />
+            Bulk Upload
+          </Button>
+          <Button onClick={() => setIsAddStudentOpen(true)} className="bg-[#002147]">
+            <UserIcon className="mr-2 h-4 w-4" />
+            Add Student
+          </Button>
         </div>
       </div>
-
-      <BulkUploadDialog 
-         isOpen={isUploadOpen} 
-         onClose={() => setIsUploadOpen(false)}
-         onSuccess={() => {
-             toast.success("Bulk Upload Successful");
-             fetchStudents();
-         }} 
-      />
-
-      <AddStudentDialog 
-         isOpen={isAddStudentOpen} 
-         onClose={() => setIsAddStudentOpen(false)}
-         onSuccess={() => {
-             fetchStudents(); // Refresh list
-         }}
-      />
-
-      <div className="flex flex-col gap-4 flex-1 min-h-0">
+      
+       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Filters Bar */}
         <div className="flex flex-wrap items-center gap-2 p-4 bg-white border rounded-lg shadow-sm">
            <div className="relative w-64">
@@ -245,7 +233,7 @@ export default function StudentsPage() {
                value={searchTerm}
                onChange={(e) => {
                  setSearchTerm(e.target.value);
-                 setPage(1); // Reset to page 1 on search
+                 setPage(1); 
                }}
              />
            </div>
@@ -256,9 +244,9 @@ export default function StudentsPage() {
              </SelectTrigger>
              <SelectContent>
                <SelectItem value="All">All Batches</SelectItem>
-               <SelectItem value="2024">2024</SelectItem>
-               <SelectItem value="2025">2025</SelectItem>
-               <SelectItem value="2026">2026</SelectItem>
+               {batchOptions.map((b) => (
+                   <SelectItem key={b.id} value={b.year.toString()}>{b.year}</SelectItem>
+               ))}
              </SelectContent>
            </Select>
 
@@ -268,9 +256,9 @@ export default function StudentsPage() {
              </SelectTrigger>
              <SelectContent className="max-h-[200px]">
                <SelectItem value="All">All Depts</SelectItem>
-               {DEPARTMENTS.map((dept) => (
-                   <SelectItem key={dept} value={dept}>
-                       {dept}
+               {deptOptions.map((dept) => (
+                   <SelectItem key={dept.id} value={dept.code}>
+                       {dept.code}
                    </SelectItem>
                ))}
              </SelectContent>
@@ -429,7 +417,7 @@ export default function StudentsPage() {
                           "hover:bg-gray-50 transition-colors cursor-pointer",
                           student.is_blocked && "opacity-60 bg-red-50"
                       )}
-                      onClick={() => handleRowClick(student.id)}
+                      onClick={() => handleRowClick(student)}
                     >
                       {/* Sticky Profile Data */}
                       {visibleColumns.profile && (
@@ -439,7 +427,7 @@ export default function StudentsPage() {
                               checked={selectedStudents.includes(student.id)}
                               onCheckedChange={() => toggleSelect(student.id)}
                             />
-                            <div className="flex items-center gap-3" onClick={() => handleRowClick(student.id)}>
+                            <div className="flex items-center gap-3" onClick={() => handleRowClick(student)}>
                                <div className="relative">
                                    <Avatar>
                                      <AvatarImage src={student.profile_photo_url || ""} />
@@ -485,7 +473,7 @@ export default function StudentsPage() {
                              <DropdownMenuContent align="end">
                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                <DropdownMenuSeparator />
-                               <DropdownMenuItem onClick={() => handleRowClick(student.id)}>
+                               <DropdownMenuItem onClick={() => handleRowClick(student)}>
                                  <Eye className="mr-2 h-4 w-4" /> View Profile
                                </DropdownMenuItem>
                                <DropdownMenuItem onClick={() => handleBlockToggle(student.id, student.is_blocked)}>

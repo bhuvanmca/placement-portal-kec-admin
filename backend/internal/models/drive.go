@@ -2,31 +2,26 @@ package models
 
 import (
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype" // Driver-specific types for robust handling
 )
 
 type PlacementDrive struct {
 	ID             int64  `json:"id"`
 	PostedBy       int64  `json:"posted_by"`
 	CompanyName    string `json:"company_name"`
-	JobRole        string `json:"job_role"`
 	JobDescription string `json:"job_description"`
-	Location       string `json:"location"`
-	Website        string `json:"website"`  // [NEW]
-	LogoURL        string `json:"logo_url"` // [NEW]
+	Website        string `json:"website"`       // [NEW]
+	LogoURL        string `json:"logo_url"`      // [NEW]
+	Location       string `json:"location"`      // [MOVED BACK]
+	LocationType   string `json:"location_type"` // [NEW] 'On-Site', 'Hybrid', 'Remote'
+
+	Roles []JobRole `json:"roles"` // [NEW] Multiple Job Roles
 
 	// Filters & Categories
-	DriveType       string `json:"drive_type"`       // 'Full-Time', 'Internship', 'Freelance', 'Part-Time'
-	CompanyCategory string `json:"company_category"` // 'Core', 'IT', 'Service', 'Product', 'Start-up', 'MNC'
-	SpocID          int64  `json:"spoc_id"`          // [NEW] Single Point Of Contact ID
-
-	// Financials
-	CtcMin     int64  `json:"ctc_min"`
-	CtcMax     int64  `json:"ctc_max"`
-	CtcDisplay string `json:"ctc_display"`
-	StipendMin int64  `json:"stipend_min"`
-	StipendMax int64  `json:"stipend_max"`
+	DriveType       string `json:"drive_type"`                 // 'Full-Time', 'Internship', 'Freelance', 'Part-Time'
+	CompanyCategory string `json:"company_category"`           // 'Core', 'IT', 'Service', 'Product', 'Start-up', 'MNC'
+	SpocID          int64  `json:"spoc_id"`                    // Single Point Of Contact ID
+	SpocName        string `json:"spoc_name,omitempty"`        // [NEW]
+	SpocDesignation string `json:"spoc_designation,omitempty"` // [NEW]
 
 	// Eligibility
 	MinCgpa float64 `json:"min_cgpa"`
@@ -48,13 +43,26 @@ type PlacementDrive struct {
 	Attachments []Attachment `json:"attachments"` // JSONB
 
 	// Dates
-	DriveDate    pgtype.Date `json:"drive_date" swaggertype:"string" example:"2026-05-20"`
-	DeadlineDate time.Time   `json:"deadline_date"`
-	Status       string      `json:"status"`
+	DriveDate    time.Time `json:"drive_date"`
+	DeadlineDate time.Time `json:"deadline_date"`
+	Status       string    `json:"status"`
 
 	CreatedAt      time.Time `json:"created_at"`
 	ApplicantCount int       `json:"applicant_count"`       // [NEW] Computed field
 	UserStatus     string    `json:"user_status,omitempty"` // [NEW] For student response ('opted_in', etc.)
+
+	// User Context (If Applied)
+	UserAppliedRoleIDs []int64 `json:"user_applied_role_ids,omitempty"`
+	UserOptOutReason   string  `json:"user_opt_out_reason,omitempty"`
+}
+
+type JobRole struct {
+	ID       int64  `json:"id"`
+	DriveID  int64  `json:"drive_id"`
+	RoleName string `json:"role_name"`
+	Ctc      string `json:"ctc"`    // e.g. "6 LPA"
+	Salary   int64  `json:"salary"` // Numeric value for filtering
+	Stipend  string `json:"stipend"`
 }
 
 type Round struct {
@@ -71,20 +79,17 @@ type Attachment struct {
 // Input struct for Creating a Drive
 type CreateDriveInput struct {
 	CompanyName     string `json:"company_name" validate:"required"`
-	JobRole         string `json:"job_role" validate:"required"`
 	JobDescription  string `json:"job_description"`
-	Location        string `json:"location"`
-	Website         string `json:"website"`  // [NEW]
-	LogoURL         string `json:"logo_url"` // [NEW]
+	Website         string `json:"website"`                      // [NEW]
+	LogoURL         string `json:"logo_url"`                     // [NEW]
+	Location        string `json:"location" validate:"required"` // [MOVED BACK]
+	LocationType    string `json:"location_type"`                // [NEW]
 	DriveType       string `json:"drive_type"`
 	CompanyCategory string `json:"company_category"`
 	SpocID          int64  `json:"spoc_id"` // [NEW]
 
-	CtcMin     int64  `json:"ctc_min"`
-	CtcMax     int64  `json:"ctc_max"`
-	CtcDisplay string `json:"ctc_display"`
-	StipendMin int64  `json:"stipend_min"`
-	StipendMax int64  `json:"stipend_max"`
+	// Roles
+	Roles []JobRole `json:"roles"` // [NEW]
 
 	// Eligibility
 	MinCgpa float64 `json:"min_cgpa"`
@@ -107,6 +112,7 @@ type CreateDriveInput struct {
 
 	DriveDate    string `json:"drive_date"`
 	DeadlineDate string `json:"deadline_date"`
+	Status       string `json:"status"` // [NEW]
 }
 
 // ManualRegisterInput defines the input for admin adding a student to a drive
@@ -124,4 +130,7 @@ type DriveApplicant struct {
 	Status         string  `json:"status"` // 'opted_in', 'shortlisted', 'placed', 'rejected'
 	ResumeURL      string  `json:"resume_url"`
 	AppliedAt      string  `json:"applied_at"`
+
+	AppliedRoleIDs []int64 `json:"applied_role_ids"` // [NEW]
+	OptOutReason   string  `json:"opt_out_reason"`   // [NEW]
 }

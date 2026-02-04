@@ -22,7 +22,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('[API Request Error]', error);
+    // console.error('[API Request Error]', error);
     return Promise.reject(error);
   }
 );
@@ -38,25 +38,40 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Use console.warn instead of console.error to avoid triggering Next.js error overlay
-    console.warn('[API Response Warning]', error.response?.status, error.response?.data);
+    // console.warn('[API Response Warning]', error.response?.status, error.response?.data);
     
+    // Check for Server Connection Issues
+    const isNetworkError = error.code === 'ERR_NETWORK';
+    const isServerDown = error.response?.status >= 502 && error.response?.status <= 504;
+    const isConnectionRefused = error.response?.status === 0; // Sometimes happens with CORS/Network failure
+
+    // Only trigger server down overlay if we are ONLINE (otherwise it's just no internet)
+    if (typeof window !== 'undefined' && navigator.onLine) {
+       if (isNetworkError || isServerDown || isConnectionRefused) {
+         // Dispatch event to show ServerErrorOverlay
+         window.dispatchEvent(
+           new CustomEvent('server-availability-changed', {
+             detail: { available: false },
+           })
+         );
+         
+         // Return rejected promise but handled
+         // We might not want to show a toast ON TOP of the overlay
+         return Promise.reject({ handled: true, isServerDown: true, message: 'Server unavailable' });
+       }
+    }
+
     const status = error.response?.status;
     const errorMessage = error.response?.data?.error || error.response?.data?.message;
 
     if (status === 401 || status === 403) {
-      // For auth errors, show a clean "Invalid credentials" message
       toast.error('Invalid credentials');
     } else if (status === 500) {
       toast.error('Internal Server Error. Please try again later.');
-    } else if (error.code === 'ERR_NETWORK') {
-      toast.error('Network Error. Please check your connection.');
     } else {
       toast.error(errorMessage || 'An error occurred');
     }
 
-    // Return a resolved promise with error info to prevent unhandled rejection
-    // The calling code should check for this pattern
     return Promise.reject({ handled: true, status, message: errorMessage });
   }
 );

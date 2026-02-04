@@ -21,7 +21,8 @@ import {
   Save,
   Loader2,
   Check,
-  ArrowUp
+  ArrowUp,
+  RefreshCw
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ import { spocService, Spoc } from '@/services/spoc.service';
 import { toast } from 'sonner';
 import { DEPARTMENTS } from '@/constants/departments';
 import FileUpload from '@/components/ui/file-upload';
-import { DatePicker } from '@/components/ui/date-picker';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { useScrollSpy } from '@/hooks/use-scroll-spy';
 import { Progress } from "@/components/ui/progress";
@@ -51,16 +52,15 @@ const driveSchema = z.object({
   company_name: z.string().min(2, "Company Name is required"),
   website: z.string().optional(),
   logo_url: z.string().optional(),
-  job_role: z.string().min(2, "Job Role is required"),
+  // Removed: job_role, ctc
   job_description: z.string().optional(),
   location: z.string().min(2, "Location is required"),
+  location_type: z.enum(['On-Site', 'Hybrid', 'Remote']).default('On-Site'),
   domain: z.string().optional(),
   drive_type: z.string().min(1, "Drive type is required"),
   company_category: z.string().min(1, "Category is required"),
   spoc_id: z.coerce.number().min(1, "SPOC is required"),
-  ctc_min: z.coerce.number().min(0),
-  ctc_max: z.coerce.number().min(0),
-  ctc_display: z.string().min(1, "CTC Display is required"),
+  status: z.enum(['open', 'ongoing', 'completed', 'closed']).optional(),
   
   // Eligibility
   min_cgpa: z.coerce.number().min(0).max(10),
@@ -84,6 +84,13 @@ const driveSchema = z.object({
       date: z.string().min(1, "Date required"),
       description: z.string()
   })),
+
+  roles: z.array(z.object({
+    role_name: z.string().min(1, "Role Name is required"),
+    ctc: z.string().min(1, "CTC is required"),
+    salary: z.coerce.number().optional(), 
+    stipend: z.string().optional(),
+  })).min(1, "At least one role is required"),
   
   // existing attachments handled via state, not direct form validation here (or optional)
   attachments: z.array(z.any()).optional()
@@ -108,6 +115,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
   const [spocs, setSpocs] = useState<Spoc[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<{name: string, url: string}[]>([]);
   const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [currentDrive, setCurrentDrive] = useState<Drive | null>(null);
   
   // Company Search - (Optional for Edit, but keeping for consistency if user wants to change company completely)
   const [companyQuery, setCompanyQuery] = useState("");
@@ -122,38 +130,51 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
 
+  const [loadingSpocs, setLoadingSpocs] = useState(false);
+  const fetchSpocs = async () => {
+    setLoadingSpocs(true);
+    try {
+      const data = await spocService.getAllSpocs();
+      setSpocs(data || []);
+      if(data?.length > 0 && spocs.length > 0) toast.success("SPOCs refreshed");
+    } catch (error) {
+      toast.error("Failed to load SPOCs");
+    } finally {
+        setLoadingSpocs(false);
+    }
+  };
+
   useEffect(() => {
-    spocService.getAllSpocs().then(setSpocs).catch(console.error);
+    fetchSpocs();
   }, []);
 
   const form = useForm<DriveFormValues>({
     resolver: zodResolver(driveSchema) as Resolver<DriveFormValues>,
     defaultValues: {
       company_name: '',
-      job_role: '',
-      ctc_display: '',
-      ctc_min: 0,
-      ctc_max: 0,
-      min_cgpa: 0,
-      max_backlogs_allowed: 0,
-      eligible_batches: [],
-      eligible_departments: [],
-      eligible_gender: 'All',
       rounds: [],
+      roles: [],
       attachments: [],
       drive_type: 'Full-Time',
       company_category: 'Core',
       spoc_id: 0,
       job_description: '',
       location: '',
+      location_type: 'On-Site',
       drive_date: '',
-      deadline_date: ''
+      deadline_date: '',
+      status: 'open'
     }
   });
 
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "rounds"
+  });
+
+  const { fields: roleFields, append: appendRole, remove: removeRole } = useFieldArray({
+    control: form.control,
+    name: "roles"
   });
 
   // Fetch Drive Data
@@ -167,27 +188,25 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                 router.push('/dashboard/drives');
                 return;
             }
+            setCurrentDrive(drive); // Store for status logic
 
             // Date Formatting
-            const driveDate = new Date(drive.drive_date).toISOString().split('T')[0];
-            const deadlineDate = new Date(drive.deadline_date).toISOString().slice(0, 16);
+            const driveDate = new Date(drive.drive_date).toISOString();
+            const deadlineDate = new Date(drive.deadline_date).toISOString();
 
             form.reset({
                 company_name: drive.company_name,
-                job_role: drive.job_role,
                 job_description: drive.job_description,
-                location: drive.location,
                 website: drive.website,
                 logo_url: drive.logo_url,
                 drive_type: drive.drive_type,
                 company_category: drive.company_category,
                 spoc_id: drive.spoc_id,
-                domain: (drive as any).domain || '', // handle missing field
+                domain: (drive as any).domain || '',
                 
-                ctc_min: drive.ctc_min,
-                ctc_max: drive.ctc_max,
-                ctc_display: drive.ctc_display,
-                
+                roles: drive.roles && drive.roles.length > 0 ? drive.roles : [{ role_name: '', ctc: '', stipend: '' }],
+                location: drive.location,
+                location_type: (drive.location_type as any) || 'On-Site',
                 min_cgpa: drive.min_cgpa,
                 tenth_percentage: (drive as any).tenth_percentage || 0,
                 twelfth_percentage: (drive as any).twelfth_percentage || 0,
@@ -204,7 +223,8 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                 
                 drive_date: driveDate,
                 deadline_date: deadlineDate,
-                rounds: drive.rounds || []
+                rounds: drive.rounds || [],
+                status: drive.status as any
             });
             
             // Attachments
@@ -213,7 +233,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
             }
 
         } catch (error) {
-            console.error(error);
+            // console.error(error);
             toast.error("Failed to load drive");
         } finally {
             setLoading(false);
@@ -246,8 +266,16 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
       const formData = new FormData();
       
       // Update attachments list in drive data (existing ones only)
+      // Logic: If status is 'closed' and new deadline is in future, we "Republish" -> Set status 'open'
+      let newStatus = currentDrive?.status;
+      if (currentDrive?.status === 'closed' && new Date(data.deadline_date) > new Date()) {
+           newStatus = 'open';
+           toast.info("Drive Re-opened (Deadline Extended)");
+      }
+
       const driveData = {
           ...data,
+          status: newStatus,
           attachments: existingAttachments
       };
       
@@ -265,9 +293,9 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
       toast.success("Drive Republished Successfully!");
       router.push(`/dashboard/drives/${id}`);
     } catch (error: any) {
-      console.error("Republish Error Raw:", error);
-      console.error("Republish Error Keys:", Object.keys(error));
-      console.error("Republish Error Stringified:", JSON.stringify(error, null, 2));
+    //   console.error("Republish Error Raw:", error);
+    //   console.error("Republish Error Keys:", Object.keys(error));
+    //   console.error("Republish Error Stringified:", JSON.stringify(error, null, 2));
 
       // Attempt to extract meaningful message
       let msg = "Failed to update drive";
@@ -328,9 +356,14 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                 {form.watch('logo_url') && (
                                     <img src={form.watch('logo_url')} alt="Logo" className="h-10 w-10 object-contain rounded border p-1 bg-white" />
                                 )}
-                                <Input {...form.register('company_name')} placeholder="Company Name" />
+                                <Input {...form.register('company_name')} placeholder="Company Name" className="flex-1" />
                             </div>
                              {form.formState.errors.company_name && <p className="text-red-500 text-xs">{form.formState.errors.company_name.message}</p>}
+                        </div>
+
+                         <div className="space-y-2">
+                            <Label>Logo URL</Label>
+                            <Input {...form.register('logo_url')} placeholder="https://..." />
                         </div>
 
                         <div className="space-y-2">
@@ -339,53 +372,63 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                         </div>
 
                         <div className="space-y-2">
-                             <Label>Job Role <span className="text-red-500">*</span></Label>
-                             <Input {...form.register('job_role')} placeholder="e.g. Software Developer" />
-                        </div>
-
-                        <div className="space-y-2">
                              <Label>Location <span className="text-red-500">*</span></Label>
-                             <div className="relative">
-                                <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input className="pl-9" {...form.register('location')} placeholder="e.g. Chennai" />
+                             <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input className="pl-9" {...form.register('location')} placeholder="e.g. Chennai" />
+                                </div>
+                                <Controller
+                                    name="location_type"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="On-Site">On-Site</SelectItem>
+                                                <SelectItem value="Hybrid">Hybrid</SelectItem>
+                                                <SelectItem value="Remote">Remote</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                 />
                              </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Category</Label>
-                            <Controller
-                                name="company_category"
-                                control={form.control}
-                                render={({ field }) => (
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
-                                        <SelectContent>
-                                            {['Core', 'IT', 'Product', 'Service', 'Start-up', 'MNC', 'Non-Tech'].map(c => (
-                                                <SelectItem key={c} value={c}>{c}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                             <Label>CTC Display <span className="text-red-500">*</span></Label>
-                             <div className="relative">
-                                <Banknote className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input className="pl-9" {...form.register('ctc_display')} placeholder="e.g. 6.5 LPA" />
+                        {/* ROLES SECTION */}
+                        <div className="md:col-span-2 space-y-4 pt-4 border-t">
+                             <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Job Roles</Label>
+                                <Button type="button" variant="outline" size="sm" onClick={() => appendRole({ role_name: '', ctc: '', stipend: '' })}>
+                                    <Plus className="h-4 w-4 mr-2" /> Add Role
+                                </Button>
                              </div>
-                        </div>
+                             
+                             {roleFields.map((field, index) => (
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start border p-4 rounded-lg bg-blue-50/50 relative">
+                                    <div className="md:col-span-4 space-y-2">
+                                        <Label>Role Name <span className="text-red-500">*</span></Label>
+                                        <Input {...form.register(`roles.${index}.role_name` as const)} placeholder="e.g. SDE-1" />
+                                        {/* Error handling skipped for brevity, validated by Zod */}
+                                    </div>
+                                    <div className="md:col-span-3 space-y-2">
+                                        <Label>CTC <span className="text-red-500">*</span></Label>
+                                        <Input {...form.register(`roles.${index}.ctc` as const)} placeholder="e.g. 10 LPA" />
+                                    </div>
+                                    <div className="md:col-span-2 space-y-2">
+                                        <Label>Salary (Num)</Label>
+                                        <Input type="number" {...form.register(`roles.${index}.salary` as const)} placeholder="600000" />
+                                    </div>
+                                    <div className="md:col-span-2 space-y-2">
+                                        <Label>Stipend</Label>
+                                        <Input {...form.register(`roles.${index}.stipend` as const)} placeholder="e.g. 30k" />
+                                    </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Min CTC</Label>
-                                <Input type="number" {...form.register('ctc_min')} onWheel={(e) => e.currentTarget.blur()} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Max CTC</Label>
-                                <Input type="number" {...form.register('ctc_max')} onWheel={(e) => e.currentTarget.blur()} />
-                            </div>
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeRole(index)} className="absolute top-2 right-2 text-red-500 hover:bg-red-50 h-6 w-6">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                             ))}
                         </div>
 
                          <div className="space-y-2">
@@ -406,9 +449,39 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                             />
                         </div>
 
+                        <div className="space-y-2">
+                           <Label>Status</Label>
+                           <Controller
+                               name="status"
+                               control={form.control}
+                               render={({ field }) => (
+                                   <Select onValueChange={field.onChange} value={field.value || 'open'}>
+                                       <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
+                                       <SelectContent>
+                                           <SelectItem value="ongoing">Ongoing</SelectItem>
+                                           <SelectItem value="completed">Completed</SelectItem>
+                                           <SelectItem value="closed">Closed</SelectItem>
+                                       </SelectContent>
+                                   </Select>
+                               )}
+                           />
+                        </div>
+
                         {/* SPOC Field */}
                         <div className="col-span-1 md:col-span-2 space-y-2">
-                             <Label>SPOC (Single Point of Contact)</Label>
+                             <div className="flex items-center justify-between">
+                                <Label>SPOC (Single Point of Contact)</Label>
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={fetchSpocs} 
+                                    disabled={loadingSpocs}
+                                    title="Refresh SPOC List"
+                                >
+                                    <RefreshCw className={`h-3 w-3 ${loadingSpocs ? 'animate-spin' : ''}`} />
+                                </Button>
+                             </div>
                                  <div className="flex gap-2">
                                      <Controller
                                         name="spoc_id"
@@ -551,9 +624,9 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                     name="deadline_date"
                                     control={form.control}
                                     render={({ field }) => (
-                                        <DatePicker 
+                                        <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
-                                            setDate={(date) => field.onChange(date ? format(date, "yyyy-MM-dd'T'HH:mm") : '')} 
+                                            setDate={(date) => field.onChange(date ? date.toISOString() : '')} 
                                         />
                                     )}
                                 />
@@ -564,9 +637,9 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                     name="drive_date"
                                     control={form.control}
                                     render={({ field }) => (
-                                        <DatePicker 
+                                        <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
-                                            setDate={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                            setDate={(date) => field.onChange(date ? date.toISOString() : '')}
                                         />
                                     )}
                                 />
@@ -597,9 +670,9 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                         control={form.control}
                                         name={`rounds.${index}.date`}
                                         render={({ field }) => (
-                                            <DatePicker 
+                                            <DateTimePicker 
                                                 date={field.value ? new Date(field.value) : undefined}
-                                                setDate={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                                setDate={(date) => field.onChange(date ? date.toISOString() : '')}
                                                 className="w-full"
                                             />
                                         )}

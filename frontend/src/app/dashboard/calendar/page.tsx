@@ -227,7 +227,11 @@ function DriveEvent({ drive }: { drive: Drive }) {
                         {drive.company_name}
                     </DialogTitle>
                     <DialogDescription className="text-base">
-                        Hiring for <span className="font-semibold text-gray-900">{drive.job_role}</span>
+                        Hiring for <span className="font-semibold text-gray-900">
+                            {drive.roles && drive.roles.length > 0
+                                ? (drive.roles.length > 1 ? `${drive.roles.length} Roles` : drive.roles[0].role_name)
+                                : 'Various Roles'}
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -258,7 +262,7 @@ function DriveEvent({ drive }: { drive: Drive }) {
                    
                     <div className="mt-2 flex gap-2">
                         <Badge variant="outline" className="border-[#002147] text-[#002147] px-3 py-1">
-                            CTC: {drive.ctc_display || 'Disclosed later'}
+                            CTC: {drive.roles && drive.roles.length > 0 ? drive.roles[0].ctc : 'TBD'}
                         </Badge>
                         <Badge className={cn(
                             "px-3 py-1",

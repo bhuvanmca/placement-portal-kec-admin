@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/drive_provider.dart';
 import '../../widgets/drive_card.dart';
 import '../../utils/constants.dart';
+import '../../widgets/haptic_refresh_indicator.dart'; // [NEW]
 
 class PlacedScreen extends ConsumerWidget {
   const PlacedScreen({super.key});
 
   Future<void> _refresh(WidgetRef ref) {
+    HapticFeedback.selectionClick();
     return ref.refresh(driveListProvider.future);
   }
 
@@ -26,7 +29,15 @@ class PlacedScreen extends ConsumerWidget {
         foregroundColor: AppConstants.textPrimary,
       ),
       body: drivesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Column(
+          children: [
+            LinearProgressIndicator(
+              color: AppConstants.primaryColor,
+              backgroundColor: Colors.transparent,
+            ),
+            Expanded(child: SizedBox()),
+          ],
+        ),
         error: (error, stack) => Center(child: Text('Error: $error')),
         data: (drives) {
           final placedDrives = drives
@@ -34,7 +45,7 @@ class PlacedScreen extends ConsumerWidget {
               .toList();
 
           if (placedDrives.isEmpty) {
-            return RefreshIndicator(
+            return HapticRefreshIndicator(
               onRefresh: () => _refresh(ref),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -70,7 +81,7 @@ class PlacedScreen extends ConsumerWidget {
             );
           }
 
-          return RefreshIndicator(
+          return HapticRefreshIndicator(
             onRefresh: () => _refresh(ref),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),

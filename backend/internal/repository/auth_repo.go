@@ -52,7 +52,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User, full
 		}
 
 		// Init other tables
-		tx.Exec(ctx, `INSERT INTO student_academics (user_id) VALUES ($1)`, user.ID)
+		tx.Exec(ctx, `INSERT INTO student_schooling (user_id) VALUES ($1)`, user.ID)
 		tx.Exec(ctx, `INSERT INTO student_documents (user_id) VALUES ($1)`, user.ID)
 	}
 
@@ -65,11 +65,11 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User, full
 
 // GetUserByEmail finds a user for login
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	query := `SELECT id, email, password_hash, role, is_active, is_blocked FROM users WHERE email = $1`
+	query := `SELECT id, email, password_hash, role, is_active, is_blocked, last_login FROM users WHERE email = $1`
 
 	var user models.User
 	err := r.DB.QueryRow(ctx, query, email).Scan(
-		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.IsActive, &user.IsBlocked,
+		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.IsActive, &user.IsBlocked, &user.LastLogin,
 	)
 
 	if err != nil {
@@ -86,9 +86,9 @@ func (r *UserRepository) SaveOTP(ctx context.Context, email, otp string) error {
 	// Upsert: If an OTP already exists for this email, overwrite it
 	query := `
         INSERT INTO password_resets (email, otp_code, expires_at)
-        VALUES ($1, $2, NOW() + INTERVAL '15 minutes')
+        VALUES ($1, $2, NOW() + INTERVAL '2 minutes')
         ON CONFLICT (email) 
-        DO UPDATE SET otp_code = $2, expires_at = NOW() + INTERVAL '15 minutes'
+        DO UPDATE SET otp_code = $2, expires_at = NOW() + INTERVAL '2 minutes'
     `
 	_, err := r.DB.Exec(ctx, query, email, otp)
 	return err

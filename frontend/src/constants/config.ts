@@ -21,4 +21,10 @@ export const API_ROUTES = {
   ADMIN_USERS: '/v1/admin/users',
   BULK_UPLOAD_STUDENTS: '/v1/admin/students/bulk-upload',
   ADMIN: '/v1/admin',
+  CONFIG: {
+    DEPARTMENTS: '/v1/config/departments',
+    BATCHES: '/v1/config/batches',
+    ADMIN_DEPARTMENTS: '/v1/admin/config/departments',
+    ADMIN_BATCHES: '/v1/admin/config/batches'
+  }
 };

@@ -60,7 +60,7 @@ export default function FileUpload({
 
          if (!response.ok) {
            const errorData = await response.json();
-           console.error("Cloudinary Error:", errorData);
+          //  console.error("Cloudinary Error:", errorData);
            throw new Error(errorData.error?.message || 'Upload failed');
          }
 
@@ -68,7 +68,7 @@ export default function FileUpload({
          if (onUploadComplete) onUploadComplete(data.secure_url, file.name);
          toast.success(`File "${file.name}" uploaded`);
        } catch (error) {
-         console.error(error);
+        //  console.error(error);
          toast.error(`Failed to upload ${file.name}`);
        }
     }

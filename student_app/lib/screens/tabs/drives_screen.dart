@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../utils/constants.dart';
 import '../../services/notification_service.dart';
 import '../../providers/drive_provider.dart';
-import '../../widgets/drive_card.dart'; // [NEW]
+import '../../widgets/drive_card.dart';
+import '../../widgets/haptic_refresh_indicator.dart';
+import '../notifications_screen.dart'; // [NEW]
 
 class DrivesScreen extends ConsumerStatefulWidget {
   const DrivesScreen({super.key});
@@ -16,9 +19,6 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
     with WidgetsBindingObserver {
   DateTime? _lastRefreshTime;
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  final List<String> _selectedCategories = [];
-  String _selectedStatus = 'Upcoming'; // Default
   int _selectedFilterCategoryIndex = 0; // For 2-pane modal
 
   // Filter Categories mimicking the image
@@ -49,9 +49,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
 
     NotificationService.refreshTrigger.addListener(_handleRefreshTrigger);
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.toLowerCase();
-      });
+      ref
+          .read(driveFilterProvider.notifier)
+          .setSearchQuery(_searchController.text.toLowerCase());
     });
   }
 
@@ -85,6 +85,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
   }
 
   Future<void> _refresh() async {
+    HapticFeedback.selectionClick(); // Satisfying refresher haptic
     try {
       await ref.refresh(driveListProvider.future);
       if (mounted) {
@@ -98,197 +99,226 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
   }
 
   void _showFilterModal() {
-    showModalBottomSheet(
+    showGeneralDialog(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final currentCategory =
-                _filterCategories[_selectedFilterCategoryIndex];
-            final currentOptions = _filterOptionsMap[currentCategory] ?? [];
-
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      barrierDismissible: true, // Dismiss on tap outside
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 400),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        // Buttery smooth slide-up animation
+        return SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+              .animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutQuart),
               ),
-              child: Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Filter',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-
-                  // Body (2-Pane)
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Pane (Categories)
-                        Container(
-                          width: 140,
-                          color: Colors.grey[50],
-                          child: ListView.builder(
-                            itemCount: _filterCategories.length,
-                            itemBuilder: (context, index) {
-                              final category = _filterCategories[index];
-                              final isSelected =
-                                  index == _selectedFilterCategoryIndex;
-                              return InkWell(
-                                onTap: () => setModalState(
-                                  () => _selectedFilterCategoryIndex = index,
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                    horizontal: 16,
-                                  ),
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.transparent,
-                                  child: Row(
-                                    children: [
-                                      if (isSelected)
-                                        Container(
-                                          width: 4,
-                                          height: 16,
-                                          color: AppConstants.primaryColor,
-                                          margin: const EdgeInsets.only(
-                                            right: 8,
-                                          ),
-                                        ),
-                                      Expanded(
-                                        child: Text(
-                                          category,
-                                          style: TextStyle(
-                                            fontWeight: isSelected
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                            color: isSelected
-                                                ? Colors.black
-                                                : Colors.grey[700],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        // Right Pane (Options)
-                        Expanded(
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: currentOptions.length,
-                            itemBuilder: (context, index) {
-                              final option = currentOptions[index];
-                              final isSelected = _selectedCategories.contains(
-                                option,
-                              ); // Reusing logic for now
-                              return CheckboxListTile(
-                                value: isSelected,
-                                title: Text(option),
-                                activeColor: AppConstants.primaryColor,
-                                contentPadding: EdgeInsets.zero,
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
-                                onChanged: (val) {
-                                  setModalState(() {
-                                    if (val == true) {
-                                      _selectedCategories.add(option);
-                                    } else {
-                                      _selectedCategories.remove(option);
-                                    }
-                                  });
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Footer
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => setModalState(
-                              () => _selectedCategories.clear(),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppConstants.primaryColor,
-                              side: const BorderSide(
-                                color: AppConstants.primaryColor,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: const Text('Clear Filters'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              setState(() {});
-                              Navigator.pop(context);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppConstants.primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: const Text('Apply'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+          child: child,
         );
       },
-    );
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: Material(
+            type: MaterialType.transparency,
+            child: StatefulBuilder(
+              builder: (context, setModalState) {
+                final currentCategory =
+                    _filterCategories[_selectedFilterCategoryIndex];
+                final currentOptions = _filterOptionsMap[currentCategory] ?? [];
+                // Watch provider state inside the modal?
+                // Creating a local consumer or just reading current state might be cleaner.
+                // For simplicity, we can read the notifier.
+                final filterFn = ref.read(driveFilterProvider.notifier);
+                final currentFilters = ref
+                    .watch(driveFilterProvider)
+                    .categories;
+
+                return Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Filter',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+
+                      // Body (2-Pane)
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left Pane (Categories)
+                            Container(
+                              width: 140,
+                              color: Colors.grey[50],
+                              child: ListView.builder(
+                                itemCount: _filterCategories.length,
+                                itemBuilder: (context, index) {
+                                  final category = _filterCategories[index];
+                                  final isSelected =
+                                      index == _selectedFilterCategoryIndex;
+                                  return InkWell(
+                                    onTap: () => setModalState(
+                                      () =>
+                                          _selectedFilterCategoryIndex = index,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 16,
+                                        horizontal: 16,
+                                      ),
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.transparent,
+                                      child: Row(
+                                        children: [
+                                          if (isSelected)
+                                            Container(
+                                              width: 4,
+                                              height: 16,
+                                              color: AppConstants.primaryColor,
+                                              margin: const EdgeInsets.only(
+                                                right: 8,
+                                              ),
+                                            ),
+                                          Expanded(
+                                            child: Text(
+                                              category,
+                                              style: TextStyle(
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                                color: isSelected
+                                                    ? Colors.black
+                                                    : Colors.grey[700],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            // Right Pane (Options)
+                            Expanded(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: currentOptions.length,
+                                itemBuilder: (context, index) {
+                                  final option = currentOptions[index];
+                                  final isSelected = currentFilters.contains(
+                                    option,
+                                  );
+                                  return CheckboxListTile(
+                                    value: isSelected,
+                                    title: Text(option),
+                                    activeColor: AppConstants.primaryColor,
+                                    contentPadding: EdgeInsets.zero,
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                    onChanged: (val) {
+                                      setModalState(() {
+                                        filterFn.toggleCategory(option);
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Footer
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => setModalState(
+                                  () => filterFn.clearCategories(),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppConstants.primaryColor,
+                                  side: const BorderSide(
+                                    color: AppConstants.primaryColor,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                ),
+                                child: const Text('Clear Filters'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  // No local state to apply, provider is already updated
+                                  Navigator.pop(context);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppConstants.primaryColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                ),
+                                child: const Text('Done'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ), // StatefulBuilder
+          ), // Material
+        ); // Align
+      },
+    ); // showGeneralDialog
   }
 
   @override
   Widget build(BuildContext context) {
-    final drivesAsync = ref.watch(driveListProvider);
+    // Watch optimized providers
+    final drivesAsync = ref.watch(filteredDrivesProvider);
+    final stats = ref.watch(driveStatsProvider);
+    final currentFilters = ref.watch(driveFilterProvider);
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
@@ -304,7 +334,12 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
-              // Notification Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
             },
           ),
         ],
@@ -314,7 +349,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
         error: (error, stack) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
-            child: RefreshIndicator(
+            child: HapticRefreshIndicator(
               onRefresh: _refresh,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -340,88 +375,11 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
             ),
           ),
         ),
-        data: (drives) {
-          // 1. Calculate Counts for Pills
-          final now = DateTime.now();
-          final today = DateTime(now.year, now.month, now.day);
+        data: (filteredDrives) {
+          // Stats now come from provider (calculated lazily)
+          final pillMap = stats;
 
-          final upcomingCount = drives.where((d) {
-            // Upcoming: Status Open + Date > Today
-            if (d['status'] != 'open') return false;
-            final dDate = DateTime.parse(d['drive_date']);
-            final dDay = DateTime(dDate.year, dDate.month, dDate.day);
-            // "Upcoming" usually means future.
-            // User logic: "for on going, check date... if matches today push to ongoing".
-            // So Upcoming is > Today (future)
-            return dDay.isAfter(today);
-          }).length;
-
-          final ongoingCount = drives.where((d) {
-            // Ongoing: Status Open + Date == Today
-            if (d['status'] != 'open') return false;
-            final dDate = DateTime.parse(d['drive_date']);
-            final dDay = DateTime(dDate.year, dDate.month, dDate.day);
-            return dDay.isAtSameMomentAs(today);
-          }).length;
-
-          final completedCount = drives
-              .where((d) => d['status'] == 'completed')
-              .length;
-          final cancelledCount = drives
-              .where((d) => d['status'] == 'cancelled')
-              .length;
-          final onHoldCount = drives
-              .where((d) => d['status'] == 'on_hold')
-              .length;
-
-          final pillMap = {
-            'Upcoming': upcomingCount,
-            'Ongoing': ongoingCount,
-            'Completed': completedCount,
-            'Cancelled': cancelledCount,
-            'On Hold': onHoldCount,
-          };
-
-          // 2. Filter Logic for List
-          final filteredDrives = drives.where((drive) {
-            // Status/Pill Filter
-            bool matchesStatus = false;
-            final status = drive['status'];
-            final dDate = DateTime.parse(drive['drive_date']);
-            final dDay = DateTime(dDate.year, dDate.month, dDate.day);
-
-            if (_selectedStatus == 'Upcoming') {
-              matchesStatus = (status == 'open' && dDay.isAfter(today));
-            } else if (_selectedStatus == 'Ongoing') {
-              matchesStatus =
-                  (status == 'open' && dDay.isAtSameMomentAs(today));
-            } else if (_selectedStatus == 'Completed') {
-              matchesStatus = (status == 'completed');
-            } else if (_selectedStatus == 'Cancelled') {
-              matchesStatus = (status == 'cancelled');
-            } else if (_selectedStatus == 'On Hold') {
-              matchesStatus = (status == 'on_hold');
-            }
-
-            // Search Filter
-            final company = (drive['company_name'] ?? '')
-                .toString()
-                .toLowerCase();
-            final matchesSearch = company.contains(_searchQuery);
-
-            // Category Filter (from Modal)
-            bool matchesCategory = true;
-            if (_selectedCategories.isNotEmpty) {
-              // Check exact matches or simplified matches (Core, IT..)
-              // We support "Company Category" from modal
-              final cat = (drive['company_category'] ?? '').toString();
-              matchesCategory = _selectedCategories.contains(cat);
-            }
-
-            return matchesStatus && matchesSearch && matchesCategory;
-          }).toList();
-
-          return RefreshIndicator(
+          return HapticRefreshIndicator(
             onRefresh: _refresh,
             child: Column(
               children: [
@@ -470,7 +428,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                             height: 40,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: _selectedCategories.isNotEmpty
+                              color: currentFilters.categories.isNotEmpty
                                   ? Colors.grey[300]
                                   : Colors.grey[100], // Highlight if active
                               borderRadius: BorderRadius.circular(10),
@@ -512,14 +470,18 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                     itemBuilder: (context, index) {
                       final name = pillMap.keys.elementAt(index);
                       final count = pillMap.values.elementAt(index);
-                      final isSelected = _selectedStatus == name;
+                      final isSelected = currentFilters.status == name;
 
                       return GestureDetector(
-                        onTap: () => setState(() => _selectedStatus = name),
+                        onTap: () => ref
+                            .read(driveFilterProvider.notifier)
+                            .setStatus(name),
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
-                            Container(
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 8,
@@ -529,7 +491,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                 color: isSelected
                                     ? AppConstants.primaryColor
                                     : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(
+                                  isSelected ? 20 : 10,
+                                ),
                               ),
                               child: Text(
                                 name, // Just the name
@@ -549,19 +513,31 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                 right: -6,
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors
+                                              .white // Selected: white background
+                                        : AppConstants
+                                              .primaryColor, // Unselected: primary background
                                     shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppConstants.primaryColor,
+                                      width: 1.5,
+                                    ),
                                   ),
                                   constraints: const BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
+                                    minWidth: 20,
+                                    minHeight: 20,
                                   ),
                                   child: Center(
                                     child: Text(
                                       '$count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors
+                                                  .black // Selected: black text
+                                            : Colors
+                                                  .white, // Unselected: white text
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -600,9 +576,14 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: filteredDrives.length,
-                          itemBuilder: (context, index) => DriveCard(
-                            drive: filteredDrives[index],
-                            onRefresh: _refresh,
+                          itemBuilder: (context, index) => GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact(); // [NEW] Haptic feedback
+                            },
+                            child: DriveCard(
+                              drive: filteredDrives[index],
+                              onRefresh: _refresh,
+                            ),
                           ),
                         ),
                 ),

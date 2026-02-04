@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../providers/onboarding_provider.dart';
-import '../../providers/auth_provider.dart'; // [NEW]
+import '../../providers/auth_provider.dart';
 import '../../services/student_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/app_button.dart';
@@ -18,10 +18,11 @@ class DocumentsScreen extends ConsumerStatefulWidget {
 class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   // Store file names for UI display
   String? _resumeName;
-  String?
-  _photoName; // Probably from prev screen, but if they want to change or view status
-  String? _aadharName;
-  String? _panName;
+  String? _photoName;
+
+  final _aadharController = TextEditingController();
+  final _panController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
   final StudentService _studentService = StudentService();
@@ -29,23 +30,26 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize UI state from provider if available
-    // Note: filenames are not stored in provider currently, just URLs.
-    // We could store names in separate provider fields if needed,
-    // but for now we'll just show uploaded state if URL exists.
     final state = ref.read(onboardingProvider);
+
+    // Resume/Photo State
     if (state.resumeUrl != null && state.resumeUrl!.isNotEmpty) {
       _resumeName = "Uploaded";
-    }
-    if (state.aadharUrl != null && state.aadharUrl!.isNotEmpty) {
-      _aadharName = "Uploaded";
-    }
-    if (state.panUrl != null && state.panUrl!.isNotEmpty) {
-      _panName = "Uploaded";
     }
     if (state.profilePhotoUrl != null && state.profilePhotoUrl!.isNotEmpty) {
       _photoName = "Uploaded (from Profile Pic screen)";
     }
+
+    // Identity Numbers State
+    _aadharController.text = state.aadharNumber ?? '';
+    _panController.text = state.panNumber ?? '';
+  }
+
+  @override
+  void dispose() {
+    _aadharController.dispose();
+    _panController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickFile(String type) async {
@@ -69,12 +73,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         if (type == 'resume') {
           ref.read(onboardingProvider.notifier).updateDocuments(resume: url);
           setState(() => _resumeName = file.name);
-        } else if (type == 'aadhar') {
-          ref.read(onboardingProvider.notifier).updateDocuments(aadhar: url);
-          setState(() => _aadharName = file.name);
-        } else if (type == 'pan') {
-          ref.read(onboardingProvider.notifier).updateDocuments(pan: url);
-          setState(() => _panName = file.name);
         } else if (type == 'photo') {
           ref.read(onboardingProvider.notifier).updateProfilePhoto(url);
           setState(() => _photoName = file.name);
@@ -83,6 +81,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${type.toUpperCase()} uploaded successfully'),
+            backgroundColor: AppConstants.successColor,
           ),
         );
       }
@@ -96,6 +95,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   void _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Save Identity Numbers to state before submitting
+    ref
+        .read(onboardingProvider.notifier)
+        .updateDocuments(
+          aadharNumber: _aadharController.text,
+          panNumber: _panController.text,
+        );
+
     setState(() => _isLoading = true);
 
     try {
@@ -106,7 +115,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'mobile_number': state.mobileNumber ?? '',
         'dob': state.dob ?? '',
         // Address
-        'city': state.city ?? '',
+        'address_line_1': state.addressLine1 ?? '',
+        'address_line_2': state.addressLine2 ?? '',
         'state': state.state ?? '',
         // Academics
         'tenth_mark': state.tenthMark ?? 0.0,
@@ -115,13 +125,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'pg_cgpa': state.pgCgpa ?? 0.0,
         'social_links': state.socialLinks ?? {},
         'placement_willingness': state.placementWillingness ?? 'Interested',
-        // Documents
+        // Documents & Identity
         'profile_photo_url': state.profilePhotoUrl ?? '',
         'resume_url': state.resumeUrl ?? '',
-        'aadhar_card_url': state.aadharUrl ?? '',
-        'pan_card_url': state.panUrl ?? '',
-        // Default / Required empty fields to satisfy struct matching?
-        // Go struct tags are optional usually, but let's provide safe defaults
+        'aadhar_number': state.aadharNumber ?? '',
+        'pan_number': state.panNumber ?? '',
       };
 
       await _studentService.updateProfile(payload);
@@ -129,7 +137,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       // Update auth state to reflect profile completion
       await ref.read(authControllerProvider.notifier).completeProfile();
 
-      // Router should handle redirection, but we can be explicit just in case
       if (mounted) {
         context.go('/drives');
       }
@@ -143,7 +150,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 
   Widget _buildUploadCard(String title, String? fileName, VoidCallback onTap) {
-    // If filename is "Uploaded" or has name, show check
     final bool isUploaded = fileName != null;
 
     return Container(
@@ -210,7 +216,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.go('/onboarding/profile-pic'),
         ),
-        title: const Text('Upload Documents'),
+        title: const Text('Identity & Documents'),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -236,7 +242,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Please upload your essential documents to complete your profile.',
+                'Please provide your identity numbers and upload essential documents.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppConstants.textSecondary,
                 ),
@@ -245,29 +251,93 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
               Expanded(
                 child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildUploadCard(
-                        'Resume (PDF)',
-                        _resumeName,
-                        () => _pickFile('resume'),
-                      ),
-                      _buildUploadCard(
-                        'Profile Photo',
-                        _photoName,
-                        () => _pickFile('photo'),
-                      ), // Allow re-upload here
-                      _buildUploadCard(
-                        'Aadhar Card',
-                        _aadharName,
-                        () => _pickFile('aadhar'),
-                      ),
-                      _buildUploadCard(
-                        'PAN Card',
-                        _panName,
-                        () => _pickFile('pan'),
-                      ),
-                    ],
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Identity Details",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppConstants.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Aadhar Number
+                        TextFormField(
+                          controller: _aadharController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Aadhar Number',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.borderRadius,
+                              ),
+                            ),
+                            prefixIcon: const Icon(Icons.badge_outlined),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Required';
+                            }
+                            if (value.length < 12) {
+                              return 'Invalid Aadhar Number';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // PAN Number
+                        TextFormField(
+                          controller: _panController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            labelText: 'PAN Number',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                AppConstants.borderRadius,
+                              ),
+                            ),
+                            prefixIcon: const Icon(Icons.credit_card),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Required';
+                            }
+                            if (value.length != 10) {
+                              return 'Invalid PAN Number (10 chars)';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 32),
+                        const Text(
+                          "Documents",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppConstants.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildUploadCard(
+                          'Resume (PDF)',
+                          _resumeName,
+                          () => _pickFile('resume'),
+                        ),
+                        _buildUploadCard(
+                          'Profile Photo',
+                          _photoName,
+                          () => _pickFile('photo'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

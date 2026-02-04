@@ -156,9 +156,29 @@ func StudentLogin(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not generate token"})
 	}
 
-	// Check if profile is complete (heuristic: mobile_number is not 'NA' and not empty)
-	repo := repository.NewUserRepository(database.DB)
-	isProfileComplete := repo.IsStudentProfileComplete(c.Context(), user.ID)
+	// Check if this is the first time the user is logging in
+	// Identify by checking if LastLogin was nil BEFORE the update that happened in authenticateUser
+	// Note: authenticateUser returns the user object as it was fetched from DB (snapshot),
+	// even though it runs UpdateLastLogin in bg/separately.
+	// Wait, actually authenticateUser calls UpdateLastLogin *before* returning?
+	// Let's re-read authenticateUser in the file content I have.
+
+	// Re-reading authenticateUser implementation from Step 98:
+	// func authenticateUser(...) {
+	// ... get user ...
+	// ... compare password ...
+	// ... check block ...
+	// repo.UpdateLastLogin(...)
+	// return user, nil
+	// }
+	// The `user` struct is populated by `repo.GetUserByEmail` at the start.
+	// `repo.UpdateLastLogin` updates the DB. It does NOT update the `user` struct in memory.
+	// So `user.LastLogin` here will be the value *before* the current login.
+
+	isProfileComplete := true
+	if user.LastLogin == nil {
+		isProfileComplete = false
+	}
 
 	return c.JSON(fiber.Map{
 		"message":             "Login successful",
@@ -227,6 +247,74 @@ func AdminResetPassword(c *fiber.Ctx) error {
 	}
 	if user.Role != "admin" {
 		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+
+	isValid, err := repo.VerifyOTP(c.Context(), input.Email, input.Otp)
+	if err != nil || !isValid {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid or expired OTP"})
+	}
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+
+	if err := repo.ResetPassword(c.Context(), input.Email, string(hashedPassword)); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to reset password"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Password updated successfully. Please login."})
+}
+
+// StudentForgotPassword handles password reset request for students
+func StudentForgotPassword(c *fiber.Ctx) error {
+	var input models.ForgotPasswordInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Email is required"})
+	}
+
+	repo := repository.NewUserRepository(database.DB)
+	user, err := repo.GetUserByEmail(c.Context(), input.Email)
+	if err != nil {
+		// Security: Don't reveal user existence
+		// return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+		// But for UX (as requested "Solve the edge cases"):
+		// Use a generic message? Or fail fast?
+		// Admin implementation reveals 404. Let's stick to that for consistency but note security trade-off.
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.Role != "student" {
+		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This email belongs to a non-student account"})
+	}
+
+	otp := generateOTP()
+	if err := repo.SaveOTP(c.Context(), input.Email, otp); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
+	}
+
+	go func() {
+		if err := utils.SendOTPEmail(input.Email, otp); err != nil {
+			fmt.Printf("Failed to send email to %s: %v\n", input.Email, err)
+		}
+	}()
+
+	return c.JSON(fiber.Map{"message": "OTP sent to your email"})
+}
+
+// StudentResetPassword handles password reset for students
+func StudentResetPassword(c *fiber.Ctx) error {
+	var input models.ResetPasswordInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	repo := repository.NewUserRepository(database.DB)
+
+	// Check user role first
+	user, err := repo.GetUserByEmail(c.Context(), input.Email)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+	if user.Role != "student" {
+		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This email belongs to a non-student account"})
 	}
 
 	isValid, err := repo.VerifyOTP(c.Context(), input.Email, input.Otp)

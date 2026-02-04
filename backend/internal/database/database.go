@@ -50,6 +50,9 @@ func ConnectDB(connString string) {
 		log.Fatal("Could not ping database:", err)
 	}
 
+	// Run Auto-Migrations (Removed: Schema is now stable)
+	// RunMigrations()
+
 	fmt.Println("Connected to PostgreSQL successfully!")
 }
 

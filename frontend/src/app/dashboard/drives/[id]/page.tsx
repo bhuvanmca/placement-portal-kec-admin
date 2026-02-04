@@ -81,7 +81,7 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
             const applicantsData = await driveService.getDriveApplicants(parseInt(id));
             setApplicants(applicantsData as any); // Type assertion until service is strict
          } catch (e) {
-            console.error("Failed to fetch applicants");
+            // console.error("Failed to fetch applicants");
          }
       } else {
          toast.error("Drive not found");
@@ -89,7 +89,7 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
       }
 
     } catch (error) {
-      console.error(error);
+      // console.error(error);
       toast.error("Failed to load drive details");
     } finally {
       setLoading(false);
@@ -121,7 +121,7 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
               toast.error("Resume not found or URL invalid");
           }
       } catch (e) {
-          console.error(e);
+         //  console.error(e);
           toast.error("Failed to open resume");
       }
   };
@@ -156,11 +156,11 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                 <div className="flex items-center gap-6 text-sm text-gray-500 pl-10">
                    <div className="flex items-center gap-1">
                       <Briefcase className="h-4 w-4" />
-                      <span>{drive.job_role}</span>
+                      <span>{drive.roles && drive.roles.length > 0 ? (drive.roles.length > 1 ? `${drive.roles.length} Roles` : drive.roles[0].role_name) : 'Various Roles'}</span>
                    </div>
                    <div className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
-                      <span>{drive.location}</span>
+                      <span>{drive.location} <span className="text-gray-400 text-xs text-muted-foreground">({drive.location_type || 'On-Site'})</span></span>
                    </div>
                    <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
@@ -311,26 +311,115 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
              </TabsContent>
 
              <TabsContent value="details" className="p-6 bg-white border rounded-lg h-full overflow-auto">
-                <div className="max-w-3xl space-y-6">
-                   <h3 className="text-lg font-semibold">Eligibility Criteria</h3>
-                   <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                         <span className="block text-gray-500">Departments</span>
-                         <span className="font-medium">{drive.eligible_departments?.join(', ') || 'All'}</span>
+                <div className="max-w-4xl space-y-8">
+                   
+                   {/* Job Description */}
+                   <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Job Description</h3>
+                       <div className="p-5 bg-gray-50 rounded-lg text-sm leading-relaxed whitespace-pre-line text-gray-700">
+                          {drive.job_description || "No description provided."}
+                       </div>
+                   </div>
+
+                   {/* Eligibility Criteria */}
+                   <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Eligibility Criteria</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                         <div className="p-4 bg-white border rounded-lg shadow-sm">
+                            <span className="block text-gray-500 text-xs uppercase tracking-wider mb-1">Departments</span>
+                            <span className="font-medium text-gray-900">{drive.eligible_departments?.join(', ') || 'All'}</span>
+                         </div>
+                         <div className="p-4 bg-white border rounded-lg shadow-sm">
+                            <span className="block text-gray-500 text-xs uppercase tracking-wider mb-1">Batches</span>
+                            <span className="font-medium text-gray-900">{drive.eligible_batches?.join(', ') || 'All'}</span>
+                         </div>
+                         <div className="p-4 bg-white border rounded-lg shadow-sm">
+                            <span className="block text-gray-500 text-xs uppercase tracking-wider mb-1">Backlogs Allowed</span>
+                            <span className="font-medium text-gray-900">{drive.max_backlogs_allowed}</span>
+                         </div>
                       </div>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                         <span className="block text-gray-500">Batches</span>
-                         <span className="font-medium">{drive.eligible_batches?.join(', ') || 'All'}</span>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                         <span className="block text-gray-500">Min CGPA</span>
-                         <span className="font-medium">{drive.min_cgpa}</span>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                         <span className="block text-gray-500">Backlogs Allowed</span>
-                         <span className="font-medium">{drive.max_backlogs_allowed}</span>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4">
+                           <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-md">
+                              <span className="block text-blue-600 text-xs font-semibold mb-1">10th Grade</span>
+                              <span className="font-bold text-gray-900">{drive.tenth_percentage ? `${drive.tenth_percentage}%` : 'N/A'}</span>
+                           </div>
+                           <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-md">
+                              <span className="block text-blue-600 text-xs font-semibold mb-1">12th Grade</span>
+                              <span className="font-bold text-gray-900">{drive.twelfth_percentage ? `${drive.twelfth_percentage}%` : 'N/A'}</span>
+                           </div>
+                           <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-md">
+                              <span className="block text-blue-600 text-xs font-semibold mb-1">UG CGPA</span>
+                              <span className="font-bold text-gray-900">{drive.ug_min_cgpa || drive.min_cgpa || 'N/A'}</span>
+                           </div>
+                           <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-md">
+                              <span className="block text-blue-600 text-xs font-semibold mb-1">PG CGPA</span>
+                              <span className="font-bold text-gray-900">{drive.pg_min_cgpa || 'N/A'}</span>
+                           </div>
                       </div>
                    </div>
+
+                    {/* Salary & Stipend */}
+                   <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Compensation</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="p-4 bg-green-50 border border-green-100 rounded-lg">
+                               <div className="flex items-center gap-2 mb-2">
+                                   <Briefcase className="h-4 w-4 text-green-700"/>
+                                   <span className="font-semibold text-green-800">Full Time CTC</span>
+                               </div>
+                               <p className="text-2xl font-bold text-green-900">
+                                   {drive.roles && drive.roles.length > 0 
+                                      ? (drive.roles.length === 1 ? drive.roles[0].ctc : 'Refer to Roles')
+                                      : 'Not Disclosed'}
+                               </p>
+                           </div>
+                           <div className="p-4 bg-amber-50 border border-amber-100 rounded-lg">
+                               <div className="flex items-center gap-2 mb-2">
+                                   <Clock className="h-4 w-4 text-amber-700"/>
+                                   <span className="font-semibold text-amber-800">Internship Stipend</span>
+                               </div>
+                               <p className="text-2xl font-bold text-amber-900">
+                                   {drive.roles && drive.roles.length > 0 
+                                      ? (drive.roles.length === 1 ? drive.roles[0].stipend : 'Refer to Roles')
+                                      : 'Not Applicable'}
+                               </p>
+                           </div>
+                       </div>
+                   </div>
+
+                   {/* Attachments */}
+                   <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
+                          Attachments 
+                          <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{drive.attachments?.length || 0}</span>
+                      </h3>
+                      {drive.attachments && drive.attachments.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {drive.attachments.map((file, idx) => (
+                                  <a 
+                                    key={idx} 
+                                    href={file.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors group"
+                                  >
+                                      <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                          <FileText className="h-5 w-5 text-gray-500 group-hover:text-blue-600" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <p className="font-medium text-sm text-gray-900 truncate">{file.name}</p>
+                                          <p className="text-xs text-gray-500">Click to view document</p>
+                                      </div>
+                                      <Download className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </a>
+                              ))}
+                          </div>
+                      ) : (
+                          <p className="text-sm text-gray-500 italic">No attachments uploaded for this drive.</p>
+                      )}
+                   </div>
+
                 </div>
              </TabsContent>
 
@@ -338,14 +427,16 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                  <h3 className="text-lg font-semibold mb-4">Interview Process</h3>
                  <div className="space-y-4">
                     {drive.rounds?.map((round, i) => (
-                       <div key={i} className="flex gap-4 p-4 border rounded-lg items-start">
-                          <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">
+                       <div key={i} className="flex gap-4 p-4 border rounded-lg items-start bg-gray-50/30">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0 shadow-sm border border-blue-200">
                              {i + 1}
                           </div>
                           <div>
-                             <h4 className="font-medium">{round.name}</h4>
-                             <p className="text-sm text-gray-500">{round.date}</p>
-                             <p className="text-sm mt-1">{round.description}</p>
+                             <h4 className="font-medium text-gray-900">{round.name}</h4>
+                             <p className="text-xs font-medium text-blue-600 mt-0.5 flex items-center gap-1">
+                                 <Calendar className="h-3 w-3"/> {round.date}
+                             </p>
+                             <p className="text-sm mt-2 text-gray-600 leading-relaxed">{round.description}</p>
                           </div>
                        </div>
                     ))}
