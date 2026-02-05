@@ -6,8 +6,8 @@ class AppConstants {
   // Use computer's local IP for mobile testing (host machine IP)
   // static const String baseUrl = 'http://localhost:8080/api'; // Works for iOS Simulator only
   static const String baseUrl =
-      'http://172.20.10.6:8080/api'; // Works for physical devices & Android/iOS
-  static const String apiBaseUrl = 'http://172.20.10.6:8080/api';
+      'http://172.16.1.208:8080/api'; // Works for physical devices & Android/iOS
+  static const String apiBaseUrl = 'http://172.16.1.208:8080/api';
 
   // Colors (Oxford Blue theme)
   static const Color primaryColor = Color(0xFF002147);
@@ -35,7 +35,7 @@ class AppConstants {
     if (url.isEmpty) return url;
     // Replace localhost or minio with machine IP
     return url
-        .replaceAll('localhost', '172.20.10.6')
-        .replaceAll('minio', '172.20.10.6');
+        .replaceAll('localhost', '172.16.1.208')
+        .replaceAll('minio', '172.16.1.208');
   }
 }

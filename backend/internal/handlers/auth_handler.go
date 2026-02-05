@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
 	"github.com/SysSyncer/placement-portal-kec/internal/models"
@@ -189,12 +187,6 @@ func StudentLogin(c *fiber.Ctx) error {
 	})
 }
 
-// Generate Random 6-digit Code
-func generateOTP() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return fmt.Sprintf("%06d", r.Intn(1000000))
-}
-
 // AdminForgotPassword handles password reset request for admins
 func AdminForgotPassword(c *fiber.Ctx) error {
 	var input models.ForgotPasswordInput
@@ -212,7 +204,7 @@ func AdminForgotPassword(c *fiber.Ctx) error {
 		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This feature is for admins only"})
 	}
 
-	otp := generateOTP()
+	otp := utils.GenerateOTP()
 	if err := repo.SaveOTP(c.Context(), input.Email, otp); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
 	}
@@ -285,7 +277,7 @@ func StudentForgotPassword(c *fiber.Ctx) error {
 		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This email belongs to a non-student account"})
 	}
 
-	otp := generateOTP()
+	otp := utils.GenerateOTP()
 	if err := repo.SaveOTP(c.Context(), input.Email, otp); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
 	}

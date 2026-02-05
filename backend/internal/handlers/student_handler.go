@@ -6,6 +6,7 @@ import (
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
 	"github.com/SysSyncer/placement-portal-kec/internal/models"
 	"github.com/SysSyncer/placement-portal-kec/internal/repository"
+	"github.com/SysSyncer/placement-portal-kec/internal/utils"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -142,9 +143,25 @@ func CreateStudent(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create student. RegNo or Email might already exist.", "details": err.Error()})
 	}
 
+	// Generate OTP for password setup
+	otp := utils.GenerateOTP()
+
+	// Save OTP to database
+	userRepo := repository.NewUserRepository(database.DB)
+	if err := userRepo.SaveOTP(c.Context(), input.Email, otp); err != nil {
+		fmt.Printf("Failed to save OTP for %s: %v\n", input.Email, err)
+		// Continue anyway - student was created successfully
+	}
+
+	// Send welcome email asynchronously
+	go func() {
+		if err := utils.SendWelcomeEmail(input.Email, input.FullName, otp); err != nil {
+			fmt.Printf("Failed to send welcome email to %s: %v\n", input.Email, err)
+		}
+	}()
+
 	return c.Status(201).JSON(fiber.Map{
-		"message":          "Student created successfully",
-		"default_password": plainPassword, // Return so admin knows what it is (optional security risk but helpful for manual add)
+		"message": "Student created successfully. A welcome email with password setup instructions has been sent.",
 	})
 }
 
