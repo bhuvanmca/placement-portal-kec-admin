@@ -1,17 +1,50 @@
 {
     # Global options
-    email your-email@example.com
+    email harikrishnan4665@gmail.com
 }
 
 # Local Host Deployment (Native IP)
 http://172.16.1.208 {
-    # Reverse proxy to the API container
-    # 'api' is the service name in docker-compose.yml
-    reverse_proxy api:8080
+    # 1. API Service (Specific Routes to avoid MinIO conflict)
+    # We explicitly match only our application routes so MinIO's /api/* calls fall through
+    @go_api {
+        path /api/health
+        path /api/v1/auth/*
+        path /api/v1/admin/*
+        path /api/v1/student/*
+        path /api/v1/drives*
+        path /api/v1/spocs*
+        path /api/v1/brands/*
+        path /api/v1/user/*
+        path /api/v1/config/*
+        path /api/v1/profile
+        path /api/webhooks/*
+    }
+    handle @go_api {
+        reverse_proxy api:8080
+    }
+    
+    # Swagger Documentation
+    handle_path /docs/* {
+        rewrite * /swagger{uri}
+        reverse_proxy api:8080
+    }
 
-    # Serve static assets
+    # 2. MinIO Storage (Public Access)
+    # Routes /storage/bucket/file -> minio:9000/bucket/file
+    handle_path /storage/* {
+        reverse_proxy minio:9000
+    }
+
+    # 3. Static Assets for Caddy checks
     handle /assets/* {
         root * /app/assets
         file_server
+    }
+
+    # 4. MinIO Console (Catch-All)
+    # Handles / (root), /static/* assets, and MinIO's own /api/v1/login...
+    handle /* {
+        reverse_proxy minio:9001
     }
 }

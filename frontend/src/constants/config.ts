@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   NAME: 'KEC Placement Portal',
-  API_BASE_URL: 'http://localhost:8080/api',
+  API_BASE_URL: 'http://172.16.1.208/api',
   DESCRIPTION: 'Placement Portal Admin Dashboard',
 };
 
