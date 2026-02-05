@@ -69,7 +69,7 @@ func GetDocumentURL(c *fiber.Ctx) error {
 	}
 
 	// Extract the object key from the full URL
-	// e.g., "http://172.20.10.6:9000/placement-portal-bucket/students/24MCR005/resume.pdf"
+	// e.g., "http://172.16.1.208:9000/placement-portal-bucket/students/24MCR005/resume.pdf"
 	// -> "students/24MCR005/resume.pdf"
 	objectKey := utils.ExtractPathFromURL(documentURL)
 	if objectKey == "" {

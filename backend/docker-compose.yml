@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    platform: linux/arm64 # Explicitly build for Raspberry Pi architecture
+
     container_name: placement_api
     restart: always
     ports:
@@ -24,7 +24,7 @@ services:
       - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
       # MinIO Configuration replacing Supabase
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_PUBLIC_URL=http://172.20.10.6:9000
+      - MINIO_PUBLIC_URL=http://172.16.1.208:9000
       - MINIO_ACCESS_KEY=admin
       - MINIO_SECRET_KEY=password123
       - MINIO_BUCKET=placement-portal-bucket
