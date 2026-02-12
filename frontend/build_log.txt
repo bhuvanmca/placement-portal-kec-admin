@@ -1,0 +1,42 @@
+
+> frontend@0.1.0 build
+> next build
+
+Γû▓ Next.js 16.1.1 (Turbopack)
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 12.8s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/17) ...
+  Generating static pages using 7 workers (4/17) 
+  Generating static pages using 7 workers (8/17) 
+  Generating static pages using 7 workers (12/17) 
+Γ£ô Generating static pages using 7 workers (17/17) in 623.1ms
+  Finalizing page optimization ...
+
+Route (app)
+Γöî Γùï /
+Γö£ Γùï /_not-found
+Γö£ Γùï /admin/forgot-password
+Γö£ Γùï /dashboard
+Γö£ Γùï /dashboard/analytics
+Γö£ Γùï /dashboard/calendar
+Γö£ Γùï /dashboard/companies
+Γö£ Γùï /dashboard/drives
+Γö£ ╞Æ /dashboard/drives/[id]
+Γö£ ╞Æ /dashboard/drives/[id]/analytics
+Γö£ ╞Æ /dashboard/drives/[id]/edit
+Γö£ Γùï /dashboard/drives/create
+Γö£ Γùï /dashboard/messages
+Γö£ Γùï /dashboard/settings
+Γö£ Γùï /dashboard/settings/academic
+Γö£ Γùï /dashboard/settings/spocs
+Γö£ Γùï /dashboard/students
+Γö£ ╞Æ /dashboard/students/[id]
+Γöö Γùï /login
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

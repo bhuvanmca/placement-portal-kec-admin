@@ -23,13 +23,23 @@ func (r *ApplicationRepository) ApplyForDrive(ctx context.Context, studentID, dr
 	// But the column is JSONB. So we pass it as a []int64 and let Go serialize or cast.
 	// DB wants JSONB.
 
+	// 0. Check if student is blocked
+	var isBlocked bool
+	err := r.DB.QueryRow(ctx, "SELECT is_blocked FROM users WHERE id = $1", studentID).Scan(&isBlocked)
+	if err != nil {
+		return false, "Could not verify account status", err
+	}
+	if isBlocked {
+		return false, "Your account is blocked. You cannot apply for placement drives.", nil
+	}
+
 	query := `
 		INSERT INTO drive_applications (drive_id, student_id, status, applied_at, applied_role_ids)
 		VALUES ($1, $2, 'opted_in', NOW(), $3)
 		ON CONFLICT (drive_id, student_id)
 		DO UPDATE SET status = 'opted_in', applied_role_ids = $3, updated_at = NOW()
 	`
-	_, err := r.DB.Exec(ctx, query, driveID, studentID, roleIDs)
+	_, err = r.DB.Exec(ctx, query, driveID, studentID, roleIDs)
 	if err != nil {
 		return false, err.Error(), err
 	}

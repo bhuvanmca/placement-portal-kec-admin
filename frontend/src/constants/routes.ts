@@ -1,12 +1,13 @@
-import { 
-  Calendar, 
-  Home, 
-  Zap, 
-  Briefcase, 
-  Users, 
-  MessageSquare, 
-  BarChart2, 
-  Settings 
+import {
+  Calendar,
+  Home,
+  Zap,
+  Briefcase,
+  Users,
+  MessageSquare,
+  BarChart2,
+  Settings,
+  Building2
 } from 'lucide-react';
 
 export const APP_ROUTES = {
@@ -18,6 +19,7 @@ export const APP_ROUTES = {
 export const SIDEBAR_ITEMS = [
   { id: 'calendar', icon: Calendar, label: 'Calendar', href: '/dashboard/calendar' },
   { id: 'home', icon: Home, label: 'Home', href: '/dashboard' },
+  { id: 'companies', icon: Building2, label: 'Companies', href: '/dashboard/companies' },
   { id: 'drives', icon: Briefcase, label: 'Drives', href: '/dashboard/drives' },
   { id: 'students', icon: Users, label: 'Students', href: '/dashboard/students' },
   { id: 'messages', icon: MessageSquare, label: 'Messages', href: '/dashboard/messages' },

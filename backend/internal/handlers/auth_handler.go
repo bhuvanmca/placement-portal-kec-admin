@@ -74,9 +74,12 @@ func authenticateUser(c *fiber.Ctx, email, password string) (*models.User, error
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
+	// Removed block check from login to allow students to access portal even when blocked from drives
+	/*
 	if user.IsBlocked {
 		return nil, fmt.Errorf("your account has been blocked by Admin")
 	}
+	*/
 
 	if err := repo.UpdateLastLogin(c.Context(), user.ID); err != nil {
 		fmt.Printf("Failed to update last_login: %v\n", err)

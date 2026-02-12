@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/student_service.dart';
 import '../utils/constants.dart';
+import '../utils/indian_states.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> profileData;
@@ -28,7 +29,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _dobController = TextEditingController(); // YYYY-MM-DD
   final _addressLine1Controller = TextEditingController();
   final _addressLine2Controller = TextEditingController();
-  final _stateController = TextEditingController();
+  String? _selectedState;
   // About Me Removed
   final _linkedinController = TextEditingController();
   final _githubController = TextEditingController();
@@ -99,7 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _dobController.text = (data['dob'] ?? '').toString();
     _addressLine1Controller.text = (data['address_line_1'] ?? '').toString();
     _addressLine2Controller.text = (data['address_line_2'] ?? '').toString();
-    _stateController.text = (data['state'] ?? '').toString();
+    _selectedState = data['state']?.toString();
     // About Me Removed
     _selectedGender = data['gender'];
     if (data['language_skills'] != null) {
@@ -178,7 +179,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _dobController.dispose();
     _addressLine1Controller.dispose();
     _addressLine2Controller.dispose();
-    _stateController.dispose();
     // About Me disposed removed
     _languageInputController.dispose(); // [NEW]
     _panNumberController.dispose();
@@ -268,7 +268,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'gender': _selectedGender,
         'address_line_1': _addressLine1Controller.text,
         'address_line_2': _addressLine2Controller.text,
-        'state': _stateController.text,
+        'state': _selectedState ?? '',
         // 'about_me': _aboutMeController.text, // REMOVED
         'language_skills': _languageSkills,
         'social_links': {
@@ -342,6 +342,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     int maxLines = 1,
     Widget? prefixIcon,
     VoidCallback? onSubmitted, // [NEW] optional callback for enter key
+    String? Function(String?)? customValidator, // [NEW] custom validator
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -351,9 +352,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         maxLines: maxLines,
         textInputAction: onSubmitted != null ? TextInputAction.done : null,
         onFieldSubmitted: onSubmitted != null ? (_) => onSubmitted() : null,
-        validator: required
-            ? (val) => val == null || val.isEmpty ? '$label is required' : null
-            : null,
+        validator:
+            customValidator ??
+            (required
+                ? (val) =>
+                      val == null || val.isEmpty ? '$label is required' : null
+                : null),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: prefixIcon,
@@ -544,9 +548,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildTextField(
-                controller: _stateController,
-                label: 'State',
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: DropdownButtonFormField<String>(
+                  value: IndianStates.states.contains(_selectedState)
+                      ? _selectedState
+                      : null,
+                  decoration: InputDecoration(
+                    labelText: 'State',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadius,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    isDense: true,
+                  ),
+                  isExpanded: true,
+                  menuMaxHeight: 300,
+                  items: IndianStates.states
+                      .map(
+                        (state) => DropdownMenuItem(
+                          value: state,
+                          child: Text(state, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedState = value;
+                    });
+                  },
+                ),
               ),
             ),
           ],
@@ -853,11 +887,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           controller: _aadharNumberController,
           label: 'Aadhar Number',
           type: TextInputType.number,
+          customValidator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Aadhar Number is required';
+            }
+            if (value.length != 12 || !RegExp(r'^\d{12}$').hasMatch(value)) {
+              return 'Invalid Aadhar Number (12 digits)';
+            }
+            return null;
+          },
         ),
         _buildTextField(
           controller: _panNumberController,
           label: 'PAN Number',
           type: TextInputType.text,
+          customValidator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'PAN Number is required';
+            }
+            // PAN format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)
+            final panRegex = RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$');
+            if (!panRegex.hasMatch(value.toUpperCase())) {
+              return 'Invalid PAN format (e.g., ABCDE1234F)';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 24),
         const Text(

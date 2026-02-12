@@ -283,8 +283,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                             if (value == null || value.isEmpty) {
                               return 'Required';
                             }
-                            if (value.length < 12) {
-                              return 'Invalid Aadhar Number';
+                            if (value.length != 12 ||
+                                !RegExp(r'^\d{12}$').hasMatch(value)) {
+                              return 'Invalid Aadhar Number (12 digits)';
                             }
                             return null;
                           },
@@ -308,8 +309,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                             if (value == null || value.isEmpty) {
                               return 'Required';
                             }
-                            if (value.length != 10) {
-                              return 'Invalid PAN Number (10 chars)';
+                            // PAN format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)
+                            final panRegex = RegExp(
+                              r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
+                            );
+                            if (!panRegex.hasMatch(value.toUpperCase())) {
+                              return 'Invalid PAN format (e.g., ABCDE1234F)';
                             }
                             return null;
                           },

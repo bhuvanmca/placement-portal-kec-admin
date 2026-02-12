@@ -6,6 +6,7 @@ import '../utils/constants.dart';
 import '../widgets/app_button.dart';
 import '../services/notification_service.dart';
 import 'forgot_password_screen.dart';
+import 'admin/admin_login_screen.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -221,6 +222,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       label: 'Login',
                       isLoading: _isLoading,
                       onPressed: _isLoading ? null : _submit,
+                    ),
+                    const SizedBox(height: 24),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const AdminLoginScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.admin_panel_settings_outlined,
+                          size: 18,
+                          color: AppConstants.textSecondary,
+                        ),
+                        label: const Text(
+                          'Admin Login',
+                          style: TextStyle(
+                            color: AppConstants.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

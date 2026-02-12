@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../utils/constants.dart';
+import '../../utils/indian_states.dart';
 import '../../widgets/app_button.dart';
 
 class AddressScreen extends ConsumerStatefulWidget {
@@ -16,7 +17,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
   final _formKey = GlobalKey<FormState>();
   final _addressLine1Controller = TextEditingController();
   final _addressLine2Controller = TextEditingController();
-  final _stateController = TextEditingController();
+  String? _selectedState;
 
   @override
   void initState() {
@@ -25,14 +26,13 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
     final state = ref.read(onboardingProvider);
     _addressLine1Controller.text = state.addressLine1 ?? '';
     _addressLine2Controller.text = state.addressLine2 ?? '';
-    _stateController.text = state.state ?? '';
+    _selectedState = state.state;
   }
 
   @override
   void dispose() {
     _addressLine1Controller.dispose();
     _addressLine2Controller.dispose();
-    _stateController.dispose();
     super.dispose();
   }
 
@@ -46,7 +46,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
           .updateAddress(
             _addressLine1Controller.text,
             _addressLine2Controller.text,
-            _stateController.text,
+            _selectedState ?? '',
           );
       context.go('/onboarding/profile-pic');
     }
@@ -194,9 +194,26 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _stateController,
+                DropdownButtonFormField<String>(
+                  value: IndianStates.states.contains(_selectedState)
+                      ? _selectedState
+                      : null,
                   decoration: _inputDecoration('State', Icons.map_outlined),
+                  isExpanded: true,
+                  menuMaxHeight: 300,
+                  items: IndianStates.states
+                      .map(
+                        (state) => DropdownMenuItem(
+                          value: state,
+                          child: Text(state, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedState = value;
+                    });
+                  },
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Required';
                     return null;

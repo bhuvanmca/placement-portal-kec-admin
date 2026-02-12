@@ -18,6 +18,7 @@ export const API_ROUTES = {
   DRIVES: '/v1/drives',
   ADMIN_DRIVES: '/v1/admin/drives',
   ADMIN_STUDENTS: '/v1/admin/students',
+  ADMIN_COMPANIES: '/v1/admin/companies',
   ADMIN_USERS: '/v1/admin/users',
   BULK_UPLOAD_STUDENTS: '/v1/admin/students/bulk-upload',
   ADMIN: '/v1/admin',

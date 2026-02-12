@@ -62,6 +62,11 @@ func SetupRoutes(app *fiber.App) {
 	admin.Get("/students", handlers.ListStudents)                                      // List Students
 	admin.Get("/students/:id", handlers.GetStudentDetails)                             // Get Full Profile
 	admin.Get("/students/:student_id/documents/:type", handlers.GetStudentDocumentURL) // [NEW] Get presigned URL for student documents
+	admin.Get("/companies", handlers.GetAllCompanies)                                  // [NEW] Get All Companies
+	admin.Post("/companies", handlers.CreateCompany)                                   // [NEW] Create Company
+	admin.Put("/companies/:id", handlers.UpdateCompany)                                // [NEW] Update Company
+	admin.Put("/companies/:id/checklist", handlers.UpdateCompanyChecklist)             // [NEW] Update Checklist
+	admin.Delete("/companies/:id", handlers.DeleteCompany)                             // [NEW] Delete Company
 
 	// STUDENT ACTIONS
 	v1.Get("/drives", handlers.ListStudentDrives) // STUDENT: View Drives (Filtered by Dept/Batch)

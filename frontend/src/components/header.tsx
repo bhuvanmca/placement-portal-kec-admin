@@ -32,18 +32,20 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { 
-  Calendar, 
-  Home, 
-  Briefcase, 
-  Users, 
-  Settings, 
-  LogOut 
+import {
+  Calendar,
+  Home,
+  Briefcase,
+  Users,
+  Settings,
+  LogOut,
+  Building2
 } from 'lucide-react';
 
 // Map route segments to readable labels
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: 'Home',
+  companies: 'Company Details',
   students: 'Manage Students',
   drive: 'Drives',
   create: 'New Drive',
@@ -80,7 +82,7 @@ export default function Header() {
   // Generate breadcrumbs from pathname
   const generateBreadcrumbs = () => {
     const segments = pathname.split('/').filter(Boolean);
-    
+
     // If we are just at /dashboard, show only Home
     if (segments.length === 1 && segments[0] === 'dashboard') {
       return (
@@ -122,7 +124,7 @@ export default function Header() {
 
       <div className="flex items-center space-x-6">
         <div className="relative w-64 hidden md:block">
-           <Button
+          <Button
             variant="outline"
             className={cn(
               "relative h-9 w-64 justify-start bg-gray-50 text-sm font-normal text-muted-foreground shadow-none sm:pr-12",
@@ -144,6 +146,10 @@ export default function Header() {
                   <Home className="mr-2 h-4 w-4" />
                   <span>Home</span>
                 </CommandItem>
+                <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/companies'))}>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  <span>Company Details</span>
+                </CommandItem>
                 <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/students'))}>
                   <Users className="mr-2 h-4 w-4" />
                   <span>Manage Students</span>
@@ -152,13 +158,13 @@ export default function Header() {
                   <Briefcase className="mr-2 h-4 w-4" />
                   <span>New Drive</span>
                 </CommandItem>
-                 <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/calendar'))}>
+                <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/calendar'))}>
                   <Calendar className="mr-2 h-4 w-4" />
                   <span>Calendar</span>
                 </CommandItem>
               </CommandGroup>
               <CommandGroup heading="Settings">
-                 <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/settings'))}>
+                <CommandItem onSelect={() => runCommand(() => router.push('/dashboard/settings'))}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </CommandItem>
