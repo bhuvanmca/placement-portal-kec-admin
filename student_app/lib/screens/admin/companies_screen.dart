@@ -43,6 +43,13 @@ class _CompaniesScreenState extends ConsumerState<CompaniesScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F172A),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text(
           'Company Details',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

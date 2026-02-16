@@ -3,8 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"time"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
