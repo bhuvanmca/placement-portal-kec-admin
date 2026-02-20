@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For HapticFeedback
+// For HapticFeedback
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:io'; // Add import
-import 'package:http/http.dart' as http; // Add import
-import 'package:path_provider/path_provider.dart'; // Add import
-import 'package:open_filex/open_filex.dart'; // Add import
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import '../utils/constants.dart';
-import '../utils/formatters.dart'; // [NEW]
+import '../utils/formatters.dart';
 import '../../providers/drive_provider.dart';
+import '../services/drive_service.dart';
+import '../services/api_client.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart'; // Add import
+import 'package:url_launcher/url_launcher.dart';
+import '../providers/auth_provider.dart';
 
 class DriveDetailScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> drive;
@@ -22,12 +25,14 @@ class DriveDetailScreen extends ConsumerStatefulWidget {
 
 class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   late String _userStatus;
+  late bool _isEligible;
   List<int> _selectedRoleIds = [];
 
   @override
   void initState() {
     super.initState();
     _userStatus = widget.drive['user_status'] ?? '';
+    _isEligible = widget.drive['is_eligible'] == true;
 
     // Initialize selected roles if already applied
     if (widget.drive['user_applied_role_ids'] != null) {
@@ -37,8 +42,52 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     }
   }
 
+  Future<void> _handleRequestToAttend() async {
+    // Validation: If roles exist, at least one must be selected
+    final List roles = widget.drive['roles'] ?? [];
+    if (roles.isNotEmpty && _selectedRoleIds.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select at least one job role.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final driveService = DriveService(ref.read(apiClientProvider));
+      await driveService.requestToAttend(
+        widget.drive['id'],
+        roleIds: _selectedRoleIds.isNotEmpty ? _selectedRoleIds : null,
+      );
+      if (mounted) {
+        setState(() {
+          _userStatus = 'request_to_attend';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request submitted! Admin will be notified.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit request: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _handleOptIn() async {
-    HapticFeedback.selectionClick();
+    // HapticFeedback.selectionClick();
 
     // 1. Validation: If roles exist, at least one must be selected
     final List roles = widget.drive['roles'] ?? [];
@@ -89,29 +138,20 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   }
 
   Future<bool?> _showTnCDialog() {
+    // Hardcoded default terms since policy is removed
+    const String defaultTerms =
+        'By applying for this drive, you agree to the following terms:\n\n'
+        '1. You meet all the eligibility criteria mentioned.\n'
+        '2. You will attend the valid selection process if shortlisted.\n'
+        '3. Any false information provided will lead to disqualification.\n'
+        '4. You accept the placement rules of the institution.';
+
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Terms & Conditions'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'By applying for this drive, you agree to the following terms:',
-              ),
-              SizedBox(height: 10),
-              Text('1. You meet all the eligibility criteria mentioned.'),
-              Text(
-                '2. You will attend the valid selection process if shortlisted.',
-              ),
-              Text(
-                '3. Any false information provided will lead to disqualification.',
-              ),
-              Text('4. You accept the Placement Policy of the institution.'),
-            ],
-          ),
+        content: const SingleChildScrollView(
+          child: Text(defaultTerms, style: TextStyle(height: 1.5)),
         ),
         actions: [
           TextButton(
@@ -134,7 +174,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   }
 
   Future<void> _handleOptOut() async {
-    HapticFeedback.selectionClick();
+    // HapticFeedback.selectionClick();
 
     // 1. Reason Dialog
     final reason = await _showOptOutDialog();
@@ -295,7 +335,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       }
 
       final validUrl = AppConstants.sanitizeUrl(url);
-      final response = await http.get(Uri.parse(validUrl));
+      final token = await ref.read(authServiceProvider).getToken();
+
+      final response = await http.get(
+        Uri.parse(validUrl),
+        headers: token != null ? {'Authorization': 'Bearer $token'} : null,
+      );
 
       if (response.statusCode != 200) {
         throw 'Failed to download (Status: ${response.statusCode})';
@@ -329,19 +374,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   Widget _buildDetailCard(String title, Widget content) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
         border: Border.all(color: AppConstants.borderColor, width: 0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,12 +387,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: AppConstants.textPrimary,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           content,
         ],
       ),
@@ -377,7 +415,10 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         0xFFFAFAFA,
       ), // Slightly off-white for card contrast
       appBar: AppBar(
-        title: const Text('Drive Details'),
+        title: const Text(
+          'Drive Details',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: AppConstants.textPrimary,
         elevation: 0,
@@ -486,12 +527,11 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       children: [
         // Company Logo
         Container(
-          width: 80,
-          height: 80,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: Colors.grey[200],
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
           ),
           child:
               drive['logo_url'] != null &&
@@ -504,18 +544,13 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                     placeholder: (context, url) => const Center(
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    errorWidget: (context, url, error) => const Icon(
-                      Icons.business,
-                      size: 40,
-                      color: Colors.grey,
-                    ),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.business, color: Colors.grey),
                   ),
                 )
-              : const Icon(Icons.business, size: 40, color: Colors.grey),
+              : const Icon(Icons.business, color: Colors.grey),
         ),
         const SizedBox(width: 16),
-
-        // Details
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -523,18 +558,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               Text(
                 drive['company_name'] ?? 'Unknown Company',
                 style: const TextStyle(
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: AppConstants.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _getRolesText(drive),
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: AppConstants.textSecondary,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 8),
@@ -619,13 +645,6 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     );
   }
 
-  String _getRolesText(Map<String, dynamic> drive) {
-    final roles = drive['roles'] as List? ?? [];
-    if (roles.isEmpty) return 'No Roles Specified';
-    if (roles.length == 1) return roles.first['role_name'] ?? 'Unknown Role';
-    return '${roles.length} Roles Available';
-  }
-
   Widget _buildStatusBadge(String status) {
     String label;
     Color color;
@@ -634,50 +653,66 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     switch (status) {
       case 'opted_in':
         label = 'Applied';
-        color = AppConstants.successColor;
+        color = const Color(0xFF10B981);
         icon = Icons.check_circle_outline;
         break;
       case 'opted_out':
         label = 'Opted Out';
-        color = Colors.orange;
+        color = const Color(0xFF6B7280);
         icon = Icons.cancel_outlined;
         break;
       case 'shortlisted':
         label = 'Shortlisted';
-        color = Colors.blue;
+        color = const Color(0xFFF59E0B);
         icon = Icons.star_outline;
         break;
       case 'rejected':
         label = 'Rejected';
-        color = Colors.red;
+        color = const Color(0xFFEF4444);
         icon = Icons.cancel;
         break;
       case 'placed':
         label = 'Placed';
-        color = Colors.green[800]!;
+        color = const Color(0xFF059669);
         icon = Icons.verified;
         break;
+      case 'request_to_attend':
+        label = 'Requested';
+        color = const Color(0xFF002147);
+        icon = Icons.pending_outlined;
+        break;
       default:
-        label = 'Eligible';
-        color = Colors.blueGrey;
-        icon = Icons.info_outline;
+        if (_isEligible) {
+          label = 'Eligible';
+          color = const Color(0xFF10B981);
+          icon = Icons.check_circle_outline;
+        } else {
+          label = 'Not Eligible';
+          color = const Color(0xFFEF4444);
+          icon = Icons.block;
+        }
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 8),
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
           ),
         ],
       ),
@@ -700,12 +735,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
           _buildDetailRow(
             Icons.calendar_today,
             'Event Date',
-            Formatters.formatDateTime(drive['drive_date']),
+            Formatters.formatDateOnly(drive['drive_date']),
           ),
           _buildDetailRow(
             Icons.timer_outlined,
             'Deadline',
-            Formatters.formatDateTime(drive['deadline_date']),
+            '${Formatters.formatDateOnly(drive['deadline_date'])} (${Formatters.timeUntil(drive['deadline_date'])})',
           ),
         ],
       ),
@@ -750,15 +785,15 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               drive['tenth_percentage'] > 0)
             _buildDetailRow(
               Icons.percent,
-              '10th %',
-              '${drive['tenth_percentage']}%',
+              '10th',
+              '${drive['tenth_percentage']}',
             ),
           if (drive['twelfth_percentage'] != null &&
               drive['twelfth_percentage'] > 0)
             _buildDetailRow(
               Icons.percent,
-              '12th %',
-              '${drive['twelfth_percentage']}%',
+              '12th',
+              '${drive['twelfth_percentage']}',
             ),
           if (drive['ug_min_cgpa'] != null && drive['ug_min_cgpa'] > 0)
             _buildDetailRow(
@@ -925,8 +960,8 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.red[50],
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.red.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: const Text(
           'Application Closed',
@@ -935,6 +970,81 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         ),
       );
     }
+
+    // If student already requested to attend, show confirmation
+    if (_userStatus == 'request_to_attend') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppConstants.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Text(
+          'Request Submitted — Awaiting Approval',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppConstants.primaryColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    // If not eligible and request was rejected — show "Not Eligible" (unclickable)
+    if (!_isEligible && _userStatus == 'rejected') {
+      final remarks = widget.drive['user_remarks'] ?? '';
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          children: [
+            const Text(
+              'Not Eligible',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+            if (remarks.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                remarks,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // If not eligible and hasn't applied yet, show Request to Attend
+    if (!_isEligible && _userStatus.isEmpty) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: _handleRequestToAttend,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppConstants.primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Text(
+            'Request to Attend',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+    }
+
+    // Default: Opt In / Opt Out buttons for eligible students
     return Row(
       children: [
         // Opt Out Button
@@ -1031,13 +1141,17 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(color: AppConstants.textSecondary),
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
         ],

@@ -78,17 +78,21 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           setState(() => _photoName = file.name);
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${type.toUpperCase()} uploaded successfully'),
-            backgroundColor: AppConstants.successColor,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${type.toUpperCase()} uploaded successfully'),
+              backgroundColor: AppConstants.successColor,
+            ),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -114,6 +118,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       final Map<String, dynamic> payload = {
         'mobile_number': state.mobileNumber ?? '',
         'dob': state.dob ?? '',
+        'gender': state.gender ?? '',
         // Address
         'address_line_1': state.addressLine1 ?? '',
         'address_line_2': state.addressLine2 ?? '',
@@ -141,9 +146,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         context.go('/drives');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Submission failed: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -23,7 +23,7 @@ final isConnectedProvider = Provider<bool>((ref) {
       // Usually it returns at least one value.
       return results.isNotEmpty;
     },
-    error: (_, __) =>
+    error: (error, stackTrace) =>
         true, // Assume connected on error to avoid blocking user unnecessarily
     loading: () => true, // Assume connected while loading
   );

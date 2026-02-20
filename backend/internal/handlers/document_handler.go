@@ -9,9 +9,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// GetDocumentURL generates a presigned URL for secure document access
+// GetDocumentURL returns the direct URL for secure document access
 // @Summary Get Document URL
-// @Description Generate a temporary presigned URL for accessing student documents
+// @Description Get the direct, permanent URL for accessing student documents
 // @Tags Student
 // @Accept json
 // @Produce json
@@ -68,16 +68,6 @@ func GetDocumentURL(c *fiber.Ctx) error {
 		})
 	}
 
-	// Extract the object key from the full URL
-	// e.g., "http://172.16.1.208:9000/placement-portal-bucket/students/24MCR005/resume.pdf"
-	// -> "students/24MCR005/resume.pdf"
-	objectKey := utils.ExtractPathFromURL(documentURL)
-	if objectKey == "" {
-		return c.Status(500).JSON(fiber.Map{
-			"error": "Failed to parse document URL",
-		})
-	}
-
 	// Authorization check: students can only access their own documents, admins can access any
 	if role != "admin" && role != "student" {
 		return c.Status(403).JSON(fiber.Map{
@@ -85,19 +75,32 @@ func GetDocumentURL(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate presigned URL (valid for 7 days = 10080 minutes)
-	presignedURL, err := utils.GetPresignedURL(objectKey, 10080)
+	// Extract S3 key using robust helper
+	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
+	if key == "" {
+		return c.Status(500).JSON(fiber.Map{
+			"error": "Failed to parse document URL",
+		})
+	}
+	// If bucket is empty, use default env
+	if bucket == "" {
+		bucket = utils.GetBucketName()
+	}
+
+	// Generate presigned URL (5-minute expiry)
+	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"error":   "Failed to generate document URL",
+			"error":   "Failed to generate secure URL",
 			"details": err.Error(),
 		})
 	}
 
+	// Return presigned URL
 	return c.JSON(fiber.Map{
 		"url":        presignedURL,
-		"expires_in": "7 days",
 		"type":       documentType,
+		"expires_in": "5 minutes",
 	})
 }
 
@@ -178,27 +181,32 @@ func GetStudentDocumentURL(c *fiber.Ctx) error {
 		})
 	}
 
-	// Extract object key
-	objectKey := utils.ExtractPathFromURL(documentURL)
-	if objectKey == "" {
+	// Extract S3 key using robust helper
+	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
+	if key == "" {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to parse document URL",
 		})
 	}
+	// If bucket is empty, use default env
+	if bucket == "" {
+		bucket = utils.GetBucketName()
+	}
 
-	// Generate presigned URL (valid for 7 days)
-	presignedURL, err := utils.GetPresignedURL(objectKey, 10080)
+	// Generate presigned URL (5-minute expiry)
+	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"error":   "Failed to generate document URL",
+			"error":   "Failed to generate secure URL",
 			"details": err.Error(),
 		})
 	}
 
+	// Return presigned URL
 	return c.JSON(fiber.Map{
 		"url":        presignedURL,
-		"expires_in": "7 days",
 		"type":       documentType,
 		"student_id": studentID,
+		"expires_in": "5 minutes",
 	})
 }

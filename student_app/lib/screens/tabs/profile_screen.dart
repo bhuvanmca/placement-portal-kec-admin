@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For HapticFeedback
+// For HapticFeedback
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +17,28 @@ import '../../utils/constants.dart';
 import '../edit_profile_screen.dart';
 import '../change_password_screen.dart'; // [NEW]
 import '../../widgets/haptic_refresh_indicator.dart';
+import '../requests_screen.dart'; // [NEW]
+import 'package:google_fonts/google_fonts.dart';
+
+class KeepAlivePage extends StatefulWidget {
+  const KeepAlivePage({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -26,21 +48,31 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
-    with AutomaticKeepAliveClientMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final StudentService _studentService = StudentService();
   late Future<Map<String, dynamic>> _profileFuture;
-
-  int _selectedSectionIndex = 0;
-  final List<String> _sections = ['Personal', 'Academic', 'Placement'];
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
     _profileFuture = _studentService.getProfile();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   Future<void> _refresh() async {
-    HapticFeedback.selectionClick();
+    // HapticFeedback.selectionClick();
     setState(() {
       _profileFuture = _studentService.getProfile();
     });
@@ -89,7 +121,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         throw 'Document URL not found';
       }
 
-      final response = await http.get(Uri.parse(presignedURL));
+      final sanitizedURL = AppConstants.sanitizeUrl(
+        presignedURL,
+      ); // [NEW] Sanitize
+      final response = await http.get(Uri.parse(sanitizedURL));
 
       if (response.statusCode != 200) {
         throw 'Failed to download document (Status: ${response.statusCode})';
@@ -176,7 +211,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           );
         }
 
-        await _studentService.uploadFile(imageFile.path, 'profile_pic');
+        final newUrl = await _studentService.uploadFile(
+          imageFile.path,
+          'profile_pic',
+        );
+
+        // Evict from cache ensuring we use the sanitized URL (same as UI)
+        try {
+          final sanitizedUrl = AppConstants.sanitizeUrl(newUrl);
+          await CachedNetworkImage.evictFromCache(sanitizedUrl);
+        } catch (e) {
+          debugPrint("Failed to evict cache: $e");
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -251,7 +297,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         actions: [
           IconButton(
             icon: Listener(
-              onPointerDown: (_) => HapticFeedback.selectionClick(),
+              // onPointerDown: (_) => HapticFeedback.selectionClick(),
               child: const Icon(Icons.logout_rounded, color: Colors.red),
             ),
             tooltip: 'Logout',
@@ -264,317 +310,312 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
         ],
       ),
-      body: HapticRefreshIndicator(
-        onRefresh: _refresh,
-        color: AppConstants.primaryColor,
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _profileFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Column(
-                children: [
-                  LinearProgressIndicator(
-                    color: AppConstants.primaryColor,
-                    backgroundColor: Colors.transparent,
-                  ),
-                  Expanded(child: SizedBox()),
-                ],
-              );
-            } else if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    Text('Error: ${snapshot.error}'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _refresh,
-                      child: const Text('Retry'),
-                    ),
-                  ],
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _profileFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Column(
+              children: [
+                LinearProgressIndicator(
+                  color: AppConstants.primaryColor,
+                  backgroundColor: Colors.transparent,
                 ),
-              );
-            } else if (!snapshot.hasData) {
-              return const Center(child: Text('No profile data found.'));
-            }
-
-            final data = snapshot.data!;
-            final socialLinks =
-                data['social_links'] as Map<String, dynamic>? ?? {};
-
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(24),
+                Expanded(child: SizedBox()),
+              ],
+            );
+          } else if (snapshot.hasError) {
+            return Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // --- Header Section ---
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Profile Photo
-                      GestureDetector(
-                        onTap: () => _showImageSourceActionSheet(context),
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: 100,
-                              height: 100,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppConstants.primaryColor,
-                              ),
-                              child: ClipOval(
-                                child:
-                                    data['profile_photo_url'] != null &&
-                                        data['profile_photo_url']
-                                            .toString()
-                                            .isNotEmpty
-                                    ? CachedNetworkImage(
-                                        key: ValueKey(
-                                          data['profile_photo_url'],
-                                        ),
-                                        imageUrl: AppConstants.sanitizeUrl(
-                                          data['profile_photo_url'],
-                                        ),
-                                        fit: BoxFit.cover,
-                                        memCacheHeight: 300,
-                                        placeholder: (context, url) =>
-                                            const Center(
-                                              child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2,
-                                              ),
-                                            ),
-                                        errorWidget: (context, url, error) {
-                                          return const Icon(
-                                            Icons.person,
-                                            size: 60,
-                                            color: Colors.white,
-                                          );
-                                        },
-                                      )
-                                    : const Icon(
-                                        Icons.person,
-                                        size: 60,
-                                        color: Colors.white,
-                                      ),
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: data['is_blocked'] == true
-                                        ? Colors.red
-                                        : Colors.green,
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-
-                      // Details & Social
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              _formatValue(data['full_name']),
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppConstants.textPrimary,
-                                    fontSize: 22,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${_formatValue(data['register_number'])} | ${_formatValue(data['department'])}',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: AppConstants.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Batch ${_formatValue(data['batch_year'])} • ${_formatValue(data['student_type'])}',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppConstants.textSecondary),
-                            ),
-                            const SizedBox(height: 12),
-
-                            if (socialLinks.isNotEmpty)
-                              Row(
-                                children: [
-                                  if (socialLinks.containsKey('linkedin') &&
-                                      socialLinks['linkedin']
-                                          .toString()
-                                          .isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: IconButton(
-                                        constraints: const BoxConstraints(),
-                                        padding: EdgeInsets.zero,
-                                        icon: const FaIcon(
-                                          FontAwesomeIcons.linkedin,
-                                          color: Color(0xFF0077B5),
-                                          size: 22,
-                                        ),
-                                        tooltip: 'LinkedIn',
-                                        onPressed: () => _launchURL(
-                                          socialLinks['linkedin'].toString(),
-                                        ),
-                                      ),
-                                    ),
-                                  if (socialLinks.containsKey('github') &&
-                                      socialLinks['github']
-                                          .toString()
-                                          .isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: IconButton(
-                                        constraints: const BoxConstraints(),
-                                        padding: EdgeInsets.zero,
-                                        icon: const FaIcon(
-                                          FontAwesomeIcons.github,
-                                          color: Colors.black87,
-                                          size: 22,
-                                        ),
-                                        tooltip: 'GitHub',
-                                        onPressed: () => _launchURL(
-                                          socialLinks['github'].toString(),
-                                        ),
-                                      ),
-                                    ),
-                                  if (socialLinks.containsKey('leetcode') &&
-                                      socialLinks['leetcode']
-                                          .toString()
-                                          .isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: IconButton(
-                                        constraints: const BoxConstraints(),
-                                        padding: EdgeInsets.zero,
-                                        icon: const FaIcon(
-                                          FontAwesomeIcons.code,
-                                          color: Color(0xFFFFA116),
-                                          size: 20,
-                                        ),
-                                        tooltip: 'LeetCode',
-                                        onPressed: () => _launchURL(
-                                          socialLinks['leetcode'].toString(),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _refresh,
+                    child: const Text('Retry'),
                   ),
-                  const SizedBox(height: 24),
-
-                  // --- Section Tabs ---
-                  _buildSectionTabs(),
-                  const SizedBox(height: 24),
-
-                  // --- Content Sections ---
-                  KeyedSubtree(
-                    key: ValueKey<int>(_selectedSectionIndex),
-                    child: _buildSelectedSection(data),
-                  ),
-
-                  const SizedBox(height: 40),
                 ],
               ),
             );
-          },
-        ),
+          } else if (!snapshot.hasData) {
+            return const Center(child: Text('No profile data found.'));
+          }
+
+          final data = snapshot.data!;
+          final socialLinks =
+              data['social_links'] as Map<String, dynamic>? ?? {};
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- Header Section ---
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Profile Photo
+                    GestureDetector(
+                      onTap: () => _showImageSourceActionSheet(context),
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppConstants.primaryColor,
+                            ),
+                            child: ClipOval(
+                              child:
+                                  data['profile_photo_url'] != null &&
+                                      data['profile_photo_url']
+                                          .toString()
+                                          .isNotEmpty
+                                  ? CachedNetworkImage(
+                                      key: ValueKey(data['profile_photo_url']),
+                                      imageUrl: AppConstants.sanitizeUrl(
+                                        data['profile_photo_url'],
+                                      ),
+                                      fit: BoxFit.cover,
+                                      memCacheHeight: 300,
+                                      placeholder: (context, url) =>
+                                          const Center(
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                      errorWidget: (context, url, error) {
+                                        return const Icon(
+                                          Icons.person,
+                                          size: 60,
+                                          color: Colors.white,
+                                        );
+                                      },
+                                    )
+                                  : const Icon(
+                                      Icons.person,
+                                      size: 60,
+                                      color: Colors.white,
+                                    ),
+                            ),
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: data['is_blocked'] == true
+                                      ? Colors.red
+                                      : const Color(0xFF10B981),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+
+                    // Details & Social
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatValue(data['full_name']),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppConstants.textPrimary,
+                                  fontSize: 22,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_formatValue(data['register_number'])} | ${_formatValue(data['department'])}',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: AppConstants.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Batch ${_formatValue(data['batch_year'])} • ${_formatValue(data['student_type'])}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppConstants.textSecondary),
+                          ),
+                          const SizedBox(height: 12),
+
+                          if (socialLinks.isNotEmpty)
+                            Row(
+                              children: [
+                                if (socialLinks.containsKey('linkedin') &&
+                                    socialLinks['linkedin']
+                                        .toString()
+                                        .isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: IconButton(
+                                      constraints: const BoxConstraints(),
+                                      padding: EdgeInsets.zero,
+                                      icon: const FaIcon(
+                                        FontAwesomeIcons.linkedin,
+                                        color: Color(0xFF0077B5),
+                                        size: 22,
+                                      ),
+                                      tooltip: 'LinkedIn',
+                                      onPressed: () => _launchURL(
+                                        socialLinks['linkedin'].toString(),
+                                      ),
+                                    ),
+                                  ),
+                                if (socialLinks.containsKey('github') &&
+                                    socialLinks['github'].toString().isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: IconButton(
+                                      constraints: const BoxConstraints(),
+                                      padding: EdgeInsets.zero,
+                                      icon: const FaIcon(
+                                        FontAwesomeIcons.github,
+                                        color: Colors.black87,
+                                        size: 22,
+                                      ),
+                                      tooltip: 'GitHub',
+                                      onPressed: () => _launchURL(
+                                        socialLinks['github'].toString(),
+                                      ),
+                                    ),
+                                  ),
+                                if (socialLinks.containsKey('leetcode') &&
+                                    socialLinks['leetcode']
+                                        .toString()
+                                        .isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: IconButton(
+                                      constraints: const BoxConstraints(),
+                                      padding: EdgeInsets.zero,
+                                      icon: const FaIcon(
+                                        FontAwesomeIcons.code,
+                                        color: Color(0xFFFFA116),
+                                        size: 20,
+                                      ),
+                                      tooltip: 'LeetCode',
+                                      onPressed: () => _launchURL(
+                                        socialLinks['leetcode'].toString(),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // --- Tab Section ---
+              Expanded(child: _buildTabSection(data)),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSelectedSection(Map<String, dynamic> data) {
-    switch (_selectedSectionIndex) {
-      case 0:
-        return _buildPersonalSection(context, data);
-      case 1:
-        return _buildAcademicSection(data);
-      case 2:
-        return _buildPlacementStats(data['placement_stats']);
-      default:
-        return const SizedBox.shrink();
-    }
+  Widget _buildTabSection(Map<String, dynamic> data) {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppConstants.backgroundColor,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+            ),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            labelColor: AppConstants.primaryColor,
+            unselectedLabelColor: Colors.grey[500],
+            indicatorColor: AppConstants.primaryColor,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+            tabs: const [
+              Tab(text: 'Personal'),
+              Tab(text: 'Academic'),
+              Tab(text: 'Placement'),
+            ],
+          ),
+        ),
+        // Use TabBarView for swipe support
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildScrollableTab(data, 0),
+              _buildScrollableTab(data, 1),
+              _buildScrollableTab(data, 2),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
-  Widget _buildSectionTabs() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(_sections.length, (index) {
-          final isSelected = _selectedSectionIndex == index;
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () {
-                // HapticFeedback.selectionClick();
-                setState(() {
-                  _selectedSectionIndex = index;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppConstants.primaryColor
-                      : Colors.grey[200],
-                  borderRadius: BorderRadius.circular(isSelected ? 20 : 10),
-                ),
-                child: Text(
-                  _sections[index],
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
+  Widget _buildScrollableTab(Map<String, dynamic> data, int index) {
+    Widget content;
+    switch (index) {
+      case 0:
+        content = _buildPersonalSection(context, data);
+        break;
+      case 1:
+        content = _buildAcademicSection(data);
+        break;
+      case 2:
+        content = _buildPlacementStats(data['placement_stats']);
+        break;
+      default:
+        content = const SizedBox.shrink();
+    }
+
+    return KeepAlivePage(
+      child: HapticRefreshIndicator(
+        onRefresh: _refresh,
+        color: AppConstants.primaryColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+          child: content,
+        ),
       ),
     );
   }
@@ -684,6 +725,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             constraints: const BoxConstraints(maxWidth: 300),
             child: Column(
               children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const RequestsScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.history_edu),
+                    label: const Text('My Requests'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: AppConstants.borderColor),
+                      foregroundColor: AppConstants.textPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppConstants.borderRadius,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
@@ -891,7 +957,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -900,10 +966,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             child: Text(
               label,
               style: TextStyle(
-                color: isEmpty
-                    ? AppConstants.textSecondary.withValues(alpha: 0.5)
-                    : AppConstants.textSecondary,
-                fontSize: 14,
+                color: isEmpty ? Colors.grey[400] : Colors.grey[500],
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -912,11 +977,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             child: Text(
               isEmpty ? 'N/A' : displayValue,
               style: TextStyle(
-                color: isEmpty
-                    ? AppConstants.textSecondary.withValues(alpha: 0.4)
-                    : AppConstants.textPrimary,
+                color: isEmpty ? Colors.grey[400] : AppConstants.textPrimary,
                 fontSize: 14,
-                fontWeight: isEmpty ? FontWeight.normal : FontWeight.w500,
+                fontWeight: isEmpty ? FontWeight.normal : FontWeight.w600,
               ),
             ),
           ),
@@ -958,6 +1021,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget _buildPlacementStats(Map<String, dynamic>? stats) {
     if (stats == null) return const SizedBox.shrink();
 
+    final eligible = (stats['eligible_drives'] as num?)?.toInt() ?? 0;
+    final optedIn = (stats['opted_in'] as num?)?.toInt() ?? 0;
+    final optedOut = (stats['opted_out'] as num?)?.toInt() ?? 0;
+
+    // Calculate No Action: Eligible - (Opted In + Opted Out)
+    int noAction = eligible - (optedIn + optedOut);
+    if (noAction < 0) noAction = 0; // Sanity check
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -969,15 +1040,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
           children: [
-            _buildStatCard(
-              'Eligible Drives',
-              stats['eligible_drives'],
-              Colors.blue,
-            ),
-            _buildStatCard('Opted In', stats['opted_in'], Colors.green),
+            _buildStatCard('Eligible Drives', eligible, Colors.blue),
+            _buildStatCard('Opted In', optedIn, Colors.green),
             _buildStatCard('Attended', stats['attended'], Colors.purple),
             _buildStatCard('Offers', stats['offers_received'], Colors.orange),
-            _buildStatCard('Opted Out', stats['opted_out'], Colors.grey),
+            _buildStatCard('Opted Out', optedOut, Colors.grey),
+            _buildStatCard('No Action', noAction, Colors.red),
           ],
         ),
         const SizedBox(height: 24),
@@ -997,8 +1065,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            value?.toString() ?? '0', // [FIX] Show 0 instead of N/A for stats
-            style: TextStyle(
+            value?.toString() ?? '0',
+            style: GoogleFonts.geist(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: color[800],
@@ -1007,10 +1075,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
+            style: GoogleFonts.geist(
+              fontSize: 13,
               color: color[700],
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
           ),

@@ -10,7 +10,7 @@ A robust, production-grade backend API built with **Go (Golang)** and **PostgreS
 * **Framework:** [Fiber v2](https://gofiber.io/) (Fastest HTTP engine for Go)
 * **Database:** PostgreSQL (with `pgx/v5` driver & connection pooling)
 * **Authentication:** JWT (Stateless, Secure)
-* **File Storage:** MinIO (Self-Hosted S3-Compatible Storage)
+* **File Storage:** Garage (Self-Hosted S3-Compatible Object Storage)
 * **Automation:** Native Go Goroutines (Background Scheduler)
 * **Architecture:** Clean Architecture (Repository Pattern)
 
@@ -36,13 +36,14 @@ JWT_SECRET=your_internal_secret_key_2026
 SMTP_EMAIL=your_email@gmail.com
 SMTP_PASSWORD=your_16_char_app_password
 
-# File Storage (MinIO - Self-Hosted S3)
-MINIO_PUBLIC_URL=http://localhost:9000
-SUPABASE_S3_ENDPOINT=http://localhost:9000
-SUPABASE_ACCESS_KEY_ID=admin
-SUPABASE_SECRET_ACCESS_KEY=password123
-SUPABASE_BUCKET=placement-portal-bucket
-SUPABASE_S3_REGION=ap-south-1
+# File Storage (Garage - Self-Hosted S3)
+GARAGE_ENDPOINT=localhost:3900
+GARAGE_PUBLIC_URL=http://localhost:3900
+GARAGE_ACCESS_KEY=admin
+GARAGE_SECRET_KEY=password123
+GARAGE_BUCKET=placement-portal-bucket
+GARAGE_REGION=ap-south-1
+GARAGE_USE_SSL=false
 
 # BrandFetch API (Optional - for company logos)
 BRANDFETCH_API_KEY=your_api_key_here

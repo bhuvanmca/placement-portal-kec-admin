@@ -11,6 +11,8 @@ import 'widgets/server_error_overlay.dart'; // [NEW]
 import 'services/connectivity_service.dart'; // [NEW]
 import 'services/notification_storage_service.dart'; // [NEW]
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 // Top-level function to handle background messages when app is terminated
 // This MUST be a top-level function (not inside a class)
 @pragma('vm:entry-point')
@@ -26,6 +28,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   try {
     await Firebase.initializeApp();
@@ -66,7 +69,7 @@ class StudentApp extends ConsumerWidget {
           seedColor: AppConstants.primaryColor,
           primary: AppConstants.primaryColor,
         ),
-        textTheme: GoogleFonts.interTextTheme(),
+        textTheme: GoogleFonts.geistTextTheme(),
         scaffoldBackgroundColor: AppConstants.backgroundColor,
         appBarTheme: const AppBarTheme(
           centerTitle: false,
@@ -78,7 +81,7 @@ class StudentApp extends ConsumerWidget {
       builder: (context, child) {
         return Stack(
           children: [
-            if (child != null) child,
+            ?child,
             const ConnectivityOverlay(),
             const ServerErrorOverlay(), // [NEW]
           ],

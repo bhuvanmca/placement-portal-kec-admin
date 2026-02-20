@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,10 +44,28 @@ func (r *ConfigRepository) CreateDepartment(ctx context.Context, d models.Depart
 }
 
 func (r *ConfigRepository) DeleteDepartment(ctx context.Context, id int) error {
-	// Soft delete or Hard delete?
-	// User asked to "remove" options. Hard delete might break integrity if used.
-	// Let's do Soft Delete (Toggle IsActive) or verify usage.
-	// For now, let's just delete newly added ones. If integrity error, returns error.
+	// 1. Get Department Code
+	var code string
+	if err := r.DB.QueryRow(ctx, "SELECT code FROM departments WHERE id = $1", id).Scan(&code); err != nil {
+		return err
+	}
+
+	// 2. Cascade Delete Users (Students in this department)
+	// We first identify the users, then delete them (which cascades to profile, docs, etc.)
+	// Note: We only delete 'student' role users to be safe, though department link implies student/coordinator.
+	// Coordinators also have department_code in users table, but student_personal has department ref.
+	// The query below targets students via student_personal.
+	queryDeleteUsers := `
+		DELETE FROM users 
+		WHERE id IN (
+			SELECT user_id FROM student_personal WHERE department = $1
+		)
+	`
+	if _, err := r.DB.Exec(ctx, queryDeleteUsers, code); err != nil {
+		return fmt.Errorf("failed to delete associated students: %w", err)
+	}
+
+	// 3. Delete Department
 	query := `DELETE FROM departments WHERE id = $1`
 	_, err := r.DB.Exec(ctx, query, id)
 	return err
@@ -86,6 +105,24 @@ func (r *ConfigRepository) CreateBatch(ctx context.Context, year int) error {
 }
 
 func (r *ConfigRepository) DeleteBatch(ctx context.Context, id int) error {
+	// 1. Get Batch Year
+	var year int
+	if err := r.DB.QueryRow(ctx, "SELECT year FROM batches WHERE id = $1", id).Scan(&year); err != nil {
+		return err
+	}
+
+	// 2. Cascade Delete Users (Students in this batch)
+	queryDeleteUsers := `
+		DELETE FROM users 
+		WHERE id IN (
+			SELECT user_id FROM student_personal WHERE batch_year = $1
+		)
+	`
+	if _, err := r.DB.Exec(ctx, queryDeleteUsers, year); err != nil {
+		return fmt.Errorf("failed to delete associated students: %w", err)
+	}
+
+	// 3. Delete Batch
 	query := `DELETE FROM batches WHERE id = $1`
 	_, err := r.DB.Exec(ctx, query, id)
 	return err

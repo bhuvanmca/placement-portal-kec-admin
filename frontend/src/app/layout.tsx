@@ -36,7 +36,7 @@ export default function RootLayout({
         <AuthProvider>
           <Providers>
             {children}
-            <Toaster richColors position="top-center" />
+            <Toaster richColors position="bottom-right" />
             <ConnectivityOverlay />
             <ServerErrorOverlay /> {/* [NEW] */}
           </Providers>

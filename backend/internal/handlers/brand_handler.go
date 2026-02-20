@@ -52,7 +52,13 @@ func SearchBrands(c *fiber.Ctx) error {
 
 	results, err := utils.SearchCompanies(query)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to search brands", "details": err.Error()})
+		// Log the actual error for debugging
+		// Using the default logger that prints to stdout (docker logs)
+		// fmt.Printf("SearchBrands Error: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{
+			"error":   "Failed to search brands",
+			"details": err.Error(),
+		})
 	}
 
 	return c.JSON(results)

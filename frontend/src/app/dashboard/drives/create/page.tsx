@@ -42,6 +42,7 @@ import { driveService } from '@/services/drive.service';
 import { spocService, Spoc } from '@/services/spoc.service';
 import { toast } from 'sonner';
 import { configService, Department, Batch } from '@/services/config.service';
+import { eligibilityService, EligibilityTemplate } from '@/services/eligibility.service';
 // ... imports
 
 // --- Zod Schema ---
@@ -113,8 +114,8 @@ export default function CreateDrivePage() {
   const [templateName, setTemplateName] = useState("");
   const [istemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false);
-  const [savedTemplates, setSavedTemplates] = useState<{name: string, data: any}[]>([]); 
-  const [editingTemplateIndex, setEditingTemplateIndex] = useState<number | null>(null);
+  const [savedTemplates, setSavedTemplates] = useState<EligibilityTemplate[]>([]); 
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
   // Company Search State
   const [openCompanySearch, setOpenCompanySearch] = useState(false);
@@ -249,103 +250,95 @@ export default function CreateDrivePage() {
     name: "attachments"
   });
 
-  // Load Templates on Mount
+  // Load Templates from Backend
+  const fetchTemplates = async () => {
+    try {
+        const data = await eligibilityService.getTemplates();
+        setSavedTemplates(data || []);
+    } catch (e) {
+        console.error("Failed to load templates", e);
+    }
+  };
+
   useEffect(() => {
-     const stored = localStorage.getItem('drive_eligibility_templates');
-     if (stored) {
-         try {
-             const parsed = JSON.parse(stored);
-             const unique = parsed.filter((v: any, i: number, a: any[]) => a.findIndex((t: any) => t.name === v.name) === i);
-             setSavedTemplates(unique);
-             if (unique.length !== parsed.length) {
-                 localStorage.setItem('drive_eligibility_templates', JSON.stringify(unique));
-             }
-         } catch(e) {
-            //  console.error("Failed to parse templates", e);
-         }
-     }
+     fetchTemplates();
   }, []);
 
   // --- Template Logic ---
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
      if (!templateName.trim()) return;
 
-     const existingIndex = savedTemplates.findIndex(t => t.name.toLowerCase() === templateName.trim().toLowerCase());
-     
-     if (existingIndex !== -1 && editingTemplateIndex !== existingIndex) {
+     const existing = savedTemplates.find(t => t.name.toLowerCase() === templateName.trim().toLowerCase());
+     if (existing) {
          toast.error("Template name already exists. Please choose another.");
          return;
      }
 
+     setIsSavingTemplate(true);
      const currentValues = form.getValues();
-     const templateData = {
-         min_cgpa: currentValues.min_cgpa,
-         max_backlogs_allowed: currentValues.max_backlogs_allowed,
-         eligible_batches: currentValues.eligible_batches,
-         eligible_departments: currentValues.eligible_departments,
-         eligible_gender: currentValues.eligible_gender,
-         // Add new fields to template
-         tenth_percentage: currentValues.tenth_percentage,
-         twelfth_percentage: currentValues.twelfth_percentage,
-         ug_min_cgpa: currentValues.ug_min_cgpa,
-         pg_min_cgpa: currentValues.pg_min_cgpa,
-         use_aggregate: currentValues.use_aggregate,
-         aggregate_percentage: currentValues.aggregate_percentage
-     };
-
-     let newTemplates = [...savedTemplates];
-     if (editingTemplateIndex !== null) {
-         newTemplates[editingTemplateIndex] = { name: templateName, data: templateData };
-         toast.success("Template Updated!");
-     } else {
-         newTemplates.push({ name: templateName, data: templateData });
-         toast.success("Template Saved!");
-     }
-
-     setSavedTemplates(newTemplates);
-     localStorage.setItem('drive_eligibility_templates', JSON.stringify(newTemplates));
      
-     setTemplateName("");
-     setEditingTemplateIndex(null);
-     setIsTemplateDialogOpen(false);
+     try {
+         await eligibilityService.createTemplate({
+             name: templateName,
+             min_cgpa: currentValues.min_cgpa,
+             tenth_percentage: currentValues.tenth_percentage,
+             twelfth_percentage: currentValues.twelfth_percentage,
+             ug_min_cgpa: currentValues.ug_min_cgpa,
+             pg_min_cgpa: currentValues.pg_min_cgpa,
+             use_aggregate: currentValues.use_aggregate,
+             aggregate_percentage: currentValues.aggregate_percentage,
+             max_backlogs_allowed: currentValues.max_backlogs_allowed,
+             eligible_departments: currentValues.eligible_departments,
+             eligible_batches: currentValues.eligible_batches,
+             eligible_gender: currentValues.eligible_gender,
+         });
+         
+         toast.success("Template Saved to Cloud! 🚀");
+         setTemplateName("");
+         setIsTemplateDialogOpen(false);
+         fetchTemplates();
+     } catch (error) {
+         console.error("Template save error:", error);
+         toast.error("Failed to save template to cloud");
+     } finally {
+         setIsSavingTemplate(false);
+     }
   };
 
-  const handleApplyTemplate = (templateData: any) => {
-      form.setValue('min_cgpa', templateData.min_cgpa);
-      form.setValue('max_backlogs_allowed', templateData.max_backlogs_allowed);
-      form.setValue('eligible_batches', templateData.eligible_batches);
-      form.setValue('eligible_departments', templateData.eligible_departments);
-      form.setValue('eligible_gender', templateData.eligible_gender);
+  const handleApplyTemplate = (template: EligibilityTemplate) => {
+      form.setValue('min_cgpa', template.min_cgpa);
+      form.setValue('max_backlogs_allowed', template.max_backlogs_allowed);
+      form.setValue('eligible_batches', template.eligible_batches);
+      form.setValue('eligible_departments', template.eligible_departments);
+      form.setValue('eligible_gender', template.eligible_gender as any);
       
-      // Apply new fields if they exist in template
-      if(templateData.tenth_percentage !== undefined) form.setValue('tenth_percentage', templateData.tenth_percentage);
-      if(templateData.twelfth_percentage !== undefined) form.setValue('twelfth_percentage', templateData.twelfth_percentage);
-      if(templateData.ug_min_cgpa !== undefined) form.setValue('ug_min_cgpa', templateData.ug_min_cgpa);
-      if(templateData.pg_min_cgpa !== undefined) form.setValue('pg_min_cgpa', templateData.pg_min_cgpa);
-      if(templateData.use_aggregate !== undefined) form.setValue('use_aggregate', templateData.use_aggregate);
-      if(templateData.aggregate_percentage !== undefined) form.setValue('aggregate_percentage', templateData.aggregate_percentage);
+      form.setValue('tenth_percentage', template.tenth_percentage || 0);
+      form.setValue('twelfth_percentage', template.twelfth_percentage || 0);
+      form.setValue('ug_min_cgpa', template.ug_min_cgpa || 0);
+      form.setValue('pg_min_cgpa', template.pg_min_cgpa || 0);
+      form.setValue('use_aggregate', template.use_aggregate);
+      form.setValue('aggregate_percentage', template.aggregate_percentage || 0);
 
       toast.success("Template Applied!");
   };
 
-  const handleDeleteTemplate = (index: number) => {
-      const newTemplates = savedTemplates.filter((_, i) => i !== index);
-      setSavedTemplates(newTemplates);
-      localStorage.setItem('drive_eligibility_templates', JSON.stringify(newTemplates));
-      toast.success("Template Deleted");
+  const handleDeleteTemplate = async (id: number) => {
+      try {
+          await eligibilityService.deleteTemplate(id);
+          toast.success("Template Deleted");
+          fetchTemplates();
+      } catch (e) {
+          toast.error("Failed to delete template");
+      }
   };
 
   const openSaveDialog = () => {
       setTemplateName("");
-      setEditingTemplateIndex(null);
       setIsTemplateDialogOpen(true);
   };
   
-  const openEditDialog = (index: number) => {
-      setTemplateName(savedTemplates[index].name);
-      setEditingTemplateIndex(index);
-      setIsTemplateDialogOpen(true);
-      setManageTemplatesOpen(false); 
+  const openEditDialog = (template: EligibilityTemplate) => {
+      router.push(`/dashboard/settings/eligibility?edit=${template.id}`);
   };
 
   // --- Attachments ---
@@ -675,7 +668,7 @@ export default function CreateDrivePage() {
                         <div className="flex gap-2">
                              <Select onValueChange={(val) => {
                                  const template = savedTemplates.find(t => t.name === val);
-                                 if(template) handleApplyTemplate(template.data);
+                                 if(template) handleApplyTemplate(template);
                              }}>
                                 <SelectTrigger className="w-[180px] h-9">
                                     <SelectValue placeholder={savedTemplates.length === 0 ? "No templates available" : "Load Template"} />
@@ -933,19 +926,12 @@ export default function CreateDrivePage() {
                 <h3 className="font-semibold text-gray-900">In this form</h3>
                 <nav className="space-y-1">
                     {SECTIONS.map((section) => (
-                        <Link
+                        <div
                             key={section.id}
-                            to={section.id}
-                            containerId="main-scroll-container"
-                            activeClass="border-[#002147] bg-blue-50 text-[#002147] font-medium"
-                            className="block px-4 py-2 text-sm transition-all rounded-md border-l-2 border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50 cursor-pointer"
-                            spy={true}
-                            smooth={true}
-                            offset={-20}
-                            duration={500}
+                            className="block px-4 py-2 text-sm border-transparent text-gray-500"
                         >
                             {section.label}
-                        </Link>
+                        </div>
                     ))}
                 </nav>
             </div>
@@ -964,18 +950,18 @@ export default function CreateDrivePage() {
                               <span 
                                 className="font-medium cursor-pointer hover:underline text-[#002147]"
                                 title="Click to Apply Template"
-                                onClick={() => { handleApplyTemplate(t.data); setManageTemplatesOpen(false); }}
+                                onClick={() => { handleApplyTemplate(t); setManageTemplatesOpen(false); }}
                               >
                                 {t.name}
                               </span>
                               <div className="flex gap-1">
-                                  <Button size="icon" variant="ghost" onClick={() => { handleApplyTemplate(t.data); setManageTemplatesOpen(false); }} title="Apply Template">
+                                  <Button size="icon" variant="ghost" onClick={() => { handleApplyTemplate(t); setManageTemplatesOpen(false); }} title="Apply Template">
                                       <Check className="h-4 w-4 text-green-600" />
                                   </Button>
-                                  <Button size="icon" variant="ghost" onClick={() => openEditDialog(i)} title="Rename/Update Template">
+                                  <Button size="icon" variant="ghost" onClick={() => openEditDialog(t)} title="Rename/Update Template">
                                       <Pencil className="h-4 w-4 text-blue-500" />
                                   </Button>
-                                  <Button size="icon" variant="ghost" onClick={() => handleDeleteTemplate(i)} className="text-red-500" title="Delete Template">
+                                  <Button size="icon" variant="ghost" onClick={() => handleDeleteTemplate(t.id)} className="text-red-500" title="Delete Template">
                                       <Trash2 className="h-4 w-4"/>
                                   </Button>
                               </div>
@@ -1008,13 +994,21 @@ export default function CreateDrivePage() {
       <Dialog open={istemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
          <DialogContent>
              <DialogHeader>
-                 <DialogTitle>{editingTemplateIndex !== null ? 'Update Template' : 'Save Template'}</DialogTitle>
+                 <DialogTitle>Save Template</DialogTitle>
+                 <DialogDescription>
+                    Enter a name to save these eligibility criteria for future use.
+                 </DialogDescription>
              </DialogHeader>
              <div className="py-4">
                  <Label className="mb-2">Template Name</Label>
                  <Input value={templateName} onChange={(e) => setTemplateName(e.target.value)} />
              </div>
-             <DialogFooter><Button onClick={handleSaveTemplate}>Save</Button></DialogFooter>
+             <DialogFooter>
+                <Button onClick={handleSaveTemplate} disabled={isSavingTemplate}>
+                    {isSavingTemplate ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Save
+                </Button>
+             </DialogFooter>
          </DialogContent>
       </Dialog>
        {/* Scroll To Top Button */}

@@ -27,8 +27,8 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User, full
 	defer tx.Rollback(ctx)
 
 	queryUser := `
-        INSERT INTO users (email, password_hash, role, is_active, is_blocked)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO users (email, password_hash, role, name, department_code, is_active, is_blocked)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id, created_at
     `
 	// We use QueryRow because we want the ID back
@@ -36,6 +36,8 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User, full
 		user.Email,
 		user.PasswordHash,
 		user.Role,
+		user.Name,
+		user.DepartmentCode,
 		true,  // is_active default
 		false, // is_blocked default
 	).Scan(&user.ID, &user.CreatedAt)
@@ -46,8 +48,8 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User, full
 
 	// If Student, create profile
 	if user.Role == "student" {
-		queryProfile := `INSERT INTO student_personal (user_id, full_name) VALUES ($1, $2)`
-		if _, err := tx.Exec(ctx, queryProfile, user.ID, fullName); err != nil {
+		queryProfile := `INSERT INTO student_personal (user_id) VALUES ($1)`
+		if _, err := tx.Exec(ctx, queryProfile, user.ID); err != nil {
 			return fmt.Errorf("failed to create student profile: %w", err)
 		}
 
@@ -65,11 +67,12 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User, full
 
 // GetUserByEmail finds a user for login
 func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	query := `SELECT id, email, password_hash, role, is_active, is_blocked, last_login FROM users WHERE email = $1`
+	query := `SELECT id, email, password_hash, role, name, department_code, is_active, is_blocked, last_login, profile_photo_url FROM users WHERE email = $1`
 
 	var user models.User
 	err := r.DB.QueryRow(ctx, query, email).Scan(
-		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.IsActive, &user.IsBlocked, &user.LastLogin,
+		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.Name, &user.DepartmentCode,
+		&user.IsActive, &user.IsBlocked, &user.LastLogin, &user.ProfilePhotoURL,
 	)
 
 	if err != nil {

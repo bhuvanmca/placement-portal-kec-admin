@@ -18,17 +18,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-// getS3Client creates an S3-compatible client (MinIO)
+// getS3Client creates an S3-compatible client (Garage)
 func getS3Client() (*s3.Client, error) {
-	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
+	useSSL := os.Getenv("GARAGE_USE_SSL") == "true"
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			os.Getenv("MINIO_ACCESS_KEY"),
-			os.Getenv("MINIO_SECRET_KEY"),
+			os.Getenv("GARAGE_ACCESS_KEY"),
+			os.Getenv("GARAGE_SECRET_KEY"),
 			"",
 		)),
-		config.WithRegion(os.Getenv("MINIO_LOCATION")),
+		config.WithRegion(os.Getenv("GARAGE_REGION")),
 	)
 
 	if err != nil {
@@ -37,7 +37,7 @@ func getS3Client() (*s3.Client, error) {
 
 	return s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(func() string {
-			endpoint := os.Getenv("MINIO_ENDPOINT")
+			endpoint := os.Getenv("GARAGE_ENDPOINT")
 			if useSSL {
 				return "https://" + endpoint
 			}
@@ -47,6 +47,29 @@ func getS3Client() (*s3.Client, error) {
 	}), nil
 }
 
+// GetS3Client returns a configured S3 client (public wrapper for garage admin)
+func GetS3Client() *s3.Client {
+	client, err := getS3Client()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create S3 client: %v", err))
+	}
+	return client
+}
+
+// GetBucketName returns the configured bucket name
+func GetBucketName() string {
+	return os.Getenv("GARAGE_BUCKET")
+}
+
+// GetChatBucketName returns the chat-specific bucket name
+func GetChatBucketName() string {
+	bucket := os.Getenv("GARAGE_CHAT_BUCKET")
+	if bucket == "" {
+		return os.Getenv("GARAGE_BUCKET") // fallback
+	}
+	return bucket
+}
+
 // InitBucket ensures the configured bucket exists and has a public read policy
 func InitBucket() error {
 	client, err := getS3Client()
@@ -54,9 +77,9 @@ func InitBucket() error {
 		return fmt.Errorf("failed to create s3 client: %w", err)
 	}
 
-	bucketName := os.Getenv("MINIO_BUCKET")
+	bucketName := os.Getenv("GARAGE_BUCKET")
 	if bucketName == "" {
-		return fmt.Errorf("MINIO_BUCKET env var is not set")
+		return fmt.Errorf("GARAGE_BUCKET env var is not set")
 	}
 
 	// Check if bucket exists
@@ -71,7 +94,8 @@ func InitBucket() error {
 			Bucket: aws.String(bucketName),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create bucket: %w", err)
+			fmt.Printf("Warning: Failed to create bucket %s (might exist): %v\n", bucketName, err)
+			// return fmt.Errorf("failed to create bucket: %w", err)
 		}
 	}
 
@@ -101,9 +125,9 @@ func InitBucket() error {
 }
 
 // getPublicURL generates a public URL for accessing uploaded files
-// For MinIO: http://host:9000/bucket/path
+// For Garage: http://host:3900/bucket/path
 func getPublicURL(bucket, path string) string {
-	publicURL := os.Getenv("MINIO_PUBLIC_URL")
+	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
 	// Ensure no trailing slash in publicURL
 	if len(publicURL) > 0 && publicURL[len(publicURL)-1] == '/' {
 		publicURL = publicURL[:len(publicURL)-1]
@@ -117,7 +141,7 @@ func getPublicURL(bucket, path string) string {
 
 // UploadToS3 uploads a file to S3-compatible storage and returns the Public URL
 // Used in handlers: utils.UploadToS3(file, fileHeader, "resumes/24MCR029_resume.pdf")
-// Compatible with MinIO
+// Compatible with Garage object storage
 func UploadToS3(file multipart.File, fileHeader *multipart.FileHeader, path string) (string, error) {
 	client, err := getS3Client()
 	if err != nil {
@@ -131,9 +155,9 @@ func UploadToS3(file multipart.File, fileHeader *multipart.FileHeader, path stri
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
-	bucketName := os.Getenv("MINIO_BUCKET")
+	bucketName := os.Getenv("GARAGE_BUCKET")
 
-	// Ensure Bucket Exists (MinIO/Local)
+	// Ensure Bucket Exists (Garage/Local)
 	_, err = client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
 		Bucket: aws.String(bucketName),
 	})
@@ -144,7 +168,8 @@ func UploadToS3(file multipart.File, fileHeader *multipart.FileHeader, path stri
 			Bucket: aws.String(bucketName),
 		})
 		if err != nil {
-			return "", fmt.Errorf("failed to create bucket: %w", err)
+			fmt.Printf("Warning: Failed to create bucket %s (might exist): %v\n", bucketName, err)
+			// return "", fmt.Errorf("failed to create bucket: %w", err)
 		}
 
 		// Set Bucket Policy to Public (Read Only)
@@ -187,7 +212,7 @@ func UploadToS3(file multipart.File, fileHeader *multipart.FileHeader, path stri
 		return "", fmt.Errorf("failed to upload to S3 storage: %w", err)
 	}
 
-	// Generate Public URL using MinIO pattern
+	// Generate Public URL using standard S3 pattern
 	publicURL := getPublicURL(bucketName, path)
 
 	return publicURL, nil
@@ -202,7 +227,7 @@ func DeleteFromS3(path string) error {
 	}
 
 	_, err = client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
-		Bucket: aws.String(os.Getenv("MINIO_BUCKET")),
+		Bucket: aws.String(os.Getenv("GARAGE_BUCKET")),
 		Key:    aws.String(path),
 	})
 
@@ -213,36 +238,42 @@ func DeleteFromS3(path string) error {
 }
 
 // ExtractPathFromURL extracts the object key from a storage URL
-// Supports MinIO format (http://host/bucket/path)
+// Supports both new Garage/S3 format (http://host:port/bucket/path) and legacy format
 func ExtractPathFromURL(fileURL string) string {
+	if fileURL == "" {
+		return ""
+	}
+
 	u, err := url.Parse(fileURL)
 	if err != nil {
 		fmt.Printf("Error parsing URL %s: %v\n", fileURL, err)
 		return ""
 	}
 
-	// Path is like /bucket/path/to/file
+	// 1. Get Path (and strip leading slash)
 	path := u.Path
-	// Remove leading slash
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
 
-	bucket := os.Getenv("MINIO_BUCKET")
+	bucket := os.Getenv("GARAGE_BUCKET")
+
+	// 2. Handle legacy /storage/ prefix format (old URLs)
+	path = strings.TrimPrefix(path, "storage/")
+
+	// 3. Remove Bucket Name from Path if present
+	// Standard S3 path style: /bucket/key
+	// Garage path style: /bucket/key
 	prefix := bucket + "/"
+	path = strings.TrimPrefix(path, prefix)
 
-	if strings.HasPrefix(path, prefix) {
-		return path[len(prefix):]
+	// 4. Verification: If path is empty or just the bucket name, something is wrong
+	if path == "" || path == bucket {
+		fmt.Printf("Warning: Failed to extract path from URL: %s (Bucket: %s, Path: %s)\n", fileURL, bucket, path)
+		return ""
 	}
 
-	// Fallback: try legacy prefix match if available
-	minioPrefix := fmt.Sprintf("%s/%s/", os.Getenv("MINIO_PUBLIC_URL"), bucket)
-	if len(fileURL) > len(minioPrefix) && fileURL[:len(minioPrefix)] == minioPrefix {
-		return fileURL[len(minioPrefix):]
-	}
-
-	fmt.Printf("Warning: Failed to extract path from URL: %s (Bucket: %s)\n", fileURL, bucket)
-	return ""
+	return path
 }
 
 // DeleteFolder removes all objects with the given prefix (simulating folder deletion)
@@ -252,7 +283,7 @@ func DeleteFolder(prefix string) error {
 		return err
 	}
 
-	bucket := aws.String(os.Getenv("MINIO_BUCKET"))
+	bucket := aws.String(os.Getenv("GARAGE_BUCKET"))
 
 	// List objects with prefix
 	paginator := s3.NewListObjectsV2Paginator(client, &s3.ListObjectsV2Input{
@@ -294,40 +325,101 @@ func DeleteFolder(prefix string) error {
 
 // GetPresignedURL generates a presigned URL for secure, temporary access to a private object
 // This allows authenticated users to access documents without making the bucket public
-func GetPresignedURL(objectKey string, expiryMinutes int) (string, error) {
-	bucketName := os.Getenv("MINIO_BUCKET")
+// ExtractBucketAndKeyFromURL extracts the bucket and object key from a storage URL
+func ExtractBucketAndKeyFromURL(fileURL string) (string, string) {
+	if fileURL == "" {
+		return "", ""
+	}
+
+	u, err := url.Parse(fileURL)
+	if err != nil {
+		fmt.Printf("Error parsing URL %s: %v\n", fileURL, err)
+		return "", ""
+	}
+
+	// 1. Get Path (and strip leading slash)
+	path := u.Path
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
+
+	defaultBucket := os.Getenv("GARAGE_BUCKET")
+	chatBucket := os.Getenv("GARAGE_CHAT_BUCKET")
+
+	// 2. Handle legacy /storage/ prefix format (old URLs)
+	path = strings.TrimPrefix(path, "storage/")
+
+	// 3. Determine Bucket
+	// Garage path style: /bucket/key
+	// We need to check if the first segment is a known bucket
+
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) == 0 {
+		return "", ""
+	}
+
+	bucket := defaultBucket // Default fallback
+	key := path
+
+	if parts[0] == defaultBucket {
+		bucket = defaultBucket
+		if len(parts) > 1 {
+			key = parts[1]
+		} else {
+			key = ""
+		}
+	} else if chatBucket != "" && parts[0] == chatBucket {
+		bucket = chatBucket
+		if len(parts) > 1 {
+			key = parts[1]
+		} else {
+			key = ""
+		}
+	} else {
+		// If path doesn't start with a known bucket, assume it IS the key in the default bucket
+		// This handles legacy cases where URL might not have bucket prefix if using subdomain style (though we configured path style)
+		// But in our case, getPublicURL includes bucket.
+		// If we are here, it might be an external URL or something else.
+		// Let's assume default bucket and the whole path is the key if it doesn't match a bucket prefix.
+		// However, if we forced path style, it SHOULD have bucket prefix.
+		// Let's stick to the logic: if strictly matches known bucket, use it.
+	}
+
+	return bucket, key
+}
+
+// GetPresignedURL generates a presigned URL for secure, temporary access to a private object
+func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, error) {
 	if bucketName == "" {
-		return "", fmt.Errorf("MINIO_BUCKET env var is not set")
+		bucketName = os.Getenv("GARAGE_BUCKET")
+	}
+	if bucketName == "" {
+		return "", fmt.Errorf("GARAGE_BUCKET env var is not set")
 	}
 
-	// For presigned URLs, we need to use the public URL so external clients can access them
-	// Create a separate client configuration with the public endpoint
-	publicURL := os.Getenv("MINIO_PUBLIC_URL")
+	// ... (rest of configuration is same, referencing Public URL)
+	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
 	if publicURL == "" {
-		return "", fmt.Errorf("MINIO_PUBLIC_URL env var is not set")
+		return "", fmt.Errorf("GARAGE_PUBLIC_URL env var is not set")
 	}
 
-	// Remove trailing slash from publicURL if present
 	if len(publicURL) > 0 && publicURL[len(publicURL)-1] == '/' {
 		publicURL = publicURL[:len(publicURL)-1]
 	}
 
-	// Create AWS config with credentials
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			os.Getenv("MINIO_ACCESS_KEY"),
-			os.Getenv("MINIO_SECRET_KEY"),
+			os.Getenv("GARAGE_ACCESS_KEY"),
+			os.Getenv("GARAGE_SECRET_KEY"),
 			"",
 		)),
-		config.WithRegion(os.Getenv("MINIO_LOCATION")),
+		config.WithRegion(os.Getenv("GARAGE_REGION")),
 	)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	// Create S3 client with PUBLIC endpoint for presigning
-	// This ensures the presigned URL uses the accessible hostname
 	presignClient := s3.NewPresignClient(
 		s3.NewFromConfig(cfg, func(o *s3.Options) {
 			o.BaseEndpoint = aws.String(publicURL)
@@ -335,7 +427,6 @@ func GetPresignedURL(objectKey string, expiryMinutes int) (string, error) {
 		}),
 	)
 
-	// Generate presigned GET request
 	presignResult, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectKey),
@@ -348,4 +439,222 @@ func GetPresignedURL(objectKey string, expiryMinutes int) (string, error) {
 	}
 
 	return presignResult.URL, nil
+}
+
+// GenerateSignedProfileURL takes a stored DB URL, cleans it, and returns a Presigned URL
+func GenerateSignedProfileURL(originalURL string) string {
+	if originalURL == "" {
+		return ""
+	}
+
+	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
+	endpoint := os.Getenv("GARAGE_ENDPOINT")
+
+	if !strings.Contains(originalURL, publicURL) && !strings.Contains(originalURL, endpoint) {
+		if strings.HasPrefix(originalURL, "http://") || strings.HasPrefix(originalURL, "https://") {
+			return originalURL
+		}
+	}
+
+	bucket, key := ExtractBucketAndKeyFromURL(originalURL)
+	if bucket == "" || key == "" {
+		return originalURL
+	}
+
+	// Clean query params from key
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	// Generate for 60 minutes
+	signedURL, err := GetPresignedURL(bucket, key, 60)
+	if err != nil {
+		fmt.Printf("Error signing profile URL: %v\n", err)
+		return originalURL
+	}
+	return signedURL
+}
+
+// GenerateSignedDocumentURL takes a stored DB URL, cleans it, and returns a Presigned URL for documents
+func GenerateSignedDocumentURL(originalURL string) string {
+	if originalURL == "" {
+		return ""
+	}
+
+	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
+	endpoint := os.Getenv("GARAGE_ENDPOINT")
+
+	if !strings.Contains(originalURL, publicURL) && !strings.Contains(originalURL, endpoint) {
+		if strings.HasPrefix(originalURL, "http://") || strings.HasPrefix(originalURL, "https://") {
+			return originalURL
+		}
+	}
+
+	bucket, key := ExtractBucketAndKeyFromURL(originalURL)
+	if bucket == "" || key == "" {
+		return originalURL
+	}
+
+	// Clean query params from key
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	// Generate for 60 minutes
+	signedURL, err := GetPresignedURL(bucket, key, 60)
+	if err != nil {
+		fmt.Printf("Error signing document URL: %v\n", err)
+		return originalURL
+	}
+	return signedURL
+}
+
+// SanitizeFileName replaces non-alphanumeric characters with underscores
+func SanitizeFileName(name string) string {
+	// Simple sanitizer: replace spaces and special chars with _
+	// Allow a-z, A-Z, 0-9, -, _
+	var result strings.Builder
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
+			result.WriteRune(r)
+		} else {
+			result.WriteRune('_')
+		}
+	}
+	return result.String()
+}
+
+// UploadToS3Bucket uploads a file to a specific S3 bucket
+func UploadToS3Bucket(file multipart.File, fileHeader *multipart.FileHeader, path string, bucketName string) (string, error) {
+	client, err := getS3Client()
+	if err != nil {
+		return "", err
+	}
+
+	// Read file into buffer
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	if bucketName == "" {
+		bucketName = os.Getenv("GARAGE_BUCKET")
+	}
+
+	// Ensure Bucket Exists
+	_, err = client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
+		Bucket: aws.String(bucketName),
+	})
+	if err != nil {
+		fmt.Printf("Bucket %s not found, attempting to create...\n", bucketName)
+		_, err = client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
+			Bucket: aws.String(bucketName),
+		})
+		if err != nil {
+			fmt.Printf("Warning: Failed to create bucket %s (might exist): %v\n", bucketName, err)
+			// return "", fmt.Errorf("failed to create bucket: %w", err) // Don't return error
+		}
+
+		// Set Bucket Policy
+		policy := fmt.Sprintf(`{
+			"Version": "2012-10-17",
+			"Statement": [
+				{
+					"Effect": "Allow",
+					"Principal": {"AWS": ["*"]},
+					"Action": ["s3:GetObject"],
+					"Resource": ["arn:aws:s3:::%s/*"]
+				}
+			]
+		}`, bucketName)
+
+		_, err = client.PutBucketPolicy(context.TODO(), &s3.PutBucketPolicyInput{
+			Bucket: aws.String(bucketName),
+			Policy: aws.String(policy),
+		})
+		if err != nil {
+			fmt.Printf("Warning: Failed to set bucket policy: %v\n", err)
+		}
+	}
+
+	// Detect Content-Type
+	contentType := fileHeader.Header.Get("Content-Type")
+	if contentType == "" || contentType == "application/octet-stream" {
+		contentType = http.DetectContentType(buf.Bytes())
+	}
+
+	// Upload
+	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket:      aws.String(bucketName),
+		Key:         aws.String(path),
+		Body:        bytes.NewReader(buf.Bytes()),
+		ContentType: aws.String(contentType),
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to upload to S3 storage: %w", err)
+	}
+
+	return getPublicURL(bucketName, path), nil
+}
+
+// InitChatBucket ensures the chat bucket exists
+func InitChatBucket() error {
+	bucketName := os.Getenv("GARAGE_CHAT_BUCKET")
+	if bucketName == "" {
+		// Fallback or skip if not configured
+		fmt.Println("GARAGE_CHAT_BUCKET not set, skipping specific init")
+		return nil
+	}
+
+	client, err := getS3Client()
+	if err != nil {
+		return err
+	}
+
+	_, err = client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
+		Bucket: aws.String(bucketName),
+	})
+
+	if err != nil {
+		fmt.Printf("Chat Bucket %s not found, creating...\n", bucketName)
+		_, err = client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
+			Bucket: aws.String(bucketName),
+		})
+		if err != nil {
+			// If we can't create it, we assume it exists or we don't have permissions.
+			// accessing it later will fail if it really doesn't exist/no access.
+			// But failing here blocks startup/upload for no reason if it DOES exist.
+			fmt.Printf("Warning: Failed to create chat bucket (might already exist or permission denied): %v\n", err)
+		} else {
+			// Only try to set policy if we created it or if we want to enforce it.
+			// If we couldn't create, we probably can't set policy either.
+			// But let's try setting policy only if creation succeeded or we didn't just fail.
+			// Actually, if creation failed, we should probably skip policy to avoid another error.
+		}
+
+		policy := fmt.Sprintf(`{
+			"Version": "2012-10-17",
+			"Statement": [
+				{
+					"Effect": "Allow",
+					"Principal": {"AWS": ["*"]},
+					"Action": ["s3:GetObject"],
+					"Resource": ["arn:aws:s3:::%s/*"]
+				}
+			]
+		}`, bucketName)
+
+		_, err = client.PutBucketPolicy(context.TODO(), &s3.PutBucketPolicyInput{
+			Bucket: aws.String(bucketName),
+			Policy: aws.String(policy),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to set chat bucket policy: %w", err)
+		}
+	}
+
+	fmt.Printf("Chat Bucket %s initialized\n", bucketName)
+	return nil
 }

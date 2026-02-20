@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   format, 
   addMonths, 
@@ -29,6 +30,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from '@/context/auth-context';
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -207,6 +209,9 @@ export default function CalendarPage() {
 }
 
 function DriveEvent({ drive }: { drive: Drive }) {
+    const router = useRouter();
+    const { user } = useAuth();
+    
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -273,8 +278,20 @@ function DriveEvent({ drive }: { drive: Drive }) {
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2 border-t">
-                    <Button variant="outline">View Students</Button>
-                    <Button className="bg-[#002147] hover:bg-[#003366]">Manage Drive</Button>
+                    {user?.role !== 'coordinator' && (
+                        <Button 
+                            variant="outline"
+                            onClick={() => router.push(`/dashboard/drives/${drive.id}/analytics`)}
+                        >
+                            View Analytics
+                        </Button>
+                    )}
+                    <Button 
+                        className="bg-[#002147] hover:bg-[#003366]"
+                        onClick={() => router.push(`/dashboard/drives/${drive.id}`)}
+                    >
+                        {user?.role === 'coordinator' ? 'View Applicants' : 'Manage Drive'}
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>

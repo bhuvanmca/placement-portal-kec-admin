@@ -4,6 +4,7 @@ class OnboardingState {
   // Contact
   final String? mobileNumber;
   final String? dob;
+  final String? gender;
   final String? placementWillingness;
 
   // Academic
@@ -29,6 +30,7 @@ class OnboardingState {
   OnboardingState({
     this.mobileNumber,
     this.dob,
+    this.gender,
     this.placementWillingness = 'Interested',
     this.tenthMark,
     this.twelfthMark,
@@ -47,6 +49,7 @@ class OnboardingState {
   OnboardingState copyWith({
     String? mobileNumber,
     String? dob,
+    String? gender,
     String? placementWillingness,
     double? tenthMark,
     double? twelfthMark,
@@ -64,6 +67,7 @@ class OnboardingState {
     return OnboardingState(
       mobileNumber: mobileNumber ?? this.mobileNumber,
       dob: dob ?? this.dob,
+      gender: gender ?? this.gender,
       placementWillingness: placementWillingness ?? this.placementWillingness,
       tenthMark: tenthMark ?? this.tenthMark,
       twelfthMark: twelfthMark ?? this.twelfthMark,
@@ -84,6 +88,7 @@ class OnboardingState {
     return {
       'mobile_number': mobileNumber,
       'dob': dob,
+      'gender': gender,
       'placement_willingness': placementWillingness ?? 'Interested',
       'tenth_mark': tenthMark,
       'twelfth_mark': twelfthMark,
@@ -107,21 +112,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     return OnboardingState();
   }
 
-  void updateContact(
-    String mobile,
-    String dob, {
-    String? linkedin,
-    String? github,
-  }) {
+  void updateContact(String mobile, {String? linkedin, String? github}) {
     final socials = {
       if (linkedin != null && linkedin.isNotEmpty) 'linkedin': linkedin,
       if (github != null && github.isNotEmpty) 'github': github,
     };
-    state = state.copyWith(
-      mobileNumber: mobile,
-      dob: dob,
-      socialLinks: socials,
-    );
+    state = state.copyWith(mobileNumber: mobile, socialLinks: socials);
   }
 
   void updateAcademic(double tenth, double twelfth, double ug, double? pg) {
@@ -133,11 +129,19 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     );
   }
 
-  void updateAddress(String addr1, String addr2, String stateVal) {
+  void updatePersonal(
+    String addr1,
+    String addr2,
+    String stateVal,
+    String dob,
+    String gender,
+  ) {
     state = state.copyWith(
       addressLine1: addr1,
       addressLine2: addr2,
       state: stateVal,
+      dob: dob,
+      gender: gender,
     );
   }
 

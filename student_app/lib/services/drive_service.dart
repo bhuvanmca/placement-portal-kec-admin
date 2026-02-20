@@ -69,4 +69,21 @@ class DriveService {
       throw Exception(body['message'] ?? 'Failed to withdraw');
     }
   }
+
+  Future<void> requestToAttend(int driveId, {List<int>? roleIds}) async {
+    final token = await _getToken();
+    final response = await _apiClient.post(
+      Uri.parse('$baseUrl/v1/drives/$driveId/request-attend'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: roleIds != null ? jsonEncode({'role_ids': roleIds}) : null,
+    );
+
+    if (response.statusCode != 200) {
+      final body = jsonDecode(response.body);
+      throw Exception(body['message'] ?? 'Failed to submit request');
+    }
+  }
 }

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConstants {
   // API Configuration
   // API Configuration
   // Use computer's local IP for mobile testing (host machine IP)
   // static const String baseUrl = 'http://localhost:8080/api'; // Works for iOS Simulator only
-  static const String baseUrl =
-      'http://172.16.1.208:8080/api'; // Works for physical devices & Android/iOS
-  static const String apiBaseUrl = 'http://172.16.1.208:8080/api';
+  static String baseUrl =
+      dotenv.env['API_BASE_URL'] ?? 'http://172.20.10.6/api';
+  static String apiBaseUrl =
+      dotenv.env['API_BASE_URL'] ?? 'http://172.20.10.6/api';
 
   // Colors (Oxford Blue theme)
   static const Color primaryColor = Color(0xFF002147);
@@ -33,9 +35,40 @@ class AppConstants {
   // Helper to fix locahost/minio URLs for mobile
   static String sanitizeUrl(String url) {
     if (url.isEmpty) return url;
-    // Replace localhost or minio with machine IP
-    return url
-        .replaceAll('localhost', '172.16.1.208')
-        .replaceAll('minio', '172.16.1.208');
+    // Replace localhost, minio, garage, 127.0.0.1 with machine IP
+    String newUrl = url;
+    if (newUrl.contains('localhost')) {
+      newUrl = newUrl.replaceAll('localhost', '172.20.10.6');
+    }
+    if (newUrl.contains('127.0.0.1')) {
+      newUrl = newUrl.replaceAll('127.0.0.1', '172.20.10.6');
+    }
+    if (newUrl.contains('garage')) {
+      newUrl = newUrl.replaceAll('garage', '172.20.10.6');
+    }
+    if (newUrl.contains('minio')) {
+      newUrl = newUrl.replaceAll('minio', '172.20.10.6');
+    }
+    if (newUrl.contains('10.0.2.2')) {
+      newUrl = newUrl.replaceAll('10.0.2.2', '172.20.10.6');
+    }
+
+    // Remove 'v' query parameter securely using URI parsing
+    try {
+      final uri = Uri.parse(newUrl);
+      final queryParams = Map<String, dynamic>.from(uri.queryParameters);
+
+      if (queryParams.containsKey('v')) {
+        queryParams.remove('v');
+        // Reconstruct URL without 'v'
+        // If no params left, queryParameters should be empty/null logic handles it
+        newUrl = uri.replace(queryParameters: queryParams).toString();
+      }
+    } catch (e) {
+      // Fallback or ignore
+      debugPrint("Error sanitizing URL params: $e");
+    }
+
+    return newUrl;
   }
 }

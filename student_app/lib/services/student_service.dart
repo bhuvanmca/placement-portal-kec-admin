@@ -63,7 +63,7 @@ class StudentService {
   }
 
   // Update Profile
-  Future<void> updateProfile(Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
     final token = await _getToken();
     final response = await http.put(
       Uri.parse('$baseUrl/v1/student/profile'),
@@ -74,7 +74,9 @@ class StudentService {
       body: jsonEncode(data),
     );
 
-    if (response.statusCode != 200) {
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
       throw Exception('Failed to update profile: ${response.body}');
     }
   }
@@ -157,6 +159,50 @@ class StudentService {
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? 'Failed to change password');
+    }
+  }
+
+  // Get My Requests
+  Future<List<dynamic>> getRequests() async {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/v1/student/requests'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) {
+        return decoded;
+      }
+      return [];
+    } else {
+      throw Exception('Failed to load requests');
+    }
+  }
+
+  // Get My Drive Requests (request-to-attend)
+  Future<List<dynamic>> getDriveRequests() async {
+    final token = await _getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/v1/student/drive-requests'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) {
+        return decoded;
+      }
+      return [];
+    } else {
+      throw Exception('Failed to load drive requests');
     }
   }
 }

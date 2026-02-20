@@ -1,6 +1,7 @@
 -- ==========================================
--- PLACEMENT MANAGEMENT SYSTEM - FINAL NORMALIZED SCHEMA (V3)
+-- PLACEMENT MANAGEMENT SYSTEM - FINAL NORMALIZED SCHEMA (V3.1)
 -- Optimized for GoFiber Backend & Flutter App
+-- Verified: Includes Chat Features (is_pinned, deleted_for) and Storage Access
 -- Normalization Level: 3.5NF
 -- ==========================================
 
@@ -10,16 +11,32 @@
 DROP VIEW IF EXISTS view_student_details CASCADE;
 DROP FUNCTION IF EXISTS apply_for_drive(BIGINT, BIGINT);
 DROP TABLE IF EXISTS password_resets CASCADE;
+DROP TABLE IF EXISTS drive_application_roles CASCADE;
 DROP TABLE IF EXISTS drive_applications CASCADE;
-DROP TABLE IF EXISTS drive_spocs CASCADE;
+DROP TABLE IF EXISTS drive_eligible_departments CASCADE;
+DROP TABLE IF EXISTS drive_eligible_batches CASCADE;
+DROP TABLE IF EXISTS job_roles CASCADE;
+DROP TABLE IF EXISTS placement_drives CASCADE;
+DROP TABLE IF EXISTS spocs CASCADE;
 DROP TABLE IF EXISTS departments CASCADE;
 DROP TABLE IF EXISTS batches CASCADE;
-DROP TABLE IF EXISTS job_roles CASCADE;
-DROP TABLE IF EXISTS spocs CASCADE;
-DROP TABLE IF EXISTS placement_drives CASCADE;
 DROP TABLE IF EXISTS student_documents CASCADE;
-DROP TABLE IF EXISTS student_academics CASCADE;
+DROP TABLE IF EXISTS student_schooling CASCADE;
+DROP TABLE IF EXISTS student_degrees CASCADE;
 DROP TABLE IF EXISTS student_personal CASCADE;
+DROP TABLE IF EXISTS field_permissions CASCADE;
+DROP TABLE IF EXISTS student_change_requests CASCADE;
+DROP TABLE IF EXISTS role_permissions CASCADE;
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS broadcast_templates CASCADE;
+DROP TABLE IF EXISTS eligibility_template_departments CASCADE;
+DROP TABLE IF EXISTS eligibility_template_batches CASCADE;
+DROP TABLE IF EXISTS eligibility_templates CASCADE;
+DROP TABLE IF EXISTS system_settings CASCADE;
+DROP TABLE IF EXISTS chat_groups CASCADE;
+DROP TABLE IF EXISTS chat_group_members CASCADE;
+DROP TABLE IF EXISTS chat_messages CASCADE;
+DROP TABLE IF EXISTS chat_attachments CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
 -- ==========================================
@@ -30,7 +47,10 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     
-    role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'admin')),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'admin', 'super_admin', 'coordinator')),
+    name VARCHAR(150),
+    department_code VARCHAR(20), -- Only used for coordinators (FK added after departments table)
+    profile_photo_url TEXT,
     
     -- Notification Token
     fcm_token TEXT,
@@ -40,6 +60,7 @@ CREATE TABLE users (
     is_blocked BOOLEAN DEFAULT FALSE,
     
     -- Metadata
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -73,6 +94,10 @@ CREATE TABLE departments (
     is_active BOOLEAN DEFAULT TRUE
 );
 
+-- Add FK for users.department_code -> departments.code (deferred because departments created after users)
+ALTER TABLE users ADD CONSTRAINT fk_users_department 
+    FOREIGN KEY (department_code) REFERENCES departments(code) ON DELETE SET NULL;
+
 -- 3.3 Batches Master
 CREATE TABLE batches (
     id SERIAL PRIMARY KEY,
@@ -87,7 +112,6 @@ CREATE TABLE batches (
 -- 4.1 Personal Identity
 CREATE TABLE student_personal (
     user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    full_name VARCHAR(150) NOT NULL,
     register_number VARCHAR(50) UNIQUE, 
     batch_year INT REFERENCES batches(year) ON DELETE CASCADE,                     
     department VARCHAR(20) REFERENCES departments(code) ON DELETE CASCADE,            
@@ -155,6 +179,7 @@ CREATE TABLE student_degrees (
     -- Only Academic Performance Data
     year_pass INT,
     cgpa DECIMAL(4,2),
+    institution VARCHAR(255), -- [NEW] Added for UG/PG Institution names
     
     -- Semester GPAs stored as JSONB for flexibility
     -- Structure: {"1": 8.5, "2": 9.0} or Array [8.5, 9.0]
@@ -168,8 +193,6 @@ CREATE TABLE student_degrees (
 CREATE TABLE student_documents (
     user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     resume_url TEXT,
-    profile_photo_url TEXT,
-    
     -- Timestamps
     resume_updated_at TIMESTAMP WITH TIME ZONE
 );
@@ -190,9 +213,10 @@ CREATE TABLE placement_drives (
     -- Categories
     drive_type VARCHAR(50) CHECK (drive_type IN ('Full-Time', 'Internship', 'Internship to Full-Time', 'Internship and Full-Time')),
     company_category VARCHAR(50) CHECK (company_category IN ('Core', 'IT', 'Service', 'Non-Tech', 'Product', 'Start-up', 'MNC')),
-    spoc_id BIGINT REFERENCES spocs(id), -- [NEW] Replaced drive_objective with specific SPOC reference
     
-    location VARCHAR(255), -- [MOVED BACK] User requested location at drive level
+    spoc_id BIGINT REFERENCES spocs(id) ON DELETE SET NULL, -- 1-to-N: one drive has one SPOC
+    
+    location VARCHAR(255),
     location_type VARCHAR(20) DEFAULT 'On-Site' CHECK (location_type IN ('On-Site', 'Hybrid', 'Remote')),
 
     -- Financials (Moved to job_roles)
@@ -209,8 +233,6 @@ CREATE TABLE placement_drives (
     aggregate_percentage DECIMAL(5,2),
     
     max_backlogs_allowed INT DEFAULT 0,
-    eligible_departments JSONB,       -- e.g. ["CSE", "IT", "ECE"]
-    eligible_batches JSONB,           -- e.g. [2024, 2025]
     
     -- Dates & Rounds
     drive_date TIMESTAMP WITH TIME ZONE,
@@ -240,15 +262,18 @@ CREATE TABLE job_roles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5.1 Drive-SPOC Binding (Many-to-Many)
--- A drive can have multiple SPOCs, and a SPOC can manage multiple drives.
-CREATE TABLE drive_spocs (
+-- 5.1 Drive Eligible Departments
+CREATE TABLE drive_eligible_departments (
     drive_id BIGINT REFERENCES placement_drives(id) ON DELETE CASCADE,
-    spoc_id BIGINT REFERENCES spocs(id) ON DELETE CASCADE,
-    
-    is_primary_contact BOOLEAN DEFAULT FALSE, -- Flag to show who to call first
-    
-    PRIMARY KEY (drive_id, spoc_id)
+    department_code VARCHAR(20) REFERENCES departments(code) ON DELETE CASCADE,
+    PRIMARY KEY (drive_id, department_code)
+);
+
+-- 5.3 Drive Eligible Batches
+CREATE TABLE drive_eligible_batches (
+    drive_id BIGINT REFERENCES placement_drives(id) ON DELETE CASCADE,
+    batch_year INT REFERENCES batches(year) ON DELETE CASCADE,
+    PRIMARY KEY (drive_id, batch_year)
 );
 
 -- ==========================================
@@ -260,17 +285,19 @@ CREATE TABLE drive_applications (
     
     -- Status Workflow
     status VARCHAR(30) DEFAULT 'opted_in' 
-    CHECK (status IN ('eligible', 'opted_in', 'opted_out', 'shortlisted', 'rejected', 'placed', 'removed')),
-    
-    -- Multi-Role Support
-    applied_role_ids JSONB DEFAULT '[]', -- List of job_roles.id
+    CHECK (status IN ('eligible', 'opted_in', 'opted_out', 'shortlisted', 'rejected', 'placed', 'removed', 'request_to_attend')),
     
     -- Opt-Out Handling
     opt_out_reason TEXT,
+    remarks TEXT,
 
     -- Offer Details
     offer_letter_url TEXT,
     package_offered BIGINT,
+    
+    -- Concurrency & Audit
+    actioned_by BIGINT REFERENCES users(id),
+    actioned_at TIMESTAMP WITH TIME ZONE,
     
     applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -279,6 +306,15 @@ CREATE TABLE drive_applications (
 );
 
 CREATE INDEX idx_apps_status ON drive_applications(drive_id, status);
+
+-- 6.1 Drive Application Roles (Mapping student to applied job roles)
+CREATE TABLE drive_application_roles (
+    drive_id BIGINT,
+    student_id BIGINT,
+    role_id BIGINT REFERENCES job_roles(id) ON DELETE CASCADE,
+    PRIMARY KEY (drive_id, student_id, role_id),
+    FOREIGN KEY (drive_id, student_id) REFERENCES drive_applications(drive_id, student_id) ON DELETE CASCADE
+);
 
 -- ==========================================
 -- 7. UTILITIES
@@ -300,7 +336,7 @@ SELECT
     u.id,
     u.email,
     u.is_active,
-    sp.full_name,
+    u.name as full_name,
     sp.register_number,
     sp.department,
     sp.batch_year,
@@ -310,7 +346,7 @@ SELECT
     deg.cgpa as ug_cgpa,
     sch.current_backlogs,
     sd.resume_url,
-    sd.profile_photo_url
+    u.profile_photo_url
 FROM users u
 JOIN student_personal sp ON u.id = sp.user_id
 LEFT JOIN student_schooling sch ON u.id = sch.user_id
@@ -412,14 +448,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Seed Admin
-INSERT INTO users (email, password_hash, role, is_active) 
-VALUES ('admin@kongu.edu', '$2a$12$kVECn33pO4j10PqWl1cef.KXpT05gWtrgpfS4TfmcnDvTZRFhUzdK', 'admin', TRUE);
-
--- USERNAME: admin@kongu.edu
--- PASSWORD: konguadmin
-
--- Seed Departments
+-- Seed Departments (before users because coordinator references department_code FK)
 INSERT INTO departments (name, code, type, is_active) VALUES 
 ('Computer Science and Engineering', 'CSE', 'UG', TRUE),
 ('Information Technology', 'IT', 'UG', TRUE),
@@ -443,6 +472,23 @@ INSERT INTO batches (year, is_active) VALUES
 (2027, TRUE)
 ON CONFLICT (year) DO NOTHING;
 
+-- Seed Super Admin (user_id=1)
+INSERT INTO users (email, password_hash, role, name, is_active) 
+VALUES ('admin@kongu.edu', '$2a$10$HmVgB9pmuaydKC3cVE/hrO566v.zlhH6VX.D7ZTz4bu6rO1nasixu', 'super_admin', 'Super Admin', TRUE);
+
+-- Seed Admins (user_id=2, user_id=3)
+INSERT INTO users (email, password_hash, role, name, is_active) 
+VALUES ('dakshanamoorthy@kongu.edu', '$2a$10$HmVgB9pmuaydKC3cVE/hrO566v.zlhH6VX.D7ZTz4bu6rO1nasixu', 'admin', 'Dakshanamoorthy', TRUE);
+
+INSERT INTO users (email, password_hash, role, name, is_active) 
+VALUES ('kavin@kongu.edu', '$2a$10$HmVgB9pmuaydKC3cVE/hrO566v.zlhH6VX.D7ZTz4bu6rO1nasixu', 'admin', 'Kavin', TRUE);
+
+-- Seed Coordinator (user_id=4, MCA Department)
+INSERT INTO users (email, password_hash, role, name, department_code, is_active) 
+VALUES ('rahunathan@kongu.edu', '$2a$10$HmVgB9pmuaydKC3cVE/hrO566v.zlhH6VX.D7ZTz4bu6rO1nasixu', 'coordinator', 'Rahunathan', 'MCA', TRUE);
+
+-- ALL CREDENTIALS USE PASSWORD: qwerty
+
 -- Seed SPOCs
 INSERT INTO spocs (name, designation, mobile_number, email) VALUES
 ('Dakshanamoorthy', 'Placement Head', '9876543210', 'dakshanamoorthy@gmail.com');
@@ -453,14 +499,245 @@ DO $$
 DECLARE
     new_user_id BIGINT;
 BEGIN
-    INSERT INTO users (email, password_hash, role, is_active)
-    VALUES ('harikrishnann.24mca@kongu.edu', '$2a$10$22qShrVocUBSgXlVWIvueeSnNydE.KKjhj/45X5NHbZQW4GSjZBhu', 'student', TRUE)
+    INSERT INTO users (name, email, password_hash, role, is_active)
+    VALUES ('Harikrishnan N', 'harikrishnann.24mca@kongu.edu', '$2a$10$22qShrVocUBSgXlVWIvueeSnNydE.KKjhj/45X5NHbZQW4GSjZBhu', 'student', TRUE)
     RETURNING id INTO new_user_id;
 
-    INSERT INTO student_personal (user_id, full_name, register_number, batch_year, department, gender, mobile_number)
-    VALUES (new_user_id, 'Harikrishnan N', '24MCR029', 2024, 'MCA', 'Male', '9876543210');
+    INSERT INTO student_personal (user_id, register_number, batch_year, department, gender, mobile_number)
+    VALUES (new_user_id, '24MCR029', 2024, 'MCA', 'Male', '9876543210');
     
-EXCEPTION WHEN unique_violation THEN
     -- Ignore if user already exists
     NULL;
 END $$;
+
+-- ==========================================
+-- 10. FIELD PERMISSIONS & CHANGE REQUESTS
+-- ==========================================
+
+-- 10.1 Field Permissions (Admin Control)
+CREATE TABLE field_permissions (
+    field_name VARCHAR(100) PRIMARY KEY, -- e.g. "mobile_number", "cgpa"
+    label VARCHAR(100) NOT NULL,         -- e.g. "Mobile Number", "CGPA"
+    is_enabled BOOLEAN DEFAULT FALSE,    -- If TRUE, student can edit. If FALSE, edit requires approval/is disabled.
+    category VARCHAR(50)                 -- e.g. "Personal", "Academic", "Identity"
+);
+
+-- Seed Initial Permissions
+INSERT INTO field_permissions (field_name, label, is_enabled, category) VALUES
+('mobile_number', 'Mobile Number', TRUE, 'Personal'),
+('dob', 'Date of Birth', FALSE, 'Personal'),
+('address', 'Address', TRUE, 'Personal'),
+('placement_willingness', 'Placement Willingness', TRUE, 'Personal'),
+('social_links', 'Social Links', TRUE, 'Personal'),
+('tenth_mark', '10th Mark', FALSE, 'Academic'),
+('twelfth_mark', '12th Mark', FALSE, 'Academic'),
+('diploma_mark', 'Diploma Mark', FALSE, 'Academic'),
+('ug_cgpa', 'UG CGPA', FALSE, 'Academic'),
+('pg_cgpa', 'PG CGPA', FALSE, 'Academic'),
+('history_of_backlogs', 'History of Backlogs', FALSE, 'Academic'),
+('current_backlogs', 'Current Backlogs', FALSE, 'Academic');
+
+-- 10.2 Student Change Requests
+CREATE TABLE student_change_requests (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    student_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+    
+    field_name VARCHAR(100) REFERENCES field_permissions(field_name),
+    old_value TEXT,
+    new_value TEXT,
+    reason TEXT,
+    
+    status VARCHAR(20) DEFAULT 'pending' 
+    CHECK (status IN ('pending', 'approved', 'rejected')),
+    
+    admin_comment TEXT,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    handled_at TIMESTAMP WITH TIME ZONE,
+    handled_by BIGINT REFERENCES users(id)
+);
+
+CREATE INDEX idx_requests_status ON student_change_requests(status);
+CREATE INDEX idx_requests_student ON student_change_requests(student_id);
+
+-- ==========================================
+-- 11. ROLE PERMISSIONS & ACTIVITY LOG
+-- ==========================================
+
+-- 11.1 Role-Based Permissions (Per-User Override)
+CREATE TABLE role_permissions (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+    permission_key VARCHAR(50) NOT NULL,
+    is_granted BOOLEAN DEFAULT TRUE,
+    granted_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_user_permission UNIQUE (user_id, permission_key)
+);
+
+CREATE INDEX idx_role_permissions_user ON role_permissions(user_id);
+
+-- 11.2 Activity Log (Audit Trail)
+CREATE TABLE activity_logs (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(255) NOT NULL,
+    entity_type VARCHAR(100),
+    entity_id VARCHAR(100),
+    details JSONB,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
+CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at DESC);
+
+-- 11.3 System Settings (Key-Value Store)
+CREATE TABLE system_settings (
+    key VARCHAR(50) PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by BIGINT REFERENCES users(id)
+);
+
+-- Seed defaults for system settings
+INSERT INTO system_settings (key, value) VALUES
+('college_name', 'Kongu Engineering College'),
+('college_logo_url', '');
+
+-- Seed default permissions for admin users (user_id=2 dakshanamoorthy, user_id=3 kavin)
+INSERT INTO role_permissions (user_id, permission_key, is_granted) VALUES
+(2, 'manage_drives', TRUE),
+(2, 'manage_students', TRUE),
+(2, 'approve_changes', TRUE),
+(2, 'manage_spocs', TRUE),
+(2, 'manage_storage', TRUE),
+(2, 'export_data', TRUE),
+(2, 'manual_drive_ops', TRUE),
+(2, 'view_analytics', TRUE),
+(3, 'manage_drives', TRUE),
+(3, 'manage_students', TRUE),
+(3, 'approve_changes', TRUE),
+(3, 'manage_spocs', TRUE),
+(3, 'manage_storage', TRUE),
+(3, 'export_data', TRUE),
+(3, 'manual_drive_ops', TRUE),
+(3, 'view_analytics', TRUE);
+
+-- Seed permissions for coordinator (user_id=4 rahunathan - department-scoped)
+INSERT INTO role_permissions (user_id, permission_key, is_granted) VALUES
+(4, 'manage_drives', TRUE),
+(4, 'manage_students', TRUE),
+(4, 'approve_changes', TRUE),
+(4, 'manual_drive_ops', TRUE),
+(4, 'view_analytics', TRUE);
+-- ==========================================
+-- CHAT MODULE SCHEMA
+-- ==========================================
+
+-- 1. Chat Groups
+CREATE TABLE chat_groups (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(255), -- Null for direct messages
+    type VARCHAR(20) NOT NULL CHECK (type IN ('direct', 'group')),
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Group Members
+CREATE TABLE chat_group_members (
+    group_id BIGINT REFERENCES chat_groups(id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_read_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (group_id, user_id)
+);
+
+CREATE INDEX idx_group_members_user ON chat_group_members(user_id);
+
+-- 3. Messages
+CREATE TABLE chat_messages (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    group_id BIGINT REFERENCES chat_groups(id) ON DELETE CASCADE,
+    sender_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    
+    content TEXT,
+    type VARCHAR(20) DEFAULT 'text' CHECK (type IN ('text', 'image', 'file', 'student_card', 'deleted')),
+    status VARCHAR(20) DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'seen')),
+    
+    -- Metadata for specific types (e.g., student_card_id, file_url)
+    metadata JSONB DEFAULT '{}', 
+    
+    read_by JSONB DEFAULT '[]', -- List of user_ids who read the message
+    
+    -- New Fields for Chat Features
+    reply_to_id BIGINT REFERENCES chat_messages(id) ON DELETE SET NULL,
+    is_pinned BOOLEAN DEFAULT FALSE,
+    deleted_for JSONB DEFAULT '[]', -- List of user IDs for whom the message is deleted
+    forwarded BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_messages_group ON chat_messages(group_id, created_at DESC);
+
+-- 4. Attachments (Optional, linked to messages)
+CREATE TABLE chat_attachments (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    message_id BIGINT REFERENCES chat_messages(id) ON DELETE CASCADE,
+    file_url TEXT NOT NULL,
+    file_type VARCHAR(50),
+    file_size BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- 16. Broadcast Templates
+CREATE TABLE broadcast_templates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('WHATSAPP', 'EMAIL')),
+    content TEXT NOT NULL,
+    variables JSONB DEFAULT '[]'::jsonb, -- Array of variable names
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 17. Eligibility Templates
+CREATE TABLE eligibility_templates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    
+    -- Eligibility Criteria (Match placement_drives columns)
+    min_cgpa DECIMAL(4,2) DEFAULT 0.0,
+    tenth_percentage DECIMAL(5,2),
+    twelfth_percentage DECIMAL(5,2),
+    ug_min_cgpa DECIMAL(4,2),
+    pg_min_cgpa DECIMAL(4,2),
+    use_aggregate BOOLEAN DEFAULT FALSE,
+    aggregate_percentage DECIMAL(5,2),
+    max_backlogs_allowed INT DEFAULT 0,
+    
+    eligible_gender VARCHAR(10) DEFAULT 'All',
+    
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 17.1 Eligibility Template Departments
+CREATE TABLE eligibility_template_departments (
+    template_id BIGINT REFERENCES eligibility_templates(id) ON DELETE CASCADE,
+    department_code VARCHAR(20) REFERENCES departments(code) ON DELETE CASCADE,
+    PRIMARY KEY (template_id, department_code)
+);
+
+-- 17.2 Eligibility Template Batches
+CREATE TABLE eligibility_template_batches (
+    template_id BIGINT REFERENCES eligibility_templates(id) ON DELETE CASCADE,
+    batch_year INT REFERENCES batches(year) ON DELETE CASCADE,
+    PRIMARY KEY (template_id, batch_year)
+);

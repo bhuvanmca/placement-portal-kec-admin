@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { APP_ROUTES } from '@/constants/routes';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +27,18 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (!isAuthenticated) {
     return null; // Will redirect via useEffect
+  }
+
+  // Block student role from accessing dashboard
+  if (user?.role === 'student') {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+        <div className="text-center space-y-3">
+          <p className="text-xl font-bold text-red-600">Access Denied</p>
+          <p className="text-gray-500">This portal is for administrators only.</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

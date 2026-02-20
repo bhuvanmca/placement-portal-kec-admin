@@ -28,6 +28,22 @@ class ShellScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
               ),
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((
+                states,
+              ) {
+                if (states.contains(WidgetState.selected)) {
+                  return const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppConstants.primaryColor,
+                  );
+                }
+                return TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey[600],
+                );
+              }),
               selectedIndex: navigationShell.currentIndex,
               onDestinationSelected: (index) {
                 navigationShell.goBranch(

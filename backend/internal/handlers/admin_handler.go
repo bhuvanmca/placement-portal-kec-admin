@@ -1,13 +1,17 @@
 package handlers
 
 import (
+	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
+	"github.com/SysSyncer/placement-portal-kec/internal/models"
 	"github.com/SysSyncer/placement-portal-kec/internal/repository"
+	"github.com/SysSyncer/placement-portal-kec/internal/services"
 	"github.com/SysSyncer/placement-portal-kec/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
@@ -107,6 +111,22 @@ func DeleteStudent(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Delete failed", "details": err.Error()})
 	}
 
+	// Log Activity
+	logRepo := repository.NewActivityLogRepository(database.DB)
+	userID := int64(c.Locals("user_id").(float64))
+	details, _ := json.Marshal(map[string]interface{}{
+		"deleted_student_id": id,
+		"reg_no":             regNo,
+	})
+	_ = logRepo.CreateLog(c.Context(), models.ActivityLog{
+		UserID:     userID,
+		Action:     "DELETE_STUDENT",
+		EntityType: "STUDENT",
+		EntityID:   strconv.FormatInt(id, 10),
+		Details:    details,
+		IPAddress:  c.IP(),
+	})
+
 	return c.JSON(fiber.Map{"message": "Student deleted successfully"})
 }
 
@@ -142,11 +162,11 @@ func BulkDeleteStudents(c *fiber.Ctx) error {
 
 	// 1. Cleanup S3 Folders (Fetch students first to get Reg Nos)
 	// Passing limit: 10000 to fetch mostly all for cleanup (or we could fetch just RegNos via a specialized query, but this works given previous context)
-	students, _, err := repo.GetStudents(c.Context(), input.Department, input.BatchYear, "", 10000, 0)
+	students, _, err := repo.GetStudents(c.Context(), input.Department, input.BatchYear, "", 10000, 0, "register_number", "asc")
 	if err == nil {
 		for _, s := range students {
-			if regNo, ok := s["register_number"].(string); ok && regNo != "" {
-				folderPath := fmt.Sprintf("students/%s/", regNo)
+			if s.RegisterNumber != "" {
+				folderPath := fmt.Sprintf("students/%s/", s.RegisterNumber)
 				if err := utils.DeleteFolder(folderPath); err != nil {
 					fmt.Printf("Failed to delete student folder %s: %v\n", folderPath, err)
 				}
@@ -249,9 +269,28 @@ func ToggleBlockUser(c *fiber.Ctx) error {
 	}
 
 	status := "unblocked"
+	action := "UNBLOCK_USER"
 	if input.Block {
 		status = "blocked"
+		action = "BLOCK_USER"
 	}
+
+	// Log Activity
+	logRepo := repository.NewActivityLogRepository(database.DB)
+	userID := int64(c.Locals("user_id").(float64))
+	details, _ := json.Marshal(map[string]interface{}{
+		"target_user_id": id,
+		"new_status":     status,
+	})
+	_ = logRepo.CreateLog(c.Context(), models.ActivityLog{
+		UserID:     userID,
+		Action:     action,
+		EntityType: "USER",
+		EntityID:   strconv.FormatInt(id, 10),
+		Details:    details,
+		IPAddress:  c.IP(),
+	})
+
 	return c.JSON(fiber.Map{"message": fmt.Sprintf("User %s successfully", status)})
 }
 
@@ -273,12 +312,13 @@ func UpdateApplicationStatus(c *fiber.Ctx) error {
 		DriveID   int64  `json:"drive_id"`
 		StudentID int64  `json:"student_id"`
 		Status    string `json:"status"` // 'shortlisted', 'placed', 'rejected'
+		Remarks   string `json:"remarks"`
 	}
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
 	}
 
-	validStatuses := map[string]bool{"shortlisted": true, "placed": true, "rejected": true}
+	validStatuses := map[string]bool{"shortlisted": true, "placed": true, "rejected": true, "opted_in": true}
 	if !validStatuses[input.Status] {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid status value"})
 	}
@@ -286,8 +326,48 @@ func UpdateApplicationStatus(c *fiber.Ctx) error {
 	// Call Repository (Reusing DriveRepo or ApplicationRepo)
 	// Query: UPDATE drive_applications SET status = $1 WHERE drive_id = $2 AND student_id = $3
 	repo := repository.NewDriveRepository(database.DB)
-	if err := repo.UpdateApplicationStatus(c.Context(), input.DriveID, input.StudentID, input.Status); err != nil {
+	userID := int64(c.Locals("user_id").(float64))
+
+	if err := repo.UpdateApplicationStatus(c.Context(), input.DriveID, input.StudentID, input.Status, input.Remarks, userID); err != nil {
+		if len(err.Error()) > 8 && err.Error()[:8] == "CONFLICT" {
+			return c.Status(409).JSON(fiber.Map{"error": err.Error(), "code": "CONFLICT"})
+		}
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update status"})
+	}
+
+	// Send Notification
+	if input.Status == "opted_in" || input.Status == "rejected" {
+		go func() {
+			token, err := repo.GetStudentFCMToken(context.Background(), input.StudentID)
+			if err == nil && token != "" {
+				// Init Service (Assuming running from root)
+				ns, err := services.NewNotificationService("firebase-service-account.json")
+				if err == nil {
+					title := "Application Update"
+					body := ""
+					if input.Status == "opted_in" {
+						title = "Request Approved"
+						body = "Your request to attend the drive has been approved."
+					} else {
+						title = "Request Rejected"
+						body = "Your request to attend the drive has been rejected."
+					}
+					if input.Remarks != "" {
+						body += fmt.Sprintf("\nRemarks: %s", input.Remarks)
+					}
+
+					_, err := ns.SendMulticastNotification(context.Background(), []string{token}, title, body, map[string]string{
+						"type":     "drive_update",
+						"drive_id": fmt.Sprintf("%d", input.DriveID),
+					})
+					if err != nil {
+						fmt.Printf("Failed to send notification: %v\n", err)
+					}
+				} else {
+					fmt.Printf("Failed to init notification service: %v\n", err)
+				}
+			}
+		}()
 	}
 
 	return c.JSON(fiber.Map{"message": "Student status updated"})
@@ -326,12 +406,23 @@ func ListStudents(c *fiber.Ctx) error {
 	}
 	offset := (page - 1) * limit
 
+	// Sorting
+	sortBy := c.Query("sortBy", "register_number") // Default sort by register number
+	sortOrder := c.Query("sortOrder", "asc")       // Default ascending
+
 	repo := repository.NewUserRepository(database.DB)
-	students, total, err := repo.GetStudents(c.Context(), dept, batchYear, search, limit, offset)
+	students, total, err := repo.GetStudents(c.Context(), dept, batchYear, search, limit, offset, sortBy, sortOrder)
 
 	if err != nil {
 		fmt.Println("Error fetching students:", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch students"})
+	}
+
+	// Presign Profile Photo URLs
+	for i := range students {
+		if students[i].ProfilePhotoURL != "" {
+			students[i].ProfilePhotoURL = utils.GenerateSignedProfileURL(students[i].ProfilePhotoURL)
+		}
 	}
 
 	return c.JSON(fiber.Map{
@@ -363,6 +454,10 @@ func GetStudentDetails(c *fiber.Ctx) error {
 	repo := repository.NewUserRepository(database.DB)
 	userProfile, err := repo.GetStudentByRegisterNumber(c.Context(), param)
 	if err == nil {
+		// Presign Profile Photo URL
+		if userProfile.ProfilePhotoURL != "" {
+			userProfile.ProfilePhotoURL = utils.GenerateSignedProfileURL(userProfile.ProfilePhotoURL)
+		}
 		return c.JSON(userProfile)
 	}
 	// Log the error for debugging but return 404 to client
@@ -395,4 +490,32 @@ func GetDriveApplicants(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(applicants)
+}
+
+// GetDriveRequests
+// @Summary Get Drive Requests
+// @Description Fetch all pending requests to attend drives
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} models.DriveApplicant
+// @Failure 500 {object} map[string]interface{}
+// @Router /v1/admin/drive-requests [get]
+func GetDriveRequests(c *fiber.Ctx) error {
+	repo := repository.NewDriveRepository(database.DB)
+	requests, err := repo.GetDriveRequests(c.Context())
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch drive requests"})
+	}
+
+	for i := range requests {
+		if requests[i].ResumeURL != "" {
+			requests[i].ResumeURL = utils.GenerateSignedDocumentURL(requests[i].ResumeURL)
+		}
+		if requests[i].ProfilePhotoURL != "" {
+			requests[i].ProfilePhotoURL = utils.GenerateSignedProfileURL(requests[i].ProfilePhotoURL)
+		}
+	}
+
+	return c.JSON(requests)
 }

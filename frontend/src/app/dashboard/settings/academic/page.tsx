@@ -216,7 +216,7 @@ export default function AcademicConfigPage() {
             <div className="grid grid-cols-12 gap-2 items-end border-b pb-4">
               <div className="col-span-4">
                 <Label className="text-xs">Code</Label>
-                <Input placeholder="e.g. CSE" value={deptCode} onChange={(e) => setDeptCode(e.target.value.toUpperCase())} />
+                <Input placeholder="e.g. CSE" value={deptCode} onChange={(e) => setDeptCode(e.target.value)} />
               </div>
               <div className="col-span-5">
                 <Label className="text-xs">Name</Label>
