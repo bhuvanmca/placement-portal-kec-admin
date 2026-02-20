@@ -29,9 +29,9 @@ import (
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host placement-portal-kec.onrender.com
+// @host 172.16.1.208
 // @BasePath /api
-// @schemes http https
+// @schemes http
 
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -53,6 +53,11 @@ func main() {
 		log.Printf("Failed to initialize S3 bucket: %v", err)
 		// We don't exit here, as the app might still work for non-file operations,
 		// but it's good to log it clearly.
+	}
+
+	// Initialize Chat Bucket
+	if err := utils.InitChatBucket(); err != nil {
+		log.Printf("Failed to initialize Chat S3 bucket: %v", err)
 	}
 
 	// Initialize the Fiber instance

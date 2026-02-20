@@ -7,6 +7,7 @@ type UpdateProfileInput struct {
 	// Personal Identity
 	MobileNumber string `json:"mobile_number"`
 	Dob          string `json:"dob"`
+	Gender       string `json:"gender"`
 
 	// Address
 	AddressLine1 string `json:"address_line_1"`
@@ -136,8 +137,10 @@ type StudentFullProfile struct {
 	PgCgpa float64 `json:"pg_cgpa"`
 
 	// Pass Years for Degrees
-	UgYearPass int `json:"ug_year_pass"`
-	PgYearPass int `json:"pg_year_pass"`
+	UgYearPass    int    `json:"ug_year_pass"`
+	UgInstitution string `json:"ug_institution"`
+	PgYearPass    int    `json:"pg_year_pass"`
+	PgInstitution string `json:"pg_institution"`
 
 	UgGpaS1  float64 `json:"ug_gpa_s1"`
 	UgGpaS2  float64 `json:"ug_gpa_s2"`
@@ -218,4 +221,32 @@ type StudentDegree struct {
 	YearPass       int                `json:"year_pass"`
 	Cgpa           float64            `json:"cgpa"`
 	SemesterGpas   map[string]float64 `json:"semester_gpas"`
+}
+
+// FieldPermission represents allowing/denying student edits
+type FieldPermission struct {
+	FieldName string `json:"field_name"`
+	Label     string `json:"label"`
+	IsEnabled bool   `json:"is_enabled"`
+	Category  string `json:"category"`
+}
+
+// StudentChangeRequest represents a pending update
+type StudentChangeRequest struct {
+	ID           int64      `json:"id"`
+	StudentID    int64      `json:"student_id"`
+	FieldName    string     `json:"field_name"`
+	OldValue     string     `json:"old_value"`
+	NewValue     string     `json:"new_value"`
+	Reason       string     `json:"reason"`
+	Status       string     `json:"status"` // pending, approved, rejected
+	AdminComment string     `json:"admin_comment,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	HandledAt    *time.Time `json:"handled_at,omitempty"`
+	HandledBy    *int64     `json:"handled_by,omitempty"`
+
+	// Joined Data
+	StudentName    string `json:"student_name,omitempty"`
+	RegisterNumber string `json:"register_number,omitempty"`
+	FieldLabel     string `json:"field_label,omitempty"`
 }

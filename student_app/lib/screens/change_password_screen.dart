@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../services/student_service.dart';
 import '../utils/constants.dart';
@@ -32,7 +31,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
-    HapticFeedback.mediumImpact();
+    // HapticFeedback.mediumImpact();
 
     setState(() => _isLoading = true);
 

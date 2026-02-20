@@ -1,17 +1,58 @@
 {
     # Global options
-    email your-email@example.com
+    email harikrishnan4665@gmail.com
 }
 
 # Local Host Deployment (Native IP)
-http://172.20.10.2 {
-    # Reverse proxy to the API container
-    # 'api' is the service name in docker-compose.yml
-    reverse_proxy api:8080
+http://172.20.10.6 {
+    # 1. API Service (Specific Routes to avoid Garage conflict)
+    # We explicitly match only our application routes so Garage's /api/* calls fall through
+    @go_api {
+        path /api/health
+        path /api/v1/auth/*
+        path /api/v1/admin/*
+        path /api/v1/student/*
+        path /api/v1/drives*
+        path /api/v1/spocs*
+        path /api/v1/brands/*
+        path /api/v1/user/*
+        path /api/v1/config/*
+        path /api/v1/profile
+        path /api/webhooks/*
+    }
+    handle @go_api {
+        reverse_proxy api:8080
+    }
+    
+    # 2. Chat Service (Microservice)
+    handle /api/chat/* {
+        reverse_proxy chat-service:8081
+    }
+    
+    handle /ws {
+        reverse_proxy chat-service:8081
+    }
+    
+    # Swagger Documentation
+    handle_path /docs/* {
+        rewrite * /swagger{uri}
+        reverse_proxy api:8080
+    }
 
-    # Serve static assets
+    # 3. Garage Storage (Public Access)
+    # Routes /storage/bucket/file -> garage:3900/bucket/file
+    handle_path /storage/* {
+        reverse_proxy garage:3900
+    }
+
+    # 4. Static Assets for Caddy checks
     handle /assets/* {
         root * /app/assets
         file_server
+    }
+
+    # 5. Default handler
+    handle /* {
+        respond "Placement Portal API" 200
     }
 }

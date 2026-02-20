@@ -238,6 +238,31 @@ func CreateDrive(c *fiber.Ctx) error {
 	return c.Status(201).JSON(drive)
 }
 
+// Helper: Convert drive attachments to presigned URLs
+func convertAttachmentsToPresigned(drives []models.PlacementDrive) []models.PlacementDrive {
+	for i := range drives {
+		for j := range drives[i].Attachments {
+			s3Key := drives[i].Attachments[j].URL
+
+			// Extract S3 key from stored URL
+			bucket, key := utils.ExtractBucketAndKeyFromURL(s3Key) // s3Key variable name is misleading, it holds URL here.
+
+			if bucket == "" {
+				bucket = utils.GetBucketName()
+			}
+
+			// Generate presigned URL (5-minute expiry)
+			if key != "" {
+				presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+				if err == nil {
+					drives[i].Attachments[j].URL = presignedURL
+				}
+			}
+		}
+	}
+	return drives
+}
+
 // ListStudentDrives - For Students (Filtered)
 // @Summary List placement drives for students
 // @Description Get a list of drives with optional filtering by department and batch
@@ -283,6 +308,9 @@ func ListStudentDrives(c *fiber.Ctx) error {
 		filtered = append(filtered, d)
 	}
 
+	// Convert attachment URLs to presigned URLs
+	filtered = convertAttachmentsToPresigned(filtered)
+
 	return c.JSON(filtered)
 }
 
@@ -306,6 +334,9 @@ func ListAdminDrives(c *fiber.Ctx) error {
 		fmt.Printf("Error fetching admin drives: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch drives"})
 	}
+
+	// Convert attachment URLs to presigned URLs
+	drives = convertAttachmentsToPresigned(drives)
 
 	return c.JSON(drives)
 }
@@ -755,15 +786,137 @@ func AdminManualRegister(c *fiber.Ctx) error {
 	// Admin sends JSON: { "student_id": 123 } or { "register_number": "24MCR029" }
 	// Let's assume they send Student ID for now to keep it simple
 	var input models.ManualRegisterInput
-
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Student ID is required"})
+		return c.Status(400).JSON(fiber.Map{"error": "Register Number is required"})
+	}
+
+	studentRepo := repository.NewStudentRepository(database.DB)
+	studentID, err := studentRepo.GetStudentIDByRegisterNumber(c.Context(), input.RegisterNumber)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Student not found", "details": err.Error()})
 	}
 
 	repo := repository.NewDriveRepository(database.DB)
-	if err := repo.AdminForceRegister(c.Context(), driveID, input.StudentID); err != nil {
+	if err := repo.AdminForceRegister(c.Context(), driveID, studentID); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Manual registration failed", "details": err.Error()})
 	}
 
-	return c.JSON(fiber.Map{"message": "Student manually added to drive"})
+	// Send Notification Async
+	go func() {
+		// 1. Get Token
+		token, err := repo.GetStudentFCMToken(context.Background(), studentID)
+		if err != nil || token == "" {
+			fmt.Println("Manual Register Notification: No token found or error")
+			return
+		}
+
+		// 2. Get Drive Info for Message
+		drive, err := repo.GetDriveByID(context.Background(), driveID)
+		if err != nil {
+			return
+		}
+
+		// 3. Send
+		ns, err := services.NewNotificationService("firebase-service-account.json")
+		if err != nil {
+			fmt.Printf("Notification Error: Failed to init service: %v\n", err)
+			return
+		}
+
+		title := "Added to Drive"
+		body := fmt.Sprintf("You have been manually added to the placement drive for %s.", drive.CompanyName)
+		data := map[string]string{
+			"drive_id": strconv.FormatInt(driveID, 10),
+			"type":     "manual_add",
+		}
+
+		// Helper to send single? We have SendMulticast.
+		// We can wrap single token in list.
+		ns.SendMulticastNotification(context.Background(), []string{token}, title, body, data)
+	}()
+
+	return c.JSON(fiber.Map{"message": "Student manually added and notified"})
+}
+
+// ExportDriveApplicants - Handles POST /v1/admin/drives/:id/export
+// @Summary Export drive applicants
+// @Description Get detailed JSON of applicants (optionally filtered by IDs)
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Drive ID"
+// @Param input body map[string][]int64 false "List of Student IDs"
+// @Success 200 {array} models.DriveApplicantDetailed
+// @Router /v1/admin/drives/{id}/export [post]
+func ExportDriveApplicants(c *fiber.Ctx) error {
+	driveID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive ID"})
+	}
+
+	var input struct {
+		StudentIDs []int64 `json:"student_ids"`
+	}
+	// Body is optional (if empty, we export all)
+	c.BodyParser(&input)
+
+	// Role Check for Coordinator
+	role := c.Locals("role").(string)
+	var deptFilter *string
+	if role == "coordinator" {
+		if deptCode, ok := c.Locals("department_code").(string); ok && deptCode != "" {
+			deptFilter = &deptCode
+		} else {
+			// Should not happen if middleware ensures it, but safe fallback
+			return c.Status(403).JSON(fiber.Map{"error": "Coordinator department not found"})
+		}
+	}
+
+	repo := repository.NewDriveRepository(database.DB)
+	applicants, err := repo.GetDriveApplicantsDetailed(c.Context(), driveID, input.StudentIDs, deptFilter)
+	if err != nil {
+		fmt.Printf("Export Error: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
+	}
+
+	return c.JSON(applicants)
+}
+
+// GetDriveApplicantsDetailedHandler - GET /v1/admin/drives/:id/applicants/detailed
+// @Summary Get detailed drive applicants
+// @Description Get detailed JSON of all applicants for a drive
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Drive ID"
+// @Success 200 {array} models.DriveApplicantDetailed
+// @Router /v1/admin/drives/{id}/applicants/detailed [get]
+func GetDriveApplicantsDetailedHandler(c *fiber.Ctx) error {
+	driveID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive ID"})
+	}
+
+	// Role Check for Coordinator
+	role := c.Locals("role").(string)
+	var deptFilter *string
+	if role == "coordinator" {
+		if deptCode, ok := c.Locals("department_code").(string); ok && deptCode != "" {
+			deptFilter = &deptCode
+		} else {
+			// Should not happen if middleware ensures it, but safe fallback
+			return c.Status(403).JSON(fiber.Map{"error": "Coordinator department not found"})
+		}
+	}
+
+	repo := repository.NewDriveRepository(database.DB)
+	applicants, err := repo.GetDriveApplicantsDetailed(c.Context(), driveID, nil, deptFilter)
+	if err != nil {
+		fmt.Printf("GetDetailed Error: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
+	}
+
+	return c.JSON(applicants)
 }

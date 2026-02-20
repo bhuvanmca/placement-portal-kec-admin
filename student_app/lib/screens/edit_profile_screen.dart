@@ -313,12 +313,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'gap_reason': _gapReasonController.text,
       };
 
-      await _studentService.updateProfile(updateData);
+      final response = await _studentService.updateProfile(updateData);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
+        final message = response['message'] ?? 'Profile updated successfully';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
         Navigator.of(context).pop(true); // Return and refresh
       }
     } catch (e) {
@@ -935,7 +936,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,

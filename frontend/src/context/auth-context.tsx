@@ -9,12 +9,20 @@ import { APP_ROUTES as PAGE_ROUTES } from '@/constants/routes';
 import { isTokenExpired } from '@/utils/auth';
 import { toast } from 'sonner'; 
 
-interface AuthContextType {
+export interface CollegeSettings {
+  college_name: string;
+  college_logo_url: string;
+}
+
+export interface AuthContextType {
   user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (data: LoginCredentials, type?: 'admin' | 'student') => Promise<boolean>;
   logout: () => void;
+  collegeSettings: CollegeSettings;
+  updateCollegeSettings: (settings: Partial<CollegeSettings>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,12 +31,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [collegeSettings, setCollegeSettings] = useState<CollegeSettings>({
+    college_name: '',
+    college_logo_url: ''
+  });
   const router = useRouter();
 
   useEffect(() => {
     const initAuth = async () => {
       console.log("[AuthProvider] Initializing auth...");
       const token = localStorage.getItem('token');
+      
+      // Fetch college settings regardless of auth (public endpoint usually, or cached)
+      // But actually /v1/settings is public.
+      try {
+        const { data } = await api.get('/v1/settings');
+        if (data.settings) {
+            setCollegeSettings({
+                college_name: data.settings.college_name || '',
+                college_logo_url: data.settings.college_logo_url || ''
+            });
+        }
+      } catch (e) {
+        console.log("[AuthProvider] Failed to fetch initial settings", e);
+      }
+
       if (token) {
         if (isTokenExpired(token)) {
             console.log("[AuthProvider] Token expired, logging out.");
@@ -39,27 +66,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             toast.error("Session expired. Please login again.");
             router.push(PAGE_ROUTES.LOGIN);
         } else {
-            console.log("[AuthProvider] Found valid token, setting authenticated state.");
+            console.log("[AuthProvider] Found valid token, refreshing session...");
+            // Optimistically set authenticated
+            setIsAuthenticated(true);
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
                  setUser(JSON.parse(storedUser));
             }
-            setIsAuthenticated(true);
-            // Optionally redirect to dashboard if on public page? 
-            // Better to handle that in the pages themselves or middleware.
+            
+            // Fetch fresh user data (and presigned URL)
+            try {
+                const { data } = await api.get('/v1/user/account');
+                const updatedUser: User = {
+                    id: data.id,
+                    email: data.email,
+                    role: data.role,
+                    name: data.name,
+                    department_code: data.department_code,
+                    permissions: data.permissions || [], 
+                    profile_photo_url: data.profile_photo_url
+                };
+
+                if (storedUser) {
+                    const parsed = JSON.parse(storedUser);
+                    if (parsed.permissions) {
+                        updatedUser.permissions = parsed.permissions;
+                    }
+                }
+
+                console.log("[AuthProvider] Session refreshed:", updatedUser);
+                setUser(updatedUser);
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+            } catch (error) {
+                console.error("[AuthProvider] Failed to refresh session:", error);
+            }
         }
       } else {
         console.log("[AuthProvider] No token found.");
-        setIsAuthenticated(false); // Ensure explicitly false
+        setIsAuthenticated(false); 
       }
       setIsLoading(false);
     };
     initAuth();
   }, [router]);
 
+  // Persist user state to localStorage whenever it changes
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+  }, [user, isAuthenticated, isLoading]);
+
+  const updateCollegeSettings = (settings: Partial<CollegeSettings>) => {
+      setCollegeSettings(prev => ({ ...prev, ...settings }));
+  };
+
   const login = async (data: LoginCredentials, type: 'admin' | 'student' = 'admin'): Promise<boolean> => {
-    // For this admin portal, we default to 'admin' but keep flexibility if ever needed, or just force admin.
-    // The UI now strictly calls with 'admin' anyway, but defaulting here is safe.
     console.log(`[AuthProvider] ${type} Login called with:`, data);
     try {
       const endpoint = type === 'admin' ? API_ROUTES.ADMIN_AUTH.LOGIN : API_ROUTES.STUDENT_AUTH.LOGIN;
@@ -73,18 +135,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (token) {
         console.log("[AuthProvider] Token received:", token);
 
-        // Double check role on client side just in case (though backend handles it now)
-        if (type === 'admin' && responseData.role !== 'admin') {
-           toast.error("Unauthorized access. Admin credentials required.");
+        const allowedRoles = ['admin', 'coordinator', 'super_admin'];
+        if (type === 'admin' && !allowedRoles.includes(responseData.role)) {
+           toast.error("Unauthorized access. Dashboard credentials required.");
            return false;
         }
 
         localStorage.setItem('token', token);
         
         const userData: User = {
+          id: responseData.id, 
           email: responseData.email,
           role: responseData.role,
-          name: responseData.email.split('@')[0]
+          name: responseData.name || responseData.email.split('@')[0],
+          department_code: responseData.department_code,
+          permissions: responseData.permissions || [],
+          profile_photo_url: responseData.profile_photo_url,
         };
 
         console.log("[AuthProvider] User data derived:", userData);
@@ -94,13 +160,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         router.push(PAGE_ROUTES.DASHBOARD);
         return true;
       } else {
-        // console.error("[AuthProvider] Login successful but no token found in response:", responseData);
         toast.error("Login failed. No token received.");
         return false;
       }
     } catch (error: any) {
        console.warn("[AuthProvider] Login handled:", error?.message || 'Auth error');
-       // Error is already handled by interceptor toast
        return false;
     }
   };
@@ -116,11 +180,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const value = React.useMemo(() => ({
     user,
+    setUser,
     isAuthenticated,
     isLoading,
     login,
-    logout
-  }), [user, isAuthenticated, isLoading]);
+    logout,
+    collegeSettings,
+    updateCollegeSettings
+  }), [user, isAuthenticated, isLoading, collegeSettings]);
 
   return (
     <AuthContext.Provider value={value}>

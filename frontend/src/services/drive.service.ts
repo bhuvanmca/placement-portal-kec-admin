@@ -13,6 +13,7 @@ export interface Attachment {
 }
 
 export interface JobRole {
+  id: number;
   role_name: string;
   ctc: string; 
   salary: number;
@@ -29,6 +30,84 @@ export interface DriveApplicant {
   status: string;
   resume_url: string;
   applied_at: string;
+}
+
+export interface DriveApplicantDetailed {
+  // User Info
+  id: number;
+  email: string;
+  is_blocked: boolean;
+  last_login?: string;
+
+  // Personal
+  full_name: string;
+  register_number: string;
+  department: string;
+  department_type: string;
+  batch_year: number;
+  student_type: string;
+  placement_willingness: string;
+  gender: string;
+  dob: string;
+  mobile_number: string;
+  address_line_1: string;
+  address_line_2: string;
+  state: string;
+  pan_number: string;
+  aadhar_number: string;
+  social_links: Record<string, string>;
+  language_skills: string[];
+
+  // Academics
+  tenth_mark: number;
+  tenth_board: string;
+  tenth_year_pass: number;
+  tenth_institution: string;
+
+  twelfth_mark: number;
+  twelfth_board: string;
+  twelfth_year_pass: number;
+  twelfth_institution: string;
+
+  diploma_mark: number;
+  diploma_year_pass: number;
+  diploma_institution: string;
+
+  ug_cgpa: number;
+  pg_cgpa: number;
+
+  ug_year_pass: number;
+  pg_year_pass: number;
+
+  // Semesters (Optional)
+  ug_gpa_s1?: number;
+  ug_gpa_s2?: number;
+  ug_gpa_s3?: number;
+  ug_gpa_s4?: number;
+  ug_gpa_s5?: number;
+  ug_gpa_s6?: number;
+  ug_gpa_s7?: number;
+
+  pg_gpa_s1?: number;
+  pg_gpa_s2?: number;
+  pg_gpa_s3?: number;
+  pg_gpa_s4?: number;
+
+  current_backlogs: number;
+  history_of_backlogs: number;
+  gap_years: number;
+  gap_reason: string;
+
+  // Docs
+  resume_url: string;
+  profile_photo_url: string;
+  resume_updated_at?: string;
+
+  // Application Specific
+  application_status: string;
+  applied_at: string;
+  applied_role_ids: number[];
+  opt_out_reason: string;
 }
 
 export interface Drive {
@@ -92,6 +171,15 @@ export interface CreateDriveInput {
   status: string;
 }
 
+export interface DriveRequest extends DriveApplicant {
+  drive_id: number;
+  company_name: string;
+  department_type: string;
+  profile_photo_url: string;
+  remarks: string;
+  applied_role_names: string;
+}
+
 export const driveService = {
   getAllDrives: async (filters?: { department?: string; batch?: number }) => {
     let url = API_ROUTES.DRIVES;
@@ -102,6 +190,30 @@ export const driveService = {
       url += `?${params.toString()}`;
     }
     const response = await api.get<Drive[]>(url); 
+    return response.data;
+  },
+
+  getDriveRequests: async () => {
+    const response = await api.get<DriveRequest[]>(API_ROUTES.DRIVE_REQUESTS);
+    return response.data;
+  },
+
+  updateDriveRequestStatus: async (driveId: number, studentId: number, status: string, remarks: string) => {
+    const response = await api.put(`${API_ROUTES.ADMIN}/applications/status`, { 
+        drive_id: driveId, 
+        student_id: studentId, 
+        status,
+        remarks
+    });
+    return response.data;
+  },
+
+  bulkUpdateDriveRequestStatus: async (requests: { drive_id: number; student_id: number }[], status: string, remarks: string) => {
+    const response = await api.put(`${API_ROUTES.ADMIN}/applications/bulk-status`, { 
+        requests,
+        status,
+        remarks
+    });
     return response.data;
   },
   
@@ -172,8 +284,8 @@ export const driveService = {
     return response.data;
   },
 
-  manualRegisterStudent: async (driveId: number, studentId: number) => {
-    const response = await api.post(`${API_ROUTES.ADMIN_DRIVES}/${driveId}/add-student`, { student_id: studentId });
+  manualRegisterStudent: async (driveId: number, registerNumber: string) => {
+    const response = await api.post(`${API_ROUTES.ADMIN_DRIVES}/${driveId}/add-student`, { register_number: registerNumber });
     return response.data;
   },
 
@@ -188,6 +300,16 @@ export const driveService = {
         student_id: studentId, 
         status 
     });
+    return response.data;
+  },
+
+  getDriveApplicantsDetailed: async (driveId: number) => {
+    const response = await api.get<DriveApplicantDetailed[]>(`${API_ROUTES.ADMIN_DRIVES}/${driveId}/applicants/detailed`);
+    return response.data || [];
+  },
+
+  exportDriveApplicants: async (driveId: number, studentIds?: number[]) => {
+    const response = await api.post<DriveApplicantDetailed[]>(`${API_ROUTES.ADMIN_DRIVES}/${driveId}/export`, { student_ids: studentIds });
     return response.data;
   },
 

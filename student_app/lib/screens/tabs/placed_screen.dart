@@ -1,28 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For HapticFeedback
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/drive_provider.dart';
 import '../../widgets/drive_card.dart';
 import '../../utils/constants.dart';
-import '../../widgets/haptic_refresh_indicator.dart'; // [NEW]
+import '../../widgets/haptic_refresh_indicator.dart';
 
-class PlacedScreen extends ConsumerWidget {
+class PlacedScreen extends ConsumerStatefulWidget {
   const PlacedScreen({super.key});
 
-  Future<void> _refresh(WidgetRef ref) {
-    HapticFeedback.selectionClick();
+  @override
+  ConsumerState<PlacedScreen> createState() => _PlacedScreenState();
+}
+
+class _PlacedScreenState extends ConsumerState<PlacedScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  Future<void> _refresh() {
     return ref.refresh(driveListProvider.future);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    super.build(context);
     final drivesAsync = ref.watch(driveListProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Placed Drives',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: GoogleFonts.geist(
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -46,7 +58,7 @@ class PlacedScreen extends ConsumerWidget {
 
           if (placedDrives.isEmpty) {
             return HapticRefreshIndicator(
-              onRefresh: () => _refresh(ref),
+              onRefresh: _refresh,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: SizedBox(
@@ -56,23 +68,26 @@ class PlacedScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        Icons.check_circle_outline,
-                        size: 80,
+                        Icons.emoji_events_outlined,
+                        size: 64,
                         color: Colors.grey[300],
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'No placed drives yet.',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
+                      Text(
+                        'No placed drives yet',
+                        style: GoogleFonts.geist(
+                          color: Colors.grey[600],
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Keep applying and best of luck!',
-                        style: TextStyle(color: Colors.grey),
+                        style: GoogleFonts.geist(
+                          color: Colors.grey[400],
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -82,14 +97,14 @@ class PlacedScreen extends ConsumerWidget {
           }
 
           return HapticRefreshIndicator(
-            onRefresh: () => _refresh(ref),
+            onRefresh: _refresh,
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: placedDrives.length,
               itemBuilder: (context, index) {
                 return DriveCard(
                   drive: placedDrives[index],
-                  onRefresh: () => _refresh(ref),
+                  onRefresh: _refresh,
                 );
               },
             ),

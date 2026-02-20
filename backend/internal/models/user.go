@@ -4,13 +4,16 @@ import "time"
 
 // User represents the distinct user entity in our system
 type User struct {
-	ID           int64  `json:"id"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"-"`    // "json:-" ensures we NEVER send the password back to the frontend
-	Role         string `json:"role"` // 'student', 'admin', 'coordinator'
-	FCMToken     string `json:"fcm_token"`
-	IsActive     bool   `json:"is_active"`
-	IsBlocked    bool   `json:"is_blocked"`
+	ID              int64   `json:"id"`
+	Email           string  `json:"email"`
+	PasswordHash    string  `json:"-"`    // "json:-" ensures we NEVER send the password back to the frontend
+	Role            string  `json:"role"` // 'student', 'admin', 'super_admin', 'coordinator'
+	Name            *string `json:"name,omitempty"`
+	DepartmentCode  *string `json:"department_code,omitempty"` // Only for coordinators
+	ProfilePhotoURL *string `json:"profile_photo_url,omitempty"`
+	FCMToken        string  `json:"fcm_token"`
+	IsActive        bool    `json:"is_active"`
+	IsBlocked       bool    `json:"is_blocked"`
 
 	LastLogin *time.Time `json:"last_login"`
 	CreatedAt time.Time  `json:"created_at"`
@@ -19,10 +22,11 @@ type User struct {
 
 // RegisterInput defines what the frontend sends us to create a user
 type RegisterInput struct {
-	FullName string `json:"full_name" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-	Role     string `json:"role" validate:"required,oneof=student admin"`
+	FullName       string  `json:"full_name" validate:"required"`
+	Email          string  `json:"email" validate:"required,email"`
+	Password       string  `json:"password" validate:"required,min=6"`
+	Role           string  `json:"role" validate:"required,oneof=student admin coordinator"`
+	DepartmentCode *string `json:"department_code,omitempty"` // Required for coordinators
 }
 
 // LoginInput defines what the frontend sends to log in

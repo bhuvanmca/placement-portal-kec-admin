@@ -33,6 +33,9 @@ const formSchema = z.object({
   register_number: z.string().min(5, 'Invalid register number'),
   batch_year: z.string().min(4, 'Select a batch'),
   department: z.string().min(1, 'Select a department'),
+  student_type: z.enum(['Regular', 'Lateral'] as const),
+  gender: z.enum(['Male', 'Female', 'Other'] as const),
+  mobile_number: z.string().optional(),
   password: z.string().optional(),
 });
 
@@ -59,7 +62,6 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess }: AddStudentDialo
             setBatches(b || []);
         } catch(e) {
             console.warn("Failed to load config (possibly empty)", e);
-            // Suppress toast for config load failure as it might just be empty DB
         }
     };
     if (isOpen) {
@@ -73,8 +75,12 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess }: AddStudentDialo
       full_name: '',
       email: '',
       register_number: '',
-      batch_year: new Date().getFullYear().toString(), // Dynamic default
+      batch_year: new Date().getFullYear().toString(),
       department: '',
+      student_type: 'Regular',
+      // @ts-ignore
+      gender: undefined, 
+      mobile_number: '',
       password: '',
     },
   });
@@ -155,27 +161,76 @@ export function AddStudentDialog({ isOpen, onClose, onSuccess }: AddStudentDialo
                 </div>
             </div>
 
-            <div className="grid gap-2">
-                <Label htmlFor="department">Department</Label>
-                <Controller
-                  control={control}
-                  name="department"
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select Department" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px]">
-                            {departments.map((dept) => (
-                                <SelectItem key={dept.id} value={dept.code}>
-                                    {dept.code}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.department && <span className="text-red-500 text-xs">{errors.department.message}</span>}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Controller
+                      control={control}
+                      name="department"
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[200px]">
+                                {departments.map((dept) => (
+                                    <SelectItem key={dept.id} value={dept.code}>
+                                        {dept.code}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.department && <span className="text-red-500 text-xs">{errors.department.message}</span>}
+                </div>
+
+                <div className="grid gap-2">
+                    <Label htmlFor="student_type">Student Type</Label>
+                    <Controller
+                      control={control}
+                      name="student_type"
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Regular">Regular</SelectItem>
+                                <SelectItem value="Lateral">Lateral</SelectItem>
+                            </SelectContent>
+                        </Select>
+                      )}
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Controller
+                      control={control}
+                      name="gender"
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.gender && <span className="text-red-500 text-xs">{errors.gender.message}</span>}
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="mobile_number">Mobile Number</Label>
+                    <Input id="mobile_number" placeholder="9876543210" {...register('mobile_number')} />
+                    {errors.mobile_number && <span className="text-red-500 text-xs">{errors.mobile_number.message}</span>}
+                </div>
             </div>
 
             <div className="grid gap-2">

@@ -39,10 +39,10 @@ func (r *StudentRepository) CreateStudent(ctx context.Context, user *models.User
 	// Note: We are setting the initial data provided by admin
 	queryPersonal := `
 		INSERT INTO student_personal (
-			user_id, full_name, register_number, batch_year, department, student_type, placement_willingness
-		) VALUES ($1, $2, $3, $4, $5, 'Regular', 'Interested')
+			user_id, register_number, batch_year, department, student_type, placement_willingness
+		) VALUES ($1, $2, $3, $4, 'Regular', 'Interested')
 	`
-	if _, err := tx.Exec(ctx, queryPersonal, userID, input.FullName, input.RegisterNumber, input.BatchYear, input.Department); err != nil {
+	if _, err := tx.Exec(ctx, queryPersonal, userID, input.RegisterNumber, input.BatchYear, input.Department); err != nil {
 		return fmt.Errorf("failed to create student profile: %w", err)
 	}
 
@@ -74,8 +74,9 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
             social_links = $6, language_skills = $7,
             dob = NULLIF($8, '')::date,
             pan_number = $9, aadhar_number = $10,
+            gender = COALESCE(NULLIF($11, ''), student_personal.gender),
             updated_at = NOW()
-        WHERE user_id = $11
+        WHERE user_id = $12
     `
 	if _, err := tx.Exec(ctx, queryPersonal,
 		input.MobileNumber, input.AddressLine1, input.AddressLine2, input.State,
@@ -83,6 +84,7 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 		input.SocialLinks, input.LanguageSkills,
 		input.Dob,
 		input.PanNumber, input.AadharNumber,
+		input.Gender,
 		userID); err != nil {
 		return fmt.Errorf("failed to update personal info: %w", err)
 	}
@@ -182,40 +184,50 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 	pgJson, _ := json.Marshal(pgMap)
 
 	// Query for Degree Upsert
-	// Columns: user_id, degree_level, year_pass, cgpa, semester_gpas
+	// Columns: user_id, degree_level, year_pass, cgpa, institution, semester_gpas
 	queryDegree := `
         INSERT INTO student_degrees (
-			user_id, degree_level, year_pass, cgpa, semester_gpas
+			user_id, degree_level, year_pass, cgpa, institution, semester_gpas
 		)
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (user_id, degree_level) DO UPDATE SET
 			year_pass = EXCLUDED.year_pass,
             cgpa = EXCLUDED.cgpa,
+            institution = EXCLUDED.institution,
             semester_gpas = EXCLUDED.semester_gpas
     `
 
 	// Upsert UG
 	if _, err := tx.Exec(ctx, queryDegree,
-		userID, "UG", input.UgYearPass, input.UgCgpa, ugJson); err != nil {
+		userID, "UG", input.UgYearPass, input.UgCgpa, input.UgInstitution, ugJson); err != nil {
 		return fmt.Errorf("failed to update UG degree: %w", err)
 	}
 
 	// Upsert PG
 	if _, err := tx.Exec(ctx, queryDegree,
-		userID, "PG", input.PgYearPass, input.PgCgpa, pgJson); err != nil {
+		userID, "PG", input.PgYearPass, input.PgCgpa, input.PgInstitution, pgJson); err != nil {
 		return fmt.Errorf("failed to update PG degree: %w", err)
 	}
 
-	// 4. Update Documents
+	// 4. Update Documents (Resume) & Profile Photo (Users)
+
+	// Update Resume in student_documents
 	queryDocs := `
-		INSERT INTO student_documents (user_id, resume_url, profile_photo_url)
-		VALUES ($1, $2, $3)
+		INSERT INTO student_documents (user_id, resume_url)
+		VALUES ($1, $2)
 		ON CONFLICT (user_id) DO UPDATE SET
-			resume_url = COALESCE(NULLIF(EXCLUDED.resume_url, ''), student_documents.resume_url),
-			profile_photo_url = COALESCE(NULLIF(EXCLUDED.profile_photo_url, ''), student_documents.profile_photo_url)
+			resume_url = COALESCE(NULLIF(EXCLUDED.resume_url, ''), student_documents.resume_url)
 	`
-	if _, err := tx.Exec(ctx, queryDocs, userID, input.ResumeURL, input.ProfilePhotoURL); err != nil {
+	if _, err := tx.Exec(ctx, queryDocs, userID, input.ResumeURL); err != nil {
 		return fmt.Errorf("failed to update documents: %w", err)
+	}
+
+	// Update Profile Photo in users table
+	if input.ProfilePhotoURL != "" {
+		queryPhoto := `UPDATE users SET profile_photo_url = $1, updated_at = NOW() WHERE id = $2`
+		if _, err := tx.Exec(ctx, queryPhoto, input.ProfilePhotoURL, userID); err != nil {
+			return fmt.Errorf("failed to update profile photo: %w", err)
+		}
 	}
 
 	// 5. Commit Transaction
@@ -228,7 +240,7 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 	query := `
         SELECT 
             u.id, u.email, u.is_blocked, u.last_login,
-            sp.full_name, sp.register_number, sp.department, COALESCE(dm.type, 'UG'), sp.batch_year, 
+            COALESCE(u.name, ''), sp.register_number, sp.department, COALESCE(dm.type, 'UG'), sp.batch_year, 
             sp.student_type, sp.placement_willingness,
             COALESCE(sp.mobile_number, ''), COALESCE(sp.gender, ''), COALESCE(sp.dob::text, ''),
             COALESCE(sp.address_line_1, ''), COALESCE(sp.address_line_2, ''), COALESCE(sp.state, ''),
@@ -245,12 +257,12 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
             COALESCE(sch.gap_years, 0), COALESCE(sch.gap_reason, ''),
 
             -- UG Degree (Score Only)
-            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb),
+            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.institution, ''), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb),
 
             -- PG Degree (Score Only)
-            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb),
+            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.institution, ''), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb),
 
-            COALESCE(sd.resume_url, ''), COALESCE(sd.profile_photo_url, ''),
+            COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
             sd.resume_updated_at
         FROM users u
         LEFT JOIN student_personal sp ON u.id = sp.user_id
@@ -284,8 +296,8 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 		&s.CurrentBacklogs, &s.HistoryBacklogs,
 		&s.GapYears, &s.GapReason,
 
-		&s.UgYearPass, &s.UgCgpa, &ugSemesterGpasBytes,
-		&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes,
+		&s.UgYearPass, &s.UgInstitution, &s.UgCgpa, &ugSemesterGpasBytes,
+		&s.PgYearPass, &s.PgInstitution, &s.PgCgpa, &pgSemesterGpasBytes,
 
 		&s.ResumeURL, &s.ProfilePhotoURL,
 		&s.ResumeUpdatedAt,
@@ -375,20 +387,17 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 	// Note: We construct simple JSON arrays for containment checks (e.g. '[2024]' and '["MCA"]')
 	eligibleQuery := `
 		SELECT count(*) 
-		FROM placement_drives 
+		FROM placement_drives pd
 		WHERE status != 'draft' AND status != 'cancelled'
-		AND eligible_batches @> $1::jsonb
-		AND eligible_departments @> $2::jsonb
+		AND (NOT EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id AND batch_year = $1::int))
+		AND (NOT EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id AND department_code = $2::text))
 		AND (min_cgpa IS NULL OR min_cgpa <= $3)
 		AND (max_backlogs_allowed IS NULL OR max_backlogs_allowed >= $4)
 	`
-	// Construct JSONB representations for query
-	batchJson := fmt.Sprintf("[%d]", s.BatchYear)
-	deptJson := fmt.Sprintf("[\"%s\"]", s.Department)
 
 	var eligibleCount int
 	// We use 0.0 if CGPA is somehow 0, assuming freshers might have 0 initially
-	err = r.DB.QueryRow(ctx, eligibleQuery, batchJson, deptJson, s.UgCgpa, s.CurrentBacklogs).Scan(&eligibleCount)
+	err = r.DB.QueryRow(ctx, eligibleQuery, s.BatchYear, s.Department, s.UgCgpa, s.CurrentBacklogs).Scan(&eligibleCount)
 	if err == nil {
 		s.PlacementStats.EligibleDrives = eligibleCount
 	}
@@ -414,4 +423,71 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 	}
 
 	return &s, nil
+}
+
+// GetStudentIDByRegisterNumber finds the user ID for a student by their register number
+// GetStudentIDByRegisterNumber finds the user ID for a student by their register number
+func (r *StudentRepository) GetStudentIDByRegisterNumber(ctx context.Context, regNo string) (int64, error) {
+	var userID int64
+	query := `SELECT user_id FROM student_personal WHERE register_number = $1`
+	err := r.DB.QueryRow(ctx, query, regNo).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+	return userID, nil
+}
+
+// ApplyFieldUpdate applies a specific field update from a change request
+func (r *StudentRepository) ApplyFieldUpdate(studentID int64, fieldName string, newValue string) error {
+	ctx := context.Background()
+
+	// Determine table and logic based on field name
+	// This mapping must match the keys in field_permissions
+
+	var query string
+	var args []interface{}
+
+	switch fieldName {
+	// Personal Table Fields
+	case "mobile_number", "address_line_1", "address_line_2", "state", "placement_willingness", "pan_number", "aadhar_number", "gender":
+		query = fmt.Sprintf("UPDATE student_personal SET %s = $1 WHERE user_id = $2", fieldName)
+		args = []interface{}{newValue, studentID}
+
+	case "dob":
+		// Date casting
+		query = "UPDATE student_personal SET dob = $1::date WHERE user_id = $2"
+		args = []interface{}{newValue, studentID}
+
+	case "social_links", "language_skills":
+		// JSONB casting
+		query = fmt.Sprintf("UPDATE student_personal SET %s = $1::jsonb WHERE user_id = $2", fieldName)
+		args = []interface{}{newValue, studentID}
+
+	// Schooling Table Fields
+	case "tenth_mark", "twelfth_mark", "diploma_mark", "current_backlogs", "history_of_backlogs", "gap_years":
+		// Numeric casting might be needed if values are strings but columns are int/float
+		// However, PostgreSQL driver often handles string-to-number if safe.
+		// Let's assume newValue is string rep of number.
+		query = fmt.Sprintf("UPDATE student_schooling SET %s = $1 WHERE user_id = $2", fieldName)
+		args = []interface{}{newValue, studentID}
+
+	case "gap_reason":
+		query = "UPDATE student_schooling SET gap_reason = $1 WHERE user_id = $2"
+		args = []interface{}{newValue, studentID}
+
+	// Degree Fields (UG/PG)
+	case "ug_cgpa":
+		query = "UPDATE student_degrees SET cgpa = $1 WHERE user_id = $2 AND degree_level = 'UG'"
+		args = []interface{}{newValue, studentID}
+
+	case "pg_cgpa":
+		query = "UPDATE student_degrees SET cgpa = $1 WHERE user_id = $2 AND degree_level = 'PG'"
+		args = []interface{}{newValue, studentID}
+
+	default:
+		return fmt.Errorf("unknown field name: %s", fieldName)
+	}
+
+	_, err := r.DB.Exec(ctx, query, args...)
+	return err
 }

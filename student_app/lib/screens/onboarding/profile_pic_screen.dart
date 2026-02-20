@@ -84,12 +84,14 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
       // 3. Update State
       ref.read(onboardingProvider.notifier).updateProfilePhoto(url);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile picture updated successfully!'),
-          backgroundColor: AppConstants.successColor,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated successfully!'),
+            backgroundColor: AppConstants.successColor,
+          ),
+        );
+      }
     } catch (e) {
       errorLog(e); // Helper to log but not show
     } finally {

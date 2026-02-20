@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For HapticFeedback
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../utils/constants.dart';
 import '../../services/notification_service.dart';
@@ -16,8 +16,7 @@ class DrivesScreen extends ConsumerStatefulWidget {
 }
 
 class _DrivesScreenState extends ConsumerState<DrivesScreen>
-    with WidgetsBindingObserver {
-  DateTime? _lastRefreshTime;
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   int _selectedFilterCategoryIndex = 0; // For 2-pane modal
 
@@ -42,10 +41,11 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
   };
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _lastRefreshTime = DateTime.now();
 
     NotificationService.refreshTrigger.addListener(_handleRefreshTrigger);
     _searchController.addListener(() {
@@ -57,18 +57,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     NotificationService.refreshTrigger.removeListener(_handleRefreshTrigger);
     _searchController.dispose();
     super.dispose();
-  }
-
-  // ... (didChangeAppLifecycleState, _handleRefreshTrigger, _refresh, _apply unchanged)
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _refresh();
-    }
   }
 
   void _handleRefreshTrigger() {
@@ -85,12 +76,12 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
   }
 
   Future<void> _refresh() async {
-    HapticFeedback.selectionClick(); // Satisfying refresher haptic
+    // HapticFeedback.selectionClick(); // Satisfying refresher haptic
     try {
-      await ref.refresh(driveListProvider.future);
+      final _ = await ref.refresh(driveListProvider.future);
       if (mounted) {
         setState(() {
-          _lastRefreshTime = DateTime.now();
+          // Refresh completed
         });
       }
     } catch (e) {
@@ -315,6 +306,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     // Watch optimized providers
     final drivesAsync = ref.watch(filteredDrivesProvider);
     final stats = ref.watch(driveStatsProvider);
@@ -323,9 +315,12 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Placement Drives',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: GoogleFonts.geist(
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -563,12 +558,27 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.search_off,
-                                  size: 60,
+                                  Icons.work_off_outlined,
+                                  size: 64,
                                   color: Colors.grey[300],
                                 ),
                                 const SizedBox(height: 16),
-                                const Text("No drives found here"),
+                                Text(
+                                  'No drives found',
+                                  style: GoogleFonts.geist(
+                                    color: Colors.grey[600],
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Try adjusting your filters or check back later',
+                                  style: GoogleFonts.geist(
+                                    color: Colors.grey[400],
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -578,7 +588,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                           itemCount: filteredDrives.length,
                           itemBuilder: (context, index) => GestureDetector(
                             onTap: () {
-                              HapticFeedback.lightImpact(); // [NEW] Haptic feedback
+                              // HapticFeedback.lightImpact(); // [NEW] Haptic feedback
                             },
                             child: DriveCard(
                               drive: filteredDrives[index],

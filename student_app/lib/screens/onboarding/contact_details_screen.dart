@@ -17,7 +17,6 @@ class ContactDetailsScreen extends ConsumerStatefulWidget {
 class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _mobileController = TextEditingController();
-  final _dobController = TextEditingController();
   final _linkedinController = TextEditingController();
   final _githubController = TextEditingController();
 
@@ -27,7 +26,6 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
     // Initialize controllers with existing provider data
     final state = ref.read(onboardingProvider);
     _mobileController.text = state.mobileNumber ?? '';
-    _dobController.text = state.dob ?? '';
     _linkedinController.text = state.socialLinks?['linkedin'] ?? '';
     _githubController.text = state.socialLinks?['github'] ?? '';
   }
@@ -35,7 +33,6 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
   @override
   void dispose() {
     _mobileController.dispose();
-    _dobController.dispose();
     _linkedinController.dispose();
     _githubController.dispose();
     super.dispose();
@@ -50,7 +47,6 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
           .read(onboardingProvider.notifier)
           .updateContact(
             _mobileController.text,
-            _dobController.text,
             linkedin: _linkedinController.text,
             github: _githubController.text,
           );
@@ -143,60 +139,6 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                     }
                     if (value.length != 10) {
                       return 'Please enter a valid 10-digit number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _dobController,
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'Date of Birth',
-                    hintText: 'YYYY-MM-DD',
-                    prefixIcon: const Icon(Icons.calendar_today_rounded),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.borderRadius,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.borderRadius,
-                      ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.borderColor,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.borderRadius,
-                      ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.primaryColor,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  onTap: () async {
-                    final DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now().subtract(
-                        const Duration(days: 365 * 18),
-                      ),
-                      firstDate: DateTime(1990),
-                      lastDate: DateTime.now(),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _dobController.text =
-                            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                      });
-                    }
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select DOB';
                     }
                     return null;
                   },

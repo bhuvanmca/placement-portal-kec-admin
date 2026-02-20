@@ -16,12 +16,11 @@ type PlacementDrive struct {
 
 	Roles []JobRole `json:"roles"` // [NEW] Multiple Job Roles
 
-	// Filters & Categories
-	DriveType       string `json:"drive_type"`                 // 'Full-Time', 'Internship', 'Freelance', 'Part-Time'
-	CompanyCategory string `json:"company_category"`           // 'Core', 'IT', 'Service', 'Product', 'Start-up', 'MNC'
-	SpocID          int64  `json:"spoc_id"`                    // Single Point Of Contact ID
-	SpocName        string `json:"spoc_name,omitempty"`        // [NEW]
-	SpocDesignation string `json:"spoc_designation,omitempty"` // [NEW]
+	DriveType       string `json:"drive_type"`       // 'Full-Time', 'Internship', 'Freelance', 'Part-Time'
+	CompanyCategory string `json:"company_category"` // 'Core', 'IT', 'Service', 'Product', 'Start-up', 'MNC'
+	SpocID          int64  `json:"spoc_id"`
+	SpocName        string `json:"spoc_name,omitempty"`
+	SpocDesignation string `json:"spoc_designation,omitempty"`
 
 	// Eligibility
 	MinCgpa float64 `json:"min_cgpa"`
@@ -54,6 +53,8 @@ type PlacementDrive struct {
 	// User Context (If Applied)
 	UserAppliedRoleIDs []int64 `json:"user_applied_role_ids,omitempty"`
 	UserOptOutReason   string  `json:"user_opt_out_reason,omitempty"`
+	UserRemarks        string  `json:"user_remarks,omitempty"`
+	IsEligible         bool    `json:"is_eligible"`
 }
 
 type JobRole struct {
@@ -86,7 +87,7 @@ type CreateDriveInput struct {
 	LocationType    string `json:"location_type"`                // [NEW]
 	DriveType       string `json:"drive_type"`
 	CompanyCategory string `json:"company_category"`
-	SpocID          int64  `json:"spoc_id"` // [NEW]
+	SpocID          int64  `json:"spoc_id"`
 
 	// Roles
 	Roles []JobRole `json:"roles"` // [NEW]
@@ -117,20 +118,74 @@ type CreateDriveInput struct {
 
 // ManualRegisterInput defines the input for admin adding a student to a drive
 type ManualRegisterInput struct {
-	StudentID int64 `json:"student_id"`
+	RegisterNumber string `json:"register_number"`
 }
 
 type DriveApplicant struct {
-	StudentID      int64   `json:"student_id"`
-	FullName       string  `json:"full_name"`
-	RegisterNumber string  `json:"register_number"`
-	Email          string  `json:"email"`
-	Department     string  `json:"department"`
-	Cgpa           float64 `json:"cgpa"`
-	Status         string  `json:"status"` // 'opted_in', 'shortlisted', 'placed', 'rejected'
-	ResumeURL      string  `json:"resume_url"`
-	AppliedAt      string  `json:"applied_at"`
+	DriveID         int64   `json:"drive_id,omitempty"`     // [NEW]
+	CompanyName     string  `json:"company_name,omitempty"` // [NEW]
+	StudentID       int64   `json:"student_id"`
+	FullName        string  `json:"full_name"`
+	RegisterNumber  string  `json:"register_number"`
+	Email           string  `json:"email"`
+	Department      string  `json:"department"`
+	DepartmentType  string  `json:"department_type,omitempty"`
+	Cgpa            float64 `json:"cgpa"`
+	Status          string  `json:"status"` // 'opted_in', 'shortlisted', 'placed', 'rejected'
+	ResumeURL       string  `json:"resume_url"`
+	ProfilePhotoURL string  `json:"profile_photo_url"` // [NEW]
+	AppliedAt       string  `json:"applied_at"`
 
-	AppliedRoleIDs []int64 `json:"applied_role_ids"` // [NEW]
-	OptOutReason   string  `json:"opt_out_reason"`   // [NEW]
+	AppliedRoleIDs   []int64 `json:"applied_role_ids"`   // [NEW]
+	AppliedRoleNames string  `json:"applied_role_names"` // [NEW]
+	OptOutReason     string  `json:"opt_out_reason"`     // [NEW]
+	Remarks          string  `json:"remarks"`            // [NEW]
+	ActionedBy       int64   `json:"actioned_by,omitempty"`
+	ActionedAt       string  `json:"actioned_at,omitempty"` // stored as string for JSON
+	ActionedByName   string  `json:"actioned_by_name,omitempty"`
+}
+
+// DriveApplicantDetailed extends StudentFullProfile with application specific data
+type DriveApplicantDetailed struct {
+	StudentFullProfile
+	Status         string  `json:"application_status"`
+	AppliedAt      string  `json:"applied_at"`
+	AppliedRoleIDs []int64 `json:"applied_role_ids"`
+	OptOutReason   string  `json:"opt_out_reason"`
+	Remarks        string  `json:"remarks"`
+}
+
+// Eligibility Templates
+type EligibilityTemplate struct {
+	ID                  int64     `json:"id"`
+	Name                string    `json:"name"`
+	MinCgpa             float64   `json:"min_cgpa"`
+	TenthPercentage     *float64  `json:"tenth_percentage"`
+	TwelfthPercentage   *float64  `json:"twelfth_percentage"`
+	UGMinCGPA           *float64  `json:"ug_min_cgpa"`
+	PGMinCGPA           *float64  `json:"pg_min_cgpa"`
+	UseAggregate        bool      `json:"use_aggregate"`
+	AggregatePercentage *float64  `json:"aggregate_percentage"`
+	MaxBacklogsAllowed  int       `json:"max_backlogs_allowed"`
+	EligibleDepartments []string  `json:"eligible_departments"`
+	EligibleBatches     []int     `json:"eligible_batches"`
+	EligibleGender      string    `json:"eligible_gender"`
+	CreatedBy           int64     `json:"created_by"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type CreateEligibilityTemplateInput struct {
+	Name                string   `json:"name" validate:"required"`
+	MinCgpa             float64  `json:"min_cgpa"`
+	TenthPercentage     *float64 `json:"tenth_percentage"`
+	TwelfthPercentage   *float64 `json:"twelfth_percentage"`
+	UGMinCGPA           *float64 `json:"ug_min_cgpa"`
+	PGMinCGPA           *float64 `json:"pg_min_cgpa"`
+	UseAggregate        bool     `json:"use_aggregate"`
+	AggregatePercentage *float64 `json:"aggregate_percentage"`
+	MaxBacklogsAllowed  int      `json:"max_backlogs_allowed"`
+	EligibleDepartments []string `json:"eligible_departments"`
+	EligibleBatches     []int    `json:"eligible_batches"`
+	EligibleGender      string   `json:"eligible_gender"`
 }

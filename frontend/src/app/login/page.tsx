@@ -93,10 +93,7 @@ export default function LoginPage() {
             </div>
             
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-                <a href="/admin/forgot-password" className="text-xs text-[#002147] hover:underline font-medium">Forgot Password?</a>
-              </div>
+              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                 <Input 
@@ -108,6 +105,7 @@ export default function LoginPage() {
                 />
               </div>
               {errors.password && <p className="text-destructive text-xs font-medium mt-1">{errors.password.message}</p>}
+              <a href="/admin/forgot-password" className="text-xs text-[#002147] hover:underline font-medium">Forgot Password?</a>
             </div>
             
             {error && (

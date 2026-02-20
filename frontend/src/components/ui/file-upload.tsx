@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { UploadCloud, X, FileText, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface FileUploadProps {
@@ -20,7 +19,6 @@ export default function FileUpload({
   mode = 'direct',
   multiple = false
 }: FileUploadProps) {
-  const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
   const handleFiles = async (files: FileList | File[]) => {
@@ -36,43 +34,12 @@ export default function FileUpload({
          continue; // Skip large files
        }
 
-       if (mode === 'local') {
-         if (onFileSelect) {
-           onFileSelect(file);
-           toast.success(`File "${file.name}" selected`);
-         }
-         continue;
-       }
-
-       // Direct Upload Logic (SEQUENTIAL for now to avoid state complexity)
-       setIsUploading(true);
-       const formData = new FormData();
-       formData.append('file', file);
-       formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'placement_docs');
-       formData.append('folder', 'placement_drives');
-
-       try {
-         const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dj2ghh4oi'; 
-         const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-           method: 'POST',
-           body: formData,
-         });
-
-         if (!response.ok) {
-           const errorData = await response.json();
-          //  console.error("Cloudinary Error:", errorData);
-           throw new Error(errorData.error?.message || 'Upload failed');
-         }
-
-         const data = await response.json();
-         if (onUploadComplete) onUploadComplete(data.secure_url, file.name);
-         toast.success(`File "${file.name}" uploaded`);
-       } catch (error) {
-        //  console.error(error);
-         toast.error(`Failed to upload ${file.name}`);
+       // Always use local mode behavior since we handle uploads in parent components
+       if (onFileSelect) {
+         onFileSelect(file);
+         toast.success(`File "${file.name}" selected`);
        }
     }
-    setIsUploading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,24 +86,17 @@ export default function FileUpload({
           multiple={multiple}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           onChange={handleChange}
-          disabled={isUploading}
+          disabled={false}
           accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
         />
         
-        {isUploading ? (
-          <div className="flex flex-col items-center animate-pulse">
-            <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
-            <span className="text-sm text-gray-500">Uploading...</span>
+        <div className="flex flex-col items-center text-center">
+          <div className="bg-white p-3 rounded-full shadow-sm mb-3">
+              <UploadCloud className="h-6 w-6 text-indigo-600" />
           </div>
-        ) : (
-          <div className="flex flex-col items-center text-center">
-            <div className="bg-white p-3 rounded-full shadow-sm mb-3">
-               <UploadCloud className="h-6 w-6 text-indigo-600" />
-            </div>
-            <p className="text-sm font-medium text-gray-900">Click to upload or drag and drop</p>
-            <p className="text-xs text-gray-500 mt-1">PDF, DOC, Images (Max 5MB)</p>
-          </div>
-        )}
+          <p className="text-sm font-medium text-gray-900">Click to upload or drag and drop</p>
+          <p className="text-xs text-gray-500 mt-1">PDF, DOC, Images (Max 5MB)</p>
+        </div>
       </div>
     </div>
   );

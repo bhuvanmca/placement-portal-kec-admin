@@ -62,17 +62,24 @@ api.interceptors.response.use(
     }
 
     const status = error.response?.status;
-    const errorMessage = error.response?.data?.error || error.response?.data?.message;
+    const errorMessage = typeof error.response?.data?.error === 'string' ? error.response?.data?.error 
+        : typeof error.response?.data?.message === 'string' ? error.response?.data?.message 
+        : 'An error occurred';
 
     if (status === 401 || status === 403) {
       toast.error('Invalid credentials');
     } else if (status === 500) {
       toast.error('Internal Server Error. Please try again later.');
     } else {
-      toast.error(errorMessage || 'An error occurred');
+      toast.error(errorMessage);
     }
 
-    return Promise.reject({ handled: true, status, message: errorMessage });
+    // Return a custom error object that behaves like an Error
+    const customError = new Error(errorMessage);
+    (customError as any).status = status;
+    (customError as any).handled = true;
+    
+    return Promise.reject(customError);
   }
 );
 

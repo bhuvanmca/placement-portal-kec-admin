@@ -101,6 +101,11 @@ func (s *WhatsAppService) sendRequest(payload interface{}) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == 401 {
+		// Silent error for unauthorized to avoid flooding logs if token is missing
+		return fmt.Errorf("API error: 401 Unauthorized (Check WHATSAPP_ACCESS_TOKEN)")
+	}
+
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("API error: %s", resp.Status)
 	}

@@ -1,9 +1,8 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
 	"github.com/SysSyncer/placement-portal-kec/internal/models"
@@ -107,8 +106,9 @@ func AdminLogin(c *fiber.Ctx) error {
 		return c.Status(401).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	if user.Role != "admin" {
-		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: Access restricted to administrators"})
+	// Accept admin, coordinator, and super_admin roles
+	if user.Role != "admin" && user.Role != "coordinator" && user.Role != "super_admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: Access restricted to dashboard users"})
 	}
 
 	token, err := utils.GenerateToken(user.ID, user.Role)
@@ -116,12 +116,44 @@ func AdminLogin(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not generate token"})
 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Admin login successful",
-		"token":   token,
-		"role":    user.Role,
-		"email":   user.Email,
-	})
+	// Fetch user permissions
+	permissions := []string{}
+	rows, err := database.DB.Query(context.Background(),
+		"SELECT permission_key FROM role_permissions WHERE user_id = $1 AND is_granted = TRUE",
+		user.ID,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var perm string
+			if rows.Scan(&perm) == nil {
+				permissions = append(permissions, perm)
+			}
+		}
+	}
+
+	response := fiber.Map{
+		"message":     "Login successful",
+		"token":       token,
+		"id":          user.ID,
+		"role":        user.Role,
+		"email":       user.Email,
+		"permissions": permissions,
+	}
+
+	if user.Name != nil {
+		response["name"] = *user.Name
+	}
+	if user.DepartmentCode != nil {
+		response["department_code"] = *user.DepartmentCode
+	}
+	if user.ProfilePhotoURL != nil && *user.ProfilePhotoURL != "" {
+		// Ensure the URL is fresh and signed
+		signed := utils.GenerateSignedProfileURL(*user.ProfilePhotoURL)
+		response["profile_photo_url"] = signed
+	}
+
+	return c.JSON(response)
 }
 
 // StudentLogin handles student authentication
@@ -180,19 +212,20 @@ func StudentLogin(c *fiber.Ctx) error {
 		isProfileComplete = false
 	}
 
-	return c.JSON(fiber.Map{
+	response := fiber.Map{
 		"message":             "Login successful",
 		"token":               token,
+		"id":                  user.ID,
 		"role":                user.Role,
 		"email":               user.Email,
 		"is_profile_complete": isProfileComplete,
-	})
-}
+	}
 
-// Generate Random 6-digit Code
-func generateOTP() string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return fmt.Sprintf("%06d", r.Intn(1000000))
+	if user.ProfilePhotoURL != nil && *user.ProfilePhotoURL != "" {
+		response["profile_photo_url"] = utils.GenerateSignedProfileURL(*user.ProfilePhotoURL)
+	}
+
+	return c.JSON(response)
 }
 
 // AdminForgotPassword handles password reset request for admins
@@ -208,11 +241,11 @@ func AdminForgotPassword(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
-	if user.Role != "admin" {
-		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This feature is for admins only"})
+	if user.Role != "admin" && user.Role != "coordinator" && user.Role != "super_admin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This feature is for dashboard users only"})
 	}
 
-	otp := generateOTP()
+	otp := utils.GenerateOTP()
 	if err := repo.SaveOTP(c.Context(), input.Email, otp); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
 	}
@@ -245,7 +278,7 @@ func AdminResetPassword(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
-	if user.Role != "admin" {
+	if user.Role != "admin" && user.Role != "coordinator" && user.Role != "super_admin" {
 		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
@@ -285,7 +318,7 @@ func StudentForgotPassword(c *fiber.Ctx) error {
 		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized: This email belongs to a non-student account"})
 	}
 
-	otp := generateOTP()
+	otp := utils.GenerateOTP()
 	if err := repo.SaveOTP(c.Context(), input.Email, otp); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
 	}

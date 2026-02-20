@@ -17,6 +17,8 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
   final _addressLine1Controller = TextEditingController();
   final _addressLine2Controller = TextEditingController();
   final _stateController = TextEditingController();
+  final _dobController = TextEditingController();
+  String? _selectedGender;
 
   @override
   void initState() {
@@ -26,6 +28,8 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
     _addressLine1Controller.text = state.addressLine1 ?? '';
     _addressLine2Controller.text = state.addressLine2 ?? '';
     _stateController.text = state.state ?? '';
+    _dobController.text = state.dob ?? '';
+    _selectedGender = state.gender;
   }
 
   @override
@@ -33,6 +37,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
     _addressLine1Controller.dispose();
     _addressLine2Controller.dispose();
     _stateController.dispose();
+    _dobController.dispose();
     super.dispose();
   }
 
@@ -43,10 +48,12 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
 
       ref
           .read(onboardingProvider.notifier)
-          .updateAddress(
+          .updatePersonal(
             _addressLine1Controller.text,
             _addressLine2Controller.text,
             _stateController.text,
+            _dobController.text,
+            _selectedGender!,
           );
       context.go('/onboarding/profile-pic');
     }
@@ -83,7 +90,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.go('/onboarding/academic'),
         ),
-        title: const Text('Address'),
+        title: const Text('Personal Details'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -102,7 +109,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  'Where do you live?',
+                  'About You',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppConstants.textPrimary,
@@ -110,12 +117,62 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Your home address for communication purposes.',
+                  'Please provide your address and personal details.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppConstants.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // DOB
+                TextFormField(
+                  controller: _dobController,
+                  readOnly: true,
+                  decoration: _inputDecoration(
+                    'Date of Birth',
+                    Icons.calendar_today_rounded,
+                  ).copyWith(hintText: 'YYYY-MM-DD'),
+                  onTap: () async {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now().subtract(
+                        const Duration(days: 365 * 18),
+                      ),
+                      firstDate: DateTime(1990),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _dobController.text =
+                            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                      });
+                    }
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select DOB';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Gender
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedGender,
+                  decoration: _inputDecoration('Gender', Icons.person_outline),
+                  items: ['Male', 'Female', 'Other']
+                      .map(
+                        (label) =>
+                            DropdownMenuItem(value: label, child: Text(label)),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => _selectedGender = value),
+                  validator: (value) => value == null ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // Address
                 TextFormField(
                   controller: _addressLine1Controller,
                   maxLines: 2,
