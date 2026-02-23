@@ -533,7 +533,7 @@ export default function StudentsPage() {
            </div>
            
            <Select value={filterBatch} onValueChange={(val) => { setFilterBatch(val); setPage(1); }}>
-             <SelectTrigger className="w-[120px]">
+             <SelectTrigger className="w-[150px]">
                <SelectValue placeholder="Batch" />
              </SelectTrigger>
              <SelectContent>

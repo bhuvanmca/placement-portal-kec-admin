@@ -3,6 +3,7 @@
 import { useAuth } from '@/context/auth-context';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 import { Building2, Users, Settings as SettingsIcon, UserCog, FileEdit, FileText, GraduationCap, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +61,12 @@ const settingsNavItems = [
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (pathname && pathname !== '/dashboard/settings') {
+      localStorage.setItem('lastSettingsTab', pathname);
+    }
+  }, [pathname]);
 
   const userRole = user?.role || '';
 

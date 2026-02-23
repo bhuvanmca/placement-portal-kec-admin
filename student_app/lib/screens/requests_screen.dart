@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/student_service.dart';
-import '../utils/constants.dart';
 
 class RequestsScreen extends StatefulWidget {
   const RequestsScreen({super.key});
@@ -11,10 +11,9 @@ class RequestsScreen extends StatefulWidget {
   State<RequestsScreen> createState() => _RequestsScreenState();
 }
 
-class _RequestsScreenState extends State<RequestsScreen>
-    with SingleTickerProviderStateMixin {
+class _RequestsScreenState extends State<RequestsScreen> {
   final StudentService _studentService = StudentService();
-  late TabController _tabController;
+  late ScrollController _scrollController;
 
   bool _isLoadingMarkUpdates = true;
   bool _isLoadingDriveRequests = true;
@@ -24,14 +23,14 @@ class _RequestsScreenState extends State<RequestsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _scrollController = ScrollController();
     _fetchMarkUpdates();
     _fetchDriveRequests();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -125,106 +124,188 @@ class _RequestsScreenState extends State<RequestsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'My Requests',
           style: GoogleFonts.geist(
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor:
+            Theme.of(context).appBarTheme.backgroundColor ?? Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        foregroundColor: AppConstants.textPrimary,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppConstants.primaryColor,
-          unselectedLabelColor: Colors.grey[500],
-          indicatorColor: AppConstants.primaryColor,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: GoogleFonts.geist(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: GoogleFonts.geist(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Mark Updates'),
-                  if (_markUpdates.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_markUpdates.length}',
-                        style: GoogleFonts.geist(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppConstants.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Drive Requests'),
-                  if (_driveRequests.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_driveRequests.length}',
-                        style: GoogleFonts.geist(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppConstants.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+        foregroundColor:
+            Theme.of(context).textTheme.bodyLarge?.color ??
+            (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildMarkUpdatesTab(), _buildDriveRequestsTab()],
+      body: Column(
+        children: [
+          AnimatedBuilder(
+            animation: _scrollController,
+            builder: (context, _) {
+              double page = 0.0;
+              if (_scrollController.hasClients) {
+                if (_scrollController.position.hasContentDimensions) {
+                  page =
+                      _scrollController.offset /
+                      MediaQuery.of(context).size.width;
+                }
+              }
+              final int activeIndex = page.round();
+
+              return Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 1,
+                    ),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      bottom: 0,
+                      left: page * (MediaQuery.of(context).size.width / 2),
+                      width: MediaQuery.of(context).size.width / 2,
+                      child: Center(
+                        child: Container(
+                          height: 3,
+                          width: 48,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(3),
+                              topRight: Radius.circular(3),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        _buildCustomTab(
+                          'Mark Updates',
+                          0,
+                          activeIndex,
+                          MediaQuery.of(context).size.width,
+                          _markUpdates.length,
+                        ),
+                        _buildCustomTab(
+                          'Drive Requests',
+                          1,
+                          activeIndex,
+                          MediaQuery.of(context).size.width,
+                          _driveRequests.length,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              physics: const PageScrollPhysics(),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    child: RepaintBoundary(child: _buildMarkUpdatesTab()),
+                  ),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    child: RepaintBoundary(child: _buildDriveRequestsTab()),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomTab(
+    String text,
+    int index,
+    int activeIndex,
+    double screenWidth,
+    int badgeCount,
+  ) {
+    bool isActive = activeIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              index * screenWidth,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.ease,
+            );
+          }
+        },
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                text,
+                style: GoogleFonts.geist(
+                  fontSize: 14,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                  color: isActive
+                      ? Theme.of(context).colorScheme.primary
+                      : (Theme.of(context).textTheme.bodyMedium?.color ??
+                            Colors.grey[500]),
+                ),
+              ),
+              if (badgeCount > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$badgeCount',
+                    style: GoogleFonts.geist(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildMarkUpdatesTab() {
     if (_isLoadingMarkUpdates) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppConstants.primaryColor),
+      return Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
       );
     }
 
@@ -274,8 +355,82 @@ class _RequestsScreenState extends State<RequestsScreen>
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _markUpdates.length,
-        itemBuilder: (context, index) =>
-            _buildMarkUpdateCard(_markUpdates[index]),
+        itemBuilder: (context, index) {
+          final request = _markUpdates[index];
+          return Dismissible(
+            key: Key(request['id']?.toString() ?? index.toString()),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (direction) async {
+              HapticFeedback.mediumImpact();
+              return await showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text("Clear Request"),
+                    content: const Text(
+                      "Are you sure you want to clear this request from your history?",
+                    ),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text("Cancel"),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          HapticFeedback.heavyImpact();
+                          Navigator.of(context).pop(true);
+                        },
+                        child: const Text(
+                          "Clear",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            onDismissed: (direction) async {
+              final requestId = request['id'] as int?;
+              setState(() {
+                _markUpdates.removeAt(index);
+              });
+
+              if (requestId != null) {
+                try {
+                  await _studentService.deleteChangeRequest(requestId);
+                } catch (e) {
+                  // Silent failure in UI, but backend attempt made
+                }
+              }
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Request cleared'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            background: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              alignment: Alignment.centerRight,
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.delete_outline,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            child: _buildMarkUpdateCard(request),
+          );
+        },
       ),
     );
   }
@@ -292,9 +447,13 @@ class _RequestsScreenState extends State<RequestsScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(
+          color: (Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[800]
+              : Colors.grey[200])!,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,8 +632,10 @@ class _RequestsScreenState extends State<RequestsScreen>
 
   Widget _buildDriveRequestsTab() {
     if (_isLoadingDriveRequests) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppConstants.primaryColor),
+      return Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
       );
     }
 
@@ -519,8 +680,82 @@ class _RequestsScreenState extends State<RequestsScreen>
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _driveRequests.length,
-        itemBuilder: (context, index) =>
-            _buildDriveRequestCard(_driveRequests[index]),
+        itemBuilder: (context, index) {
+          final request = _driveRequests[index];
+          return Dismissible(
+            key: Key(request['drive_id']?.toString() ?? index.toString()),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (direction) async {
+              HapticFeedback.mediumImpact();
+              return await showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text("Clear Request"),
+                    content: const Text(
+                      "Are you sure you want to clear this request from your history?",
+                    ),
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text("Cancel"),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          HapticFeedback.heavyImpact();
+                          Navigator.of(context).pop(true);
+                        },
+                        child: const Text(
+                          "Clear",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            onDismissed: (direction) async {
+              final driveId = request['drive_id'] as int?;
+              setState(() {
+                _driveRequests.removeAt(index);
+              });
+
+              if (driveId != null) {
+                try {
+                  await _studentService.deleteDriveRequest(driveId);
+                } catch (e) {
+                  // Silent failure in UI, but backend attempt made
+                }
+              }
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Drive request cleared'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            background: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              alignment: Alignment.centerRight,
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.delete_outline,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            child: _buildDriveRequestCard(request),
+          );
+        },
       ),
     );
   }
@@ -536,9 +771,13 @@ class _RequestsScreenState extends State<RequestsScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(
+          color: (Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[800]
+              : Colors.grey[200])!,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -551,7 +790,7 @@ class _RequestsScreenState extends State<RequestsScreen>
                 Icon(
                   Icons.business,
                   size: 18,
-                  color: AppConstants.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -560,7 +799,9 @@ class _RequestsScreenState extends State<RequestsScreen>
                     style: GoogleFonts.geist(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppConstants.textPrimary,
+                      color:
+                          (Theme.of(context).textTheme.bodyLarge?.color ??
+                          Colors.black),
                     ),
                   ),
                 ),

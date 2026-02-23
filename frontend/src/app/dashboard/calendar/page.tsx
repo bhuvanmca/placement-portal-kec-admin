@@ -39,7 +39,7 @@ export default function CalendarPage() {
   // Fetch drives
   const { data: drivesData, isLoading } = useQuery({
     queryKey: ['drives'],
-    queryFn: driveService.getAdminDrives,
+    queryFn: () => driveService.getAdminDrives(1, 100),
   });
 
   // Handle data structure variance (if API returns { drives: [] } or just [])

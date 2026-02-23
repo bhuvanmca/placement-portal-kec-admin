@@ -126,8 +126,8 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
 
                 return Container(
                   height: MediaQuery.of(context).size.height * 0.7,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
@@ -164,7 +164,11 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                             // Left Pane (Categories)
                             Container(
                               width: 140,
-                              color: Colors.grey[50],
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.black26
+                                  : Colors.grey[50],
                               child: ListView.builder(
                                 itemCount: _filterCategories.length,
                                 itemBuilder: (context, index) {
@@ -172,17 +176,19 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                   final isSelected =
                                       index == _selectedFilterCategoryIndex;
                                   return InkWell(
-                                    onTap: () => setModalState(
-                                      () =>
-                                          _selectedFilterCategoryIndex = index,
-                                    ),
+                                    onTap: () => setModalState(() {
+                                      _selectedFilterCategoryIndex = index;
+                                    }),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 16,
                                         horizontal: 16,
                                       ),
                                       color: isSelected
-                                          ? Colors.white
+                                          ? (Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? Colors.grey.shade900
+                                                : Colors.white)
                                           : Colors.transparent,
                                       child: Row(
                                         children: [
@@ -190,7 +196,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                             Container(
                                               width: 4,
                                               height: 16,
-                                              color: AppConstants.primaryColor,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
                                               margin: const EdgeInsets.only(
                                                 right: 8,
                                               ),
@@ -203,8 +211,13 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                                     ? FontWeight.bold
                                                     : FontWeight.normal,
                                                 color: isSelected
-                                                    ? Colors.black
-                                                    : Colors.grey[700],
+                                                    ? (Theme.of(
+                                                                context,
+                                                              ).brightness ==
+                                                              Brightness.dark
+                                                          ? Colors.white
+                                                          : Colors.black)
+                                                    : Colors.grey[500],
                                               ),
                                             ),
                                           ),
@@ -228,7 +241,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                   return CheckboxListTile(
                                     value: isSelected,
                                     title: Text(option),
-                                    activeColor: AppConstants.primaryColor,
+                                    activeColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                     contentPadding: EdgeInsets.zero,
                                     controlAffinity:
                                         ListTileControlAffinity.leading,
@@ -256,9 +271,13 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                   () => filterFn.clearCategories(),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppConstants.primaryColor,
-                                  side: const BorderSide(
-                                    color: AppConstants.primaryColor,
+                                  foregroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
+                                  side: BorderSide(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
@@ -278,8 +297,14 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                   Navigator.pop(context);
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppConstants.primaryColor,
-                                  foregroundColor: Colors.white,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
+                                  foregroundColor:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.black
+                                      : Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -313,18 +338,22 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
     final currentFilters = ref.watch(driveFilterProvider);
 
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Placement Drives',
           style: GoogleFonts.geist(
             fontWeight: FontWeight.w600,
-            color: Colors.black,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        foregroundColor: AppConstants.textPrimary,
+        foregroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -380,7 +409,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
               children: [
                 // Top Bar: Search and Filter/Sort
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
@@ -392,7 +421,10 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                         child: Container(
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.grey[100],
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey.shade800
+                                : Colors.grey[100],
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: TextField(
@@ -424,8 +456,14 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
                               color: currentFilters.categories.isNotEmpty
-                                  ? Colors.grey[300]
-                                  : Colors.grey[100], // Highlight if active
+                                  ? Theme.of(
+                                      context,
+                                    ).colorScheme.primary.withValues(alpha: 0.2)
+                                  : (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.grey.shade800
+                                        : Colors
+                                              .grey[100]), // Highlight if active
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
@@ -438,7 +476,11 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                 const SizedBox(width: 8),
                                 Icon(
                                   Icons.tune,
-                                  color: Colors.grey[800],
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white70
+                                      : Colors.grey[800],
                                   size: 16,
                                 ),
                               ],
@@ -452,7 +494,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
 
                 // Horizontal Status Pills
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   height: 60, // Increased height for badges
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
@@ -467,14 +509,14 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                       final count = pillMap.values.elementAt(index);
                       final isSelected = currentFilters.status == name;
 
-                      return GestureDetector(
-                        onTap: () => ref
-                            .read(driveFilterProvider.notifier)
-                            .setStatus(name),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            AnimatedContainer(
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(driveFilterProvider.notifier)
+                                .setStatus(name),
+                            child: AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
                               curve: Curves.easeInOut,
                               padding: const EdgeInsets.symmetric(
@@ -484,8 +526,16 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppConstants.primaryColor
-                                    : Colors.grey[200],
+                                    ? (Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.primary)
+                                    : (Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.grey.shade800
+                                          : Colors.grey[200]),
                                 borderRadius: BorderRadius.circular(
                                   isSelected ? 20 : 10,
                                 ),
@@ -494,54 +544,80 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                 name, // Just the name
                                 style: TextStyle(
                                   color: isSelected
-                                      ? Colors.white
-                                      : Colors.black,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
+                                      ? (Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.black
+                                            : Colors.white)
+                                      : (Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.white70
+                                            : Colors.black),
+                                  // fontWeight: isSelected
+                                  //     ? FontWeight.bold
+                                  //     : FontWeight.normal,
                                 ),
                               ),
                             ),
-                            if (count > 0)
-                              Positioned(
-                                top: -6,
-                                right: -6,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
+                          ),
+                          if (count > 0)
+                            Positioned(
+                              top: -6,
+                              right: -6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? (Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.black
+                                            : Colors.white)
+                                      : (Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.white
+                                            : AppConstants.primaryColor),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
                                     color: isSelected
-                                        ? Colors
-                                              .white // Selected: white background
-                                        : AppConstants
-                                              .primaryColor, // Unselected: primary background
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: AppConstants.primaryColor,
-                                      width: 1.5,
-                                    ),
+                                        ? (Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.white
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.primary)
+                                        : (Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? Colors.transparent
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.primary),
+                                    width: 1.5,
                                   ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 20,
-                                    minHeight: 20,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '$count',
-                                      style: TextStyle(
-                                        color: isSelected
-                                            ? Colors
-                                                  .black // Selected: black text
-                                            : Colors
-                                                  .white, // Unselected: white text
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 20,
+                                  minHeight: 20,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '$count',
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? (Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? Colors.white
+                                                : Colors.black)
+                                          : (Theme.of(context).brightness ==
+                                                    Brightness.dark
+                                                ? Colors.black
+                                                : Colors.white),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       );
                     },
                   ),

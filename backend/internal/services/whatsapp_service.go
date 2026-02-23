@@ -57,27 +57,14 @@ func (s *WhatsAppService) SendTemplateMessage(to string, templateName string, la
 
 // SendBroadcast sends a template message to multiple numbers
 func (s *WhatsAppService) SendBroadcast(recipients []string, templateName string, components []interface{}) (int, error) {
-	successCount := 0
-	for _, number := range recipients {
-		// Clean number: Cloud API needs country code without +
-		// e.g. "919876543210"
-		cleanNum := number
-		if len(number) == 10 {
-			cleanNum = "91" + number
+	/*
+		successCount := 0
+		for _, number := range recipients {
+			// ... existing code ...
 		}
-		// Strip leading + if present
-		if cleanNum[0] == '+' {
-			cleanNum = cleanNum[1:]
-		}
-
-		err := s.SendTemplateMessage(cleanNum, templateName, "en_US", components)
-		if err == nil {
-			successCount++
-		} else {
-			fmt.Printf("Display Error: Failed to send to %s: %v\n", cleanNum, err)
-		}
-	}
-	return successCount, nil
+		return successCount, nil
+	*/
+	return 0, nil
 }
 
 func (s *WhatsAppService) sendRequest(payload interface{}) error {

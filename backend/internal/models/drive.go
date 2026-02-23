@@ -118,7 +118,8 @@ type CreateDriveInput struct {
 
 // ManualRegisterInput defines the input for admin adding a student to a drive
 type ManualRegisterInput struct {
-	RegisterNumber string `json:"register_number"`
+	RegisterNumber string  `json:"register_number"`
+	RoleIDs        []int64 `json:"role_ids"` // [NEW] Optional role selection
 }
 
 type DriveApplicant struct {
@@ -188,4 +189,40 @@ type CreateEligibilityTemplateInput struct {
 	EligibleDepartments []string `json:"eligible_departments"`
 	EligibleBatches     []int    `json:"eligible_batches"`
 	EligibleGender      string   `json:"eligible_gender"`
+}
+
+// Selective Update (Patch) Input
+type PatchDriveInput struct {
+	CompanyName     *string `json:"company_name"`
+	JobDescription  *string `json:"job_description"`
+	Website         *string `json:"website"`
+	LogoURL         *string `json:"logo_url"`
+	Location        *string `json:"location"`
+	LocationType    *string `json:"location_type"`
+	DriveType       *string `json:"drive_type"`
+	CompanyCategory *string `json:"company_category"`
+	SpocID          *int64  `json:"spoc_id"`
+
+	// Roles
+	Roles *[]JobRole `json:"roles"`
+
+	// Eligibility
+	MinCgpa             *float64 `json:"min_cgpa"`
+	TenthPercentage     *float64 `json:"tenth_percentage"`
+	TwelfthPercentage   *float64 `json:"twelfth_percentage"`
+	UGMinCGPA           *float64 `json:"ug_min_cgpa"`
+	PGMinCGPA           *float64 `json:"pg_min_cgpa"`
+	UseAggregate        *bool    `json:"use_aggregate"`
+	AggregatePercentage *float64 `json:"aggregate_percentage"`
+
+	MaxBacklogsAllowed  *int      `json:"max_backlogs_allowed"`
+	EligibleBatches     *[]int    `json:"eligible_batches"`
+	EligibleDepartments *[]string `json:"eligible_departments"`
+
+	// Rounds
+	Rounds *[]Round `json:"rounds"`
+	Status *string  `json:"status"`
+
+	DriveDate    *string `json:"drive_date"`
+	DeadlineDate *string `json:"deadline_date"`
 }

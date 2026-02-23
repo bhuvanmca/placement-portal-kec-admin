@@ -56,11 +56,10 @@ const driveSchema = z.object({
   job_description: z.string().optional(),
   location: z.string().min(2, "Location is required"),
   location_type: z.enum(['On-Site', 'Hybrid', 'Remote']).default('On-Site'),
-  domain: z.string().optional(),
   drive_type: z.string().min(1, "Drive type is required"),
   company_category: z.string().min(1, "Category is required"),
   spoc_id: z.coerce.number().min(1, "SPOC is required"),
-  status: z.enum(['open', 'ongoing', 'completed', 'closed']).optional(),
+  status: z.enum(['open', 'ongoing', 'completed', 'closed', 'on_hold', 'cancelled', 'draft']).optional(),
   
   // Eligibility
   min_cgpa: z.coerce.number().min(0).max(10),
@@ -202,7 +201,6 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                 drive_type: drive.drive_type,
                 company_category: drive.company_category,
                 spoc_id: drive.spoc_id,
-                domain: (drive as any).domain || '',
                 
                 roles: drive.roles && drive.roles.length > 0 ? drive.roles : [{ role_name: '', ctc: '', stipend: '' }],
                 location: drive.location,
@@ -324,7 +322,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
   if (loading) return <div className="p-10 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto"/> Loading Drive Details...</div>;
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto p-6 pb-8">
+    <div className="w-full max-w-[1600px] mx-auto p-6 pb-8 bg-gray-50/50 min-h-screen">
       <div className="mb-8 p-1 flex items-center gap-4">
          <Button variant="outline" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
@@ -449,6 +447,24 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                             />
                         </div>
 
+                         <div className="space-y-2">
+                            <Label>Category</Label>
+                            <Controller
+                                name="company_category"
+                                control={form.control}
+                                render={({ field }) => (
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                                        <SelectContent>
+                                            {['Core', 'IT', 'Product', 'Service', 'Start-up', 'MNC', 'Non-Tech'].map(c => (
+                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            />
+                        </div>
+
                         <div className="space-y-2">
                            <Label>Status</Label>
                            <Controller
@@ -458,9 +474,13 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                    <Select onValueChange={field.onChange} value={field.value || 'open'}>
                                        <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
                                        <SelectContent>
+                                           <SelectItem value="open">Open</SelectItem>
                                            <SelectItem value="ongoing">Ongoing</SelectItem>
                                            <SelectItem value="completed">Completed</SelectItem>
                                            <SelectItem value="closed">Closed</SelectItem>
+                                           <SelectItem value="on_hold">On Hold</SelectItem>
+                                           <SelectItem value="cancelled">Cancelled</SelectItem>
+                                           <SelectItem value="draft">Draft</SelectItem>
                                        </SelectContent>
                                    </Select>
                                )}
@@ -627,6 +647,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                         <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
                                             setDate={(date) => field.onChange(date ? date.toISOString() : '')} 
+                                            disablePastDates
                                         />
                                     )}
                                 />
@@ -640,6 +661,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                         <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
                                             setDate={(date) => field.onChange(date ? date.toISOString() : '')}
+                                            disablePastDates
                                         />
                                     )}
                                 />
@@ -674,6 +696,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                                 date={field.value ? new Date(field.value) : undefined}
                                                 setDate={(date) => field.onChange(date ? date.toISOString() : '')}
                                                 className="w-full"
+                                                disablePastDates
                                             />
                                         )}
                                     />

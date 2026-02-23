@@ -84,11 +84,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _initializeFields();
-    // Cache the heavy Academic Tab to prevent rebuilding on every frame
-    _academicTabWidget = SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: _buildAcademicTab(),
-    );
   }
 
   void _initializeFields() {
@@ -362,7 +357,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             borderRadius: BorderRadius.circular(AppConstants.borderRadius),
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).cardColor,
           isDense: true,
         ),
       ),
@@ -387,7 +382,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             borderRadius: BorderRadius.circular(AppConstants.borderRadius),
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).cardColor,
         ),
         onTap: () async {
           final DateTime? picked = await showDatePicker(
@@ -423,7 +418,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             borderRadius: BorderRadius.circular(AppConstants.borderRadius),
           ),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).cardColor,
         ),
         items: items
             .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -457,14 +452,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppConstants.primaryColor
-                      : Colors.grey[200],
+                      ? Theme.of(context).colorScheme.primary
+                      : (Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[800]
+                            : Colors.grey[200]),
                   borderRadius: BorderRadius.circular(isSelected ? 20 : 10),
                 ),
                 child: Text(
                   _tabs[index],
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
+                    color: isSelected
+                        ? (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.black
+                              : Colors.white)
+                        : (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black),
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -489,9 +492,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 24),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.blue.shade900.withValues(alpha: 0.3)
+                : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.shade100),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.blue.shade900
+                  : Colors.blue.shade100,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,10 +583,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(width: 12),
             IconButton(
               onPressed: _addLanguage,
-              icon: const Icon(
+              icon: Icon(
                 Icons.add_circle,
                 size: 32,
-                color: AppConstants.primaryColor,
+                color: Theme.of(context).colorScheme.primary,
               ),
               tooltip: 'Add Language',
             ),
@@ -666,19 +675,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppConstants.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: AppConstants.textPrimary,
+              color:
+                  (Theme.of(context).textTheme.bodyLarge?.color ??
+                  Colors.black),
             ),
           ),
           const SizedBox(height: 16),
@@ -759,7 +770,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     border: const OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).cardColor,
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -797,7 +808,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).cardColor,
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -887,15 +898,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: AppConstants.borderColor),
+        border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
       ),
       child: Row(
         children: [
           Icon(
             isUploaded ? Icons.check_circle : Icons.upload_file,
-            color: isUploaded ? Colors.green : AppConstants.textSecondary,
+            color: isUploaded
+                ? Colors.green
+                : (Theme.of(context).textTheme.bodyMedium?.color ??
+                      Colors.grey),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -904,9 +918,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppConstants.textPrimary,
+                    color:
+                        (Theme.of(context).textTheme.bodyLarge?.color ??
+                        Colors.black),
                   ),
                 ),
                 if (isUploaded)
@@ -929,19 +945,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  late Widget _academicTabWidget;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Edit Profile',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        foregroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
@@ -964,7 +980,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     padding: const EdgeInsets.all(24),
                     child: _buildPersonalTab(),
                   ),
-                  _academicTabWidget, // Cached widget
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildAcademicTab(),
+                  ),
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: _buildDocumentsTab(),
@@ -977,16 +996,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           // Bottom Save Button
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: AppConstants.borderColor)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                top: BorderSide(color: Theme.of(context).dividerColor),
+              ),
             ),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryColor,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -995,12 +1016,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   elevation: 0,
                 ),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                         ),
                       )
                     : const Text(

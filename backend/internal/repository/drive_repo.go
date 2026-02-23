@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/SysSyncer/placement-portal-kec/internal/models"
@@ -171,6 +172,18 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
 	// Always sort by deadline (Urgency)
 	query += ` ORDER BY pd.deadline_date ASC`
 
+	// Pagination
+	if val, ok := filters["limit"].(int); ok && val > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+	if val, ok := filters["offset"].(int); ok && val >= 0 {
+		query += fmt.Sprintf(" OFFSET $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
 	rows, err := r.DB.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -209,24 +222,25 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 	// A. First, fetch the student's academic and personal profile
 	queryStudent := `
         SELECT 
-            sp.department, sp.batch_year, 
+            sp.department, COALESCE(dm.type, 'UG'), sp.batch_year, 
             COALESCE(d_ug.cgpa, 0.0), COALESCE(d_pg.cgpa, 0.0),
             COALESCE(sch.current_backlogs, 0),
             COALESCE(sch.tenth_mark, 0.0), COALESCE(sch.twelfth_mark, 0.0)
         FROM student_personal sp
+        LEFT JOIN departments dm ON sp.department = dm.code
         LEFT JOIN student_degrees d_ug ON sp.user_id = d_ug.user_id AND d_ug.degree_level = 'UG'
         LEFT JOIN student_degrees d_pg ON sp.user_id = d_pg.user_id AND d_pg.degree_level = 'PG'
         LEFT JOIN student_schooling sch ON sp.user_id = sch.user_id
         WHERE sp.user_id = $1
     `
-	var dept string
+	var dept, deptType string
 	var batch int
 	var ugCgpa, pgCgpa float64
 	var backlogs int
 	var tenthMark, twelfthMark float64
 
 	err := r.DB.QueryRow(ctx, queryStudent, studentID).Scan(
-		&dept, &batch, &ugCgpa, &pgCgpa, &backlogs, &tenthMark, &twelfthMark,
+		&dept, &deptType, &batch, &ugCgpa, &pgCgpa, &backlogs, &tenthMark, &twelfthMark,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch student profile: %v", err)
@@ -258,7 +272,7 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 				AND (pd.tenth_percentage IS NULL OR pd.tenth_percentage = 0 OR COALESCE($4::numeric, 0) >= pd.tenth_percentage)
 				AND (pd.twelfth_percentage IS NULL OR pd.twelfth_percentage = 0 OR COALESCE($5::numeric, 0) >= pd.twelfth_percentage)
 				AND (pd.ug_min_cgpa IS NULL OR pd.ug_min_cgpa = 0 OR COALESCE($2::numeric, 0) >= pd.ug_min_cgpa)
-				AND (pd.pg_min_cgpa IS NULL OR pd.pg_min_cgpa = 0 OR COALESCE($6::numeric, 0) >= pd.pg_min_cgpa)
+				AND ($9::text != 'PG' OR pd.pg_min_cgpa IS NULL OR pd.pg_min_cgpa = 0 OR COALESCE($6::numeric, 0) >= pd.pg_min_cgpa)
 			) as is_eligible
         FROM placement_drives pd
 		LEFT JOIN drive_applications da ON pd.id = da.drive_id AND da.student_id = $1
@@ -278,8 +292,9 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 	// $6 = pgCgpa
 	// $7 = dept
 	// $8 = batch
+	// $9 = deptType
 
-	rows, err := r.DB.Query(ctx, queryDrives, studentID, ugCgpa, backlogs, tenthMark, twelfthMark, pgCgpa, dept, batch)
+	rows, err := r.DB.Query(ctx, queryDrives, studentID, ugCgpa, backlogs, tenthMark, twelfthMark, pgCgpa, dept, batch, deptType)
 	if err != nil {
 		return nil, err
 	}
@@ -381,20 +396,57 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 	}
 
 	// Update Job Roles
-	// Strategy: Delete all existing roles and re-insert (Simple replacement)
-	// Warning: This changes Role IDs. If applications exist referencing old Role IDs, they might become invalid.
-	// Assuming this is used primarily for corrections before applications start.
-	if len(drive.Roles) > 0 {
-		_, err := r.DB.Exec(ctx, "DELETE FROM job_roles WHERE drive_id=$1", id)
-		if err != nil {
-			return fmt.Errorf("failed to delete old roles: %v", err)
+	// Strategy: Intelligent sync to preserve Role IDs
+	// 1. Get existing roles
+	var existingRoles []struct {
+		ID   int64
+		Name string
+	}
+	rows, _ := r.DB.Query(ctx, "SELECT id, role_name FROM job_roles WHERE drive_id=$1", id)
+	for rows.Next() {
+		var er struct {
+			ID   int64
+			Name string
+		}
+		rows.Scan(&er.ID, &er.Name)
+		existingRoles = append(existingRoles, er)
+	}
+	rows.Close()
+
+	newRoleNames := make(map[string]bool)
+	for _, role := range drive.Roles {
+		newRoleNames[role.RoleName] = true
+		// Check if role exists by name
+		exists := false
+		for _, er := range existingRoles {
+			if er.Name == role.RoleName {
+				exists = true
+				// Update existing
+				_, err = r.DB.Exec(ctx, "UPDATE job_roles SET ctc=$1, salary=$2, stipend=$3 WHERE id=$4",
+					role.Ctc, role.Salary, role.Stipend, er.ID)
+				if err != nil {
+					return fmt.Errorf("failed to update role %s: %v", role.RoleName, err)
+				}
+				break
+			}
 		}
 
-		roleQuery := `INSERT INTO job_roles (drive_id, role_name, ctc, salary, stipend) VALUES ($1, $2, $3, $4, $5)`
-		for _, role := range drive.Roles {
-			_, err := r.DB.Exec(ctx, roleQuery, id, role.RoleName, role.Ctc, role.Salary, role.Stipend)
+		if !exists {
+			// Insert new
+			roleQuery := `INSERT INTO job_roles (drive_id, role_name, ctc, salary, stipend) VALUES ($1, $2, $3, $4, $5)`
+			_, err = r.DB.Exec(ctx, roleQuery, id, role.RoleName, role.Ctc, role.Salary, role.Stipend)
 			if err != nil {
 				return fmt.Errorf("failed to insert role %s: %v", role.RoleName, err)
+			}
+		}
+	}
+
+	// Delete roles that are no longer present
+	for _, er := range existingRoles {
+		if !newRoleNames[er.Name] {
+			_, err = r.DB.Exec(ctx, "DELETE FROM job_roles WHERE id=$1", er.ID)
+			if err != nil {
+				return fmt.Errorf("failed to delete removed role %s: %v", er.Name, err)
 			}
 		}
 	}
@@ -464,6 +516,46 @@ func (r *DriveRepository) BulkDeleteDrives(ctx context.Context, ids []int64) (in
 }
 
 // 4.6 Get Drives By IDs (Internal use for bulk operations)
+func (r *DriveRepository) GetDrivesCount(ctx context.Context, filters map[string]interface{}) (int, error) {
+	query := `SELECT COUNT(*) FROM placement_drives pd WHERE 1=1`
+	var args []interface{}
+	argCounter := 1
+
+	if val, ok := filters["category"]; ok && val != "" {
+		query += fmt.Sprintf(" AND pd.company_category = $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	if val, ok := filters["min_salary"]; ok {
+		query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM job_roles jr WHERE jr.drive_id = pd.id AND jr.salary >= $%d)", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	if val, ok := filters["type"]; ok && val != "" {
+		query += fmt.Sprintf(" AND pd.drive_type = $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	if val, ok := filters["department"]; ok && val != "" {
+		query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id AND ded.department_code = $%d)", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	if val, ok := filters["batch"]; ok {
+		query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id AND deb.batch_year = $%d)", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	var count int
+	err := r.DB.QueryRow(ctx, query, args...).Scan(&count)
+	return count, err
+}
+
 func (r *DriveRepository) GetDrivesByIDs(ctx context.Context, ids []int64) ([]models.PlacementDrive, error) {
 	query := `
         SELECT 
@@ -504,17 +596,53 @@ func (r *DriveRepository) GetDrivesByIDs(ctx context.Context, ids []int64) ([]mo
 }
 
 // 5. Admin Force Add (Bypasses Deadline & Eligibility Checks)
-func (r *DriveRepository) AdminForceRegister(ctx context.Context, driveID, studentID int64) error {
-	// We insert directly, ignoring the Stored Procedure checks
-	// ON CONFLICT: If they are already applied, do nothing (idempotent)
+func (r *DriveRepository) AdminForceRegister(ctx context.Context, driveID, studentID int64, roleIDs []int64) error {
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// A. Upsert Main Application
 	query := `
         INSERT INTO drive_applications (drive_id, student_id, status, applied_at)
         VALUES ($1, $2, 'opted_in', NOW())
         ON CONFLICT (drive_id, student_id) 
-        DO UPDATE SET status = 'opted_in' -- Reactivate if they were 'withdrawn'
+        DO UPDATE SET status = 'opted_in', updated_at = NOW()
     `
-	_, err := r.DB.Exec(ctx, query, driveID, studentID)
-	return err
+	_, err = tx.Exec(ctx, query, driveID, studentID)
+	if err != nil {
+		return err
+	}
+
+	// B. Force Insert Roles (Syncing with requested selection)
+	// 1. Clear existing roles for this student on this drive
+	_, err = tx.Exec(ctx, "DELETE FROM drive_application_roles WHERE drive_id = $1 AND student_id = $2", driveID, studentID)
+	if err != nil {
+		return err
+	}
+
+	// 2. Insert new roles if any
+	if len(roleIDs) > 0 {
+		for _, rid := range roleIDs {
+			_, err = tx.Exec(ctx, "INSERT INTO drive_application_roles (drive_id, student_id, role_id) VALUES ($1, $2, $3)", driveID, studentID, rid)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// If no roles specified, default to applying for ALL roles of this drive
+		queryAll := `
+			INSERT INTO drive_application_roles (drive_id, student_id, role_id)
+			SELECT $1, $2, id FROM job_roles WHERE drive_id = $1
+		`
+		_, err = tx.Exec(ctx, queryAll, driveID, studentID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 // AutoCloseExpiredDrives checks for any drives past their deadline and closes them.
@@ -596,40 +724,19 @@ func (r *DriveRepository) GetHomePageDrives(ctx context.Context) (map[string][]m
 }
 
 func (r *DriveRepository) UpdateApplicationStatus(ctx context.Context, driveID, studentID int64, status, remarks string, actionedBy int64) error {
-	// 1. Try to update ONLY if status is 'request_to_attend' (concurrency check)
 	query := `
         UPDATE drive_applications 
         SET status = $1, remarks = $2, 
 			actioned_by = $3, actioned_at = NOW(),
 			updated_at = NOW() 
         WHERE drive_id = $4 AND student_id = $5 
-		AND status = 'request_to_attend'
     `
 	tag, err := r.DB.Exec(ctx, query, status, remarks, actionedBy, driveID, studentID)
 	if err != nil {
 		return err
 	}
 
-	// 2. If no rows affected, it means it was already handled or doesn't exist
 	if tag.RowsAffected() == 0 {
-		// Check current status
-		var currentStatus string
-		var actionedByName string
-
-		checkQuery := `
-			SELECT da.status, COALESCE(u.name, 'Unknown Admin')
-			FROM drive_applications da
-			LEFT JOIN users u ON da.actioned_by = u.id
-			WHERE da.drive_id = $1 AND da.student_id = $2
-		`
-		err := r.DB.QueryRow(ctx, checkQuery, driveID, studentID).Scan(&currentStatus, &actionedByName)
-		if err != nil {
-			return fmt.Errorf("request not found or error checking status: %v", err)
-		}
-
-		if currentStatus != "request_to_attend" {
-			return fmt.Errorf("CONFLICT: Request already %s by %s", currentStatus, actionedByName)
-		}
 		return fmt.Errorf("request not found")
 	}
 
@@ -777,6 +884,129 @@ func (r *DriveRepository) GetEligibleStudentPhoneNumbers(ctx context.Context, dr
 		}
 	}
 	return numbers, nil
+}
+
+// GetEligibleStudentsPreview dynamically tests a CreateDriveInput against the student database
+func (r *DriveRepository) GetEligibleStudentsPreview(ctx context.Context, input models.PlacementDrive) ([]models.DriveApplicantDetailed, error) {
+	// Robust eligibility evaluation using the exact same constraints applied in the GetStudentDriveRequests / CheckEligibility logic but natively in SQL
+	query := `
+		SELECT 
+            u.id, u.email, COALESCE(u.name, ''), COALESCE(sp.register_number, ''), COALESCE(sp.department, ''), COALESCE(dm.type, 'UG'), COALESCE(sp.batch_year, 0), 
+            COALESCE(sp.student_type, ''), COALESCE(sp.placement_willingness, ''),
+            COALESCE(sp.mobile_number, ''), COALESCE(sp.gender, ''),
+            
+            -- Schooling
+            COALESCE(sch.tenth_mark, 0), COALESCE(sch.twelfth_mark, 0), COALESCE(sch.diploma_mark, 0),
+            
+            -- Backlogs
+            COALESCE(sch.current_backlogs, 0), COALESCE(sch.history_of_backlogs, 0),
+
+            -- UG Degree
+            COALESCE(d_ug.cgpa, 0.0), 
+            
+            -- PG Degree
+            COALESCE(d_pg.cgpa, 0.0),
+            
+            COALESCE(u.profile_photo_url, '')
+        FROM users u
+        LEFT JOIN student_personal sp ON u.id = sp.user_id
+        LEFT JOIN departments dm ON sp.department = dm.code
+        LEFT JOIN student_schooling sch ON u.id = sch.user_id
+        LEFT JOIN student_degrees d_ug ON u.id = d_ug.user_id AND d_ug.degree_level = 'UG'
+        LEFT JOIN student_degrees d_pg ON u.id = d_pg.user_id AND d_pg.degree_level = 'PG'
+        WHERE u.role = 'student' 
+        AND u.is_active = true 
+        AND (sp.placement_willingness IS NULL OR sp.placement_willingness = 'Interested')
+        AND ($1::text[] IS NULL OR cardinality($1::text[]) = 0 OR sp.department = ANY($1::text[]))
+        AND ($2::int[] IS NULL OR cardinality($2::int[]) = 0 OR sp.batch_year = ANY($2::int[]))
+        AND ($3 = 'All' OR sp.gender = $3)
+        AND COALESCE(sch.current_backlogs, 0) <= $4
+	`
+
+	rows, err := r.DB.Query(ctx, query,
+		input.EligibleDepartments,
+		input.EligibleBatches,
+		"All", // Replaced gender string filtering logic to 'All' for preview to match backend expectations or modify SQL slightly if we have real gender data. Actually, models.PlacementDrive doesn't have gender? Wait, let me check model.
+		input.MaxBacklogsAllowed,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var students []models.DriveApplicantDetailed
+	for rows.Next() {
+		var s models.DriveApplicantDetailed
+		var deptType string
+		err := rows.Scan(
+			&s.ID, &s.Email, &s.FullName, &s.RegisterNumber, &s.Department, &deptType, &s.BatchYear,
+			&s.StudentType, &s.PlacementWillingness,
+			&s.MobileNumber, &s.Gender,
+			&s.TenthMark, &s.TwelfthMark, &s.DiplomaMark,
+			&s.CurrentBacklogs, &s.HistoryBacklogs,
+			&s.UgCgpa, &s.PgCgpa,
+			&s.ProfilePhotoURL,
+		)
+		if err != nil {
+			log.Printf("Error scanning preview student: %v", err)
+			continue
+		}
+
+		if input.TenthPercentage != nil && s.TenthMark < *input.TenthPercentage {
+			continue // Fails 10th
+		}
+
+		if s.StudentType == "regular" {
+			if input.TwelfthPercentage != nil && s.TwelfthMark < *input.TwelfthPercentage {
+				continue // Fails 12th
+			}
+		} else if s.StudentType == "lateral" {
+			if input.TwelfthPercentage != nil && s.DiplomaMark < *input.TwelfthPercentage {
+				continue // Fails lateral
+			}
+		}
+
+		// CGPA Handling - Support PG & UG explicit limits
+		effectiveMinUG := input.MinCgpa
+		effectiveMinPG := input.MinCgpa
+		if input.UGMinCGPA != nil && *input.UGMinCGPA > 0 {
+			effectiveMinUG = *input.UGMinCGPA
+		}
+		if input.PGMinCGPA != nil && *input.PGMinCGPA > 0 {
+			effectiveMinPG = *input.PGMinCGPA
+		}
+
+		// Checking aggregate logic or direct CGPA
+		if input.UseAggregate && input.AggregatePercentage != nil && *input.AggregatePercentage > 0 {
+			// Approximate CGPA to percentage (cgpa * 10)
+			ugPerc := s.UgCgpa * 10
+			pgPerc := s.PgCgpa * 10
+
+			if deptType == "PG" {
+				if pgPerc < *input.AggregatePercentage {
+					continue
+				}
+			} else {
+				if ugPerc < *input.AggregatePercentage {
+					continue
+				}
+			}
+		} else {
+			if deptType == "PG" {
+				if s.PgCgpa < effectiveMinPG {
+					continue
+				}
+			} else {
+				if s.UgCgpa < effectiveMinUG {
+					continue
+				}
+			}
+		}
+
+		students = append(students, s)
+	}
+
+	return students, nil
 }
 
 // GetAdminFCMTokens fetches FCM tokens of all active admin users

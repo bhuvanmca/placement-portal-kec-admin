@@ -33,6 +33,30 @@ export interface CreateEligibilityTemplateInput {
   eligible_gender: string;
 }
 
+export interface DriveApplicantDetailed {
+  id: number;
+  email: string;
+  full_name: string;
+  register_number: string;
+  department: string;
+  department_type: string;
+  batch_year: number;
+  student_type: string;
+  placement_willingness: string;
+  mobile_number: string;
+  gender: string;
+  tenth_mark: number;
+  twelfth_mark: number;
+  diploma_mark: number;
+  current_backlogs: number;
+  history_of_backlogs: number;
+  ug_cgpa: number;
+  pg_cgpa: number;
+  profile_photo_url: string;
+  status?: string;
+  applied_at?: string;
+}
+
 export const eligibilityService = {
   async getTemplates(): Promise<EligibilityTemplate[]> {
     const { data } = await apiClient.get('/v1/admin/eligibility-templates/');

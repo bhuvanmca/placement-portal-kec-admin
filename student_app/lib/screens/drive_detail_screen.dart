@@ -103,9 +103,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       return;
     }
 
-    // 2. T&C Dialog
-    final confirmed = await _showTnCDialog();
-    if (confirmed != true) return;
+    // 2. Direct Opt-In (No T&C Dialog anymore per user request)
 
     try {
       final driveService = ref.read(driveServiceProvider);
@@ -135,42 +133,6 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         ).showSnackBar(SnackBar(content: Text('Failed to opt in: $e')));
       }
     }
-  }
-
-  Future<bool?> _showTnCDialog() {
-    // Hardcoded default terms since policy is removed
-    const String defaultTerms =
-        'By applying for this drive, you agree to the following terms:\n\n'
-        '1. You meet all the eligibility criteria mentioned.\n'
-        '2. You will attend the valid selection process if shortlisted.\n'
-        '3. Any false information provided will lead to disqualification.\n'
-        '4. You accept the placement rules of the institution.';
-
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Terms & Conditions'),
-        content: const SingleChildScrollView(
-          child: Text(defaultTerms, style: TextStyle(height: 1.5)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryColor,
-            ),
-            child: const Text(
-              'Accept & Apply',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _handleOptOut() async {
@@ -377,19 +339,21 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-        border: Border.all(color: AppConstants.borderColor, width: 0),
+        border: Border.all(color: Theme.of(context).dividerColor, width: 0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: AppConstants.textPrimary,
+              color:
+                  (Theme.of(context).textTheme.bodyLarge?.color ??
+                  Colors.black),
             ),
           ),
           const SizedBox(height: 12),
@@ -411,16 +375,18 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         drive['job_description'].toString().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFFAFAFA,
-      ), // Slightly off-white for card contrast
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).scaffoldBackgroundColor
+          : const Color(0xFFFAFAFA), // Slightly off-white for card contrast
       appBar: AppBar(
         title: const Text(
           'Drive Details',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: AppConstants.textPrimary,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        foregroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : Colors.black,
         elevation: 0,
       ),
       body: Column(
@@ -445,9 +411,11 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                       'Job Description',
                       Text(
                         drive['job_description'],
-                        style: const TextStyle(
+                        style: TextStyle(
                           height: 1.5,
-                          color: Colors.black87,
+                          color:
+                              (Theme.of(context).textTheme.bodyMedium?.color ??
+                              Colors.black87),
                         ),
                       ),
                     ),
@@ -510,11 +478,17 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                     ),
                 ],
               ),
-              activeColor: AppConstants.primaryColor,
+              activeColor: Theme.of(context).colorScheme.primary,
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             ),
-            if (role != roles.last) Divider(height: 1, color: Colors.grey[200]),
+            if (role != roles.last)
+              Divider(
+                height: 1,
+                color: (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]
+                    : Colors.grey[200]),
+              ),
           ],
         );
       }).toList(),
@@ -530,7 +504,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: Colors.grey[200],
+            color: (Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]
+                : Colors.grey[200]),
             borderRadius: BorderRadius.circular(12),
           ),
           child:
@@ -557,10 +533,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
             children: [
               Text(
                 drive['company_name'] ?? 'Unknown Company',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppConstants.textPrimary,
+                  color:
+                      (Theme.of(context).textTheme.bodyLarge?.color ??
+                      Colors.black),
                 ),
               ),
               const SizedBox(height: 8),
@@ -574,13 +552,15 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       drive['drive_type'] ?? 'Drive',
-                      style: const TextStyle(
-                        color: AppConstants.primaryColor,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -614,17 +594,22 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.language,
             size: 20,
-            color: AppConstants.textSecondary,
+            color:
+                (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
           ),
           const SizedBox(width: 12),
-          const SizedBox(
+          SizedBox(
             width: 100,
             child: Text(
               'Website',
-              style: TextStyle(color: AppConstants.textSecondary),
+              style: TextStyle(
+                color:
+                    (Theme.of(context).textTheme.bodyMedium?.color ??
+                    Colors.grey),
+              ),
             ),
           ),
           Expanded(
@@ -842,10 +827,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.check_circle_outline,
                       size: 16,
-                      color: AppConstants.textSecondary,
+                      color:
+                          (Theme.of(context).textTheme.bodyMedium?.color ??
+                          Colors.grey),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -876,9 +863,15 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               (a) => Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade900
+                      : Colors.grey[50],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(
+                    color: (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[200])!,
+                  ),
                 ),
                 child: InkWell(
                   onTap: () => _openAttachment(a['url'], a['name']),
@@ -942,8 +935,10 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               if (spocDesignation.isNotEmpty)
                 Text(
                   spocDesignation,
-                  style: const TextStyle(
-                    color: AppConstants.textSecondary,
+                  style: TextStyle(
+                    color:
+                        (Theme.of(context).textTheme.bodyMedium?.color ??
+                        Colors.grey),
                     fontSize: 13,
                   ),
                 ),
@@ -955,6 +950,23 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   }
 
   Widget _buildActionButtons(bool isExpired) {
+    if (_userStatus == 'placed') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+        ),
+        child: const Text(
+          'You are Placed in this Drive!',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+
     if (isExpired) {
       return Container(
         width: double.infinity,
@@ -971,77 +983,96 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       );
     }
 
-    // If student already requested to attend, show confirmation
-    if (_userStatus == 'request_to_attend') {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppConstants.primaryColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Text(
-          'Request Submitted — Awaiting Approval',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppConstants.primaryColor,
-            fontWeight: FontWeight.bold,
+    // If student is NOT eligible natively, handle the special Request flow states
+    if (!_isEligible) {
+      if (_userStatus == 'request_to_attend') {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
-        ),
-      );
-    }
-
-    // If not eligible and request was rejected — show "Not Eligible" (unclickable)
-    if (!_isEligible && _userStatus == 'rejected') {
-      final remarks = widget.drive['user_remarks'] ?? '';
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.red.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
-        ),
-        child: Column(
-          children: [
-            const Text(
-              'Not Eligible',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          child: Text(
+            'Request Submitted — Awaiting Approval',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.bold,
             ),
-            if (remarks.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                remarks,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    // If not eligible and hasn't applied yet, show Request to Attend
-    if (!_isEligible && _userStatus.isEmpty) {
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _handleRequestToAttend,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppConstants.primaryColor,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+          ),
+        );
+      } else if (_userStatus == 'opted_in' ||
+          _userStatus == 'placed' ||
+          _userStatus == 'shortlisted') {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
           ),
           child: const Text(
-            'Request to Attend',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            'Request Approved — Opted In',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
           ),
-        ),
-      );
+        );
+      } else if (_userStatus == 'rejected') {
+        final remarks = widget.drive['user_remarks'] ?? '';
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            children: [
+              const Text(
+                'Not Eligible',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (remarks.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  remarks,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+        );
+      } else {
+        // Show Request to Attend
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _handleRequestToAttend,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.black
+                  : Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Request to Attend',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        );
+      }
     }
 
     // Default: Opt In / Opt Out buttons for eligible students
@@ -1062,10 +1093,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: _userStatus == 'opted_out'
-                    ? AppConstants.primaryColor
-                    : Colors.white,
+                    ? Theme.of(context).colorScheme.primary
+                    : (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.transparent
+                          : Colors.white),
                 border: Border.all(
-                  color: AppConstants.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   width: 1.5,
                 ),
                 borderRadius: BorderRadius.circular(
@@ -1076,8 +1109,10 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                 'Opt Out',
                 style: TextStyle(
                   color: _userStatus == 'opted_out'
-                      ? Colors.white
-                      : AppConstants.primaryColor,
+                      ? (Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black
+                            : Colors.white)
+                      : Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1100,10 +1135,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: _userStatus == 'opted_in'
-                    ? AppConstants.primaryColor
-                    : Colors.white,
+                    ? Theme.of(context).colorScheme.primary
+                    : (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.transparent
+                          : Colors.white),
                 border: Border.all(
-                  color: AppConstants.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   width: 1.5,
                 ),
                 borderRadius: BorderRadius.circular(
@@ -1114,8 +1151,10 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                 'Opt In',
                 style: TextStyle(
                   color: _userStatus == 'opted_in'
-                      ? Colors.white
-                      : AppConstants.primaryColor,
+                      ? (Theme.of(context).brightness == Brightness.dark
+                            ? Colors.black
+                            : Colors.white)
+                      : Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1135,7 +1174,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppConstants.textSecondary),
+          Icon(
+            icon,
+            size: 20,
+            color:
+                (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+          ),
           const SizedBox(width: 12),
           SizedBox(
             width: 100,

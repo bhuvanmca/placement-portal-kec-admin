@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,11 +19,16 @@ import {
   Settings,
   Pencil,
   FileText,
-  RefreshCw
+  RefreshCw,
+  Eye, // Added
+  Users, // Added
+  Settings2, // Added
+  Search,
+  CheckSquare
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Link, Element, animateScroll as scroll } from 'react-scroll';
+import { Link as ScrollLink, Element, Events, scrollSpy, scroller, animateScroll as scroll } from 'react-scroll'; // Modified
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -36,13 +41,16 @@ import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Added
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Added
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
 import { driveService } from '@/services/drive.service';
 import { spocService, Spoc } from '@/services/spoc.service';
 import { toast } from 'sonner';
 import { configService, Department, Batch } from '@/services/config.service';
-import { eligibilityService, EligibilityTemplate } from '@/services/eligibility.service';
+import { eligibilityService, EligibilityTemplate, DriveApplicantDetailed } from '@/services/eligibility.service'; // Modified
 // ... imports
 
 // --- Zod Schema ---
@@ -117,6 +125,14 @@ export default function CreateDrivePage() {
   const [savedTemplates, setSavedTemplates] = useState<EligibilityTemplate[]>([]); 
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
+  // New states for Eligibility Preview
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewStudents, setPreviewStudents] = useState<DriveApplicantDetailed[]>([]);
+  const [previewSearch, setPreviewSearch] = useState("");
+  const [removedStudentIds, setRemovedStudentIds] = useState<number[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  
   // Company Search State
   const [openCompanySearch, setOpenCompanySearch] = useState(false);
   const [companyQuery, setCompanyQuery] = useState("");
@@ -127,6 +143,53 @@ export default function CreateDrivePage() {
   // Config State
   const [departments, setDepartments] = useState<Department[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
+
+  // Columns visibility state for Preview Table
+  const [visibleColumns, setVisibleColumns] = useState({
+    register_number: true,
+    department: true,
+    batch_year: true,
+    tenth_mark: false,
+    twelfth_mark: false,
+    diploma_mark: false,
+    ug_cgpa: true,
+    pg_cgpa: true,
+    current_backlogs: false,
+    history_backlogs: false,
+  });
+
+  const displayStudents = useMemo(() => {
+    return previewStudents.filter((s: DriveApplicantDetailed) => {
+      if (removedStudentIds.includes(s.id)) return false;
+      if (!previewSearch) return true;
+      const search = previewSearch.toLowerCase();
+      return (
+        s.full_name?.toLowerCase().includes(search) ||
+        s.register_number?.toLowerCase().includes(search) ||
+        s.email?.toLowerCase().includes(search) ||
+        s.department?.toLowerCase().includes(search)
+      );
+    });
+  }, [previewStudents, previewSearch, removedStudentIds]);
+
+  const handleRemoveStudentFromPreview = (id: number) => {
+    setRemovedStudentIds(prev => [...prev, id]);
+    toast.info("Student removed from preview");
+  };
+
+  const toggleStudentSelection = (id: number) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedStudentIds.length === displayStudents.length) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(displayStudents.map(s => s.id));
+    }
+  };
 
   // Fetch Config
   useEffect(() => {
@@ -341,6 +404,39 @@ export default function CreateDrivePage() {
       router.push(`/dashboard/settings/eligibility?edit=${template.id}`);
   };
 
+  // --- Eligibility Preview ---
+  const handlePreviewEligibility = async () => {
+      setPreviewLoading(true);
+      setIsPreviewOpen(true);
+      const currentValues = form.getValues();
+
+      try {
+          // Construct partial payload mirroring the CreateDriveInput expectations on backend
+          const payload = {
+              tenth_percentage: Number(currentValues.tenth_percentage),
+              twelfth_percentage: Number(currentValues.twelfth_percentage),
+              ug_min_cgpa: Number(currentValues.ug_min_cgpa),
+              pg_min_cgpa: Number(currentValues.pg_min_cgpa),
+              use_aggregate: currentValues.use_aggregate,
+              aggregate_percentage: Number(currentValues.aggregate_percentage),
+              min_cgpa: Number(currentValues.min_cgpa),
+              max_backlogs_allowed: Number(currentValues.max_backlogs_allowed),
+              eligible_departments: currentValues.eligible_departments,
+              eligible_batches: currentValues.eligible_batches,
+              eligible_gender: currentValues.eligible_gender,
+          };
+          
+          const students = await driveService.eligibilityPreview(payload);
+          setPreviewStudents(students);
+      } catch (error) {
+          console.error("Preview error:", error);
+          toast.error("Failed to load eligible students preview");
+          setIsPreviewOpen(false);
+      } finally {
+          setPreviewLoading(false);
+      }
+  };
+
   // --- Attachments ---
   const handleFileSelect = (file: File) => {
     setSelectedFiles(prev => [...prev, file]);
@@ -392,7 +488,7 @@ export default function CreateDrivePage() {
   const hasPgDepartments = form.watch('eligible_departments')?.some(d => ['MCA', 'MBA', 'M.Tech', 'M.Sc'].includes(d));
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto p-6 pb-8">
+    <div className="w-full max-w-[1600px] mx-auto p-6 pb-8 bg-gray-50/50 min-h-screen">
       <div className="mb-8 p-1">
          <h1 className="text-3xl font-bold tracking-tight text-[#002147]">Create New Drive</h1>
          <p className="text-muted-foreground mt-2">Fill in the details below to post a new placement drive for students.</p>
@@ -687,6 +783,10 @@ export default function CreateDrivePage() {
                             <Button variant="outline" size="sm" type="button" className="h-9" onClick={openSaveDialog}>
                                 <Save className="mr-2 h-4 w-4"/> Save
                             </Button>
+                            <div className="w-[1px] h-6 bg-gray-300 mx-1 self-center"></div>
+                            <Button variant="secondary" size="sm" type="button" className="h-9 font-medium text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100" onClick={handlePreviewEligibility}>
+                                <Eye className="mr-2 h-4 w-4"/> Preview Students
+                            </Button>
                         </div>
                 </div>
 
@@ -746,11 +846,14 @@ export default function CreateDrivePage() {
                                 <Input type="number" step="0.01" {...form.register('ug_min_cgpa')} placeholder="e.g. 6.0" onWheel={(e) => e.currentTarget.blur()} />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>PG Min CGPA</Label>
-                                <Input type="number" step="0.01" {...form.register('pg_min_cgpa')} placeholder="e.g. 6.0" onWheel={(e) => e.currentTarget.blur()} />
-                                <p className="text-[10px] text-muted-foreground">Required for PG students only</p>
-                            </div>
+                            {/* Conditional PG Field */}
+                            {hasPgDepartments && (
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                    <Label className="text-[#002147] font-semibold">PG Min CGPA</Label>
+                                    <Input type="number" step="0.01" {...form.register('pg_min_cgpa')} placeholder="e.g. 6.0" className="border-[#002147]/20 bg-blue-50/30" onWheel={(e) => e.currentTarget.blur()} />
+                                    <p className="text-[10px] text-muted-foreground">Required for PG students only</p>
+                                </div>
+                            )}
                         </div>
 
                         <Separator />
@@ -805,6 +908,7 @@ export default function CreateDrivePage() {
                                         <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
                                             setDate={(date) => field.onChange(date ? date.toISOString() : '')} 
+                                            disablePastDates
                                         />
                                     )}
                                 />
@@ -819,6 +923,7 @@ export default function CreateDrivePage() {
                                         <DateTimePicker 
                                             date={field.value ? new Date(field.value) : undefined}
                                             setDate={(date) => field.onChange(date ? date.toISOString() : '')}
+                                            disablePastDates
                                         />
                                     )}
                                 />
@@ -854,6 +959,7 @@ export default function CreateDrivePage() {
                                                 date={field.value ? new Date(field.value) : undefined}
                                                 setDate={(date) => field.onChange(date ? date.toISOString() : '')}
                                                 className="w-full"
+                                                disablePastDates
                                             />
                                         )}
                                     />
@@ -991,7 +1097,7 @@ export default function CreateDrivePage() {
            </DialogContent>
        </Dialog>
 
-      <Dialog open={istemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+     <Dialog open={istemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
          <DialogContent>
              <DialogHeader>
                  <DialogTitle>Save Template</DialogTitle>
@@ -1011,6 +1117,182 @@ export default function CreateDrivePage() {
              </DialogFooter>
          </DialogContent>
       </Dialog>
+
+      {/* Eligible Students Preview Dialog */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+          <DialogContent className="max-w-[95vw] md:max-w-6xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+              <DialogHeader className="p-6 border-b bg-gray-50/50 shrink-0">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <DialogTitle className="flex items-center text-xl text-[#002147]">
+                            <Users className="mr-2 h-5 w-5" />
+                            Eligible Students Preview
+                        </DialogTitle>
+                        <DialogDescription className="mt-1">
+                            Based on the current criteria mapped in the form above.
+                        </DialogDescription>
+                     </div>
+                     {!previewLoading && (
+                         <div className="flex gap-2 items-center">
+                             <div className="bg-[#002147]/10 text-[#002147] text-sm font-semibold px-4 py-2 rounded-full flex items-center shadow-sm">
+                                 {previewStudents.length} Students Matches
+                             </div>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-9">
+                                        <Settings2 className="h-4 w-4 mr-2" /> Columns
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {Object.keys(visibleColumns).map(col => (
+                                        <DropdownMenuCheckboxItem
+                                            key={col}
+                                            checked={visibleColumns[col as keyof typeof visibleColumns]}
+                                            onSelect={(e) => e.preventDefault()}
+                                            onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, [col]: checked }))}
+                                            className="capitalize"
+                                        >
+                                            {col.replace(/_/g, ' ')}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                             </DropdownMenu>
+                         </div>
+                     )}
+                  </div>
+                   {!previewLoading && previewStudents.length > 0 && (
+                        <div className="mt-4 flex items-center gap-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input 
+                                    placeholder="Search by name, register number, email or department..." 
+                                    className="pl-9 h-10 border-gray-200 focus:ring-[#002147] focus:border-[#002147]"
+                                    value={previewSearch}
+                                    onChange={(e) => setPreviewSearch(e.target.value)}
+                                />
+                            </div>
+                            {selectedStudentIds.length > 0 && (
+                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                                    <span className="text-sm font-medium text-gray-600">{selectedStudentIds.length} selected</span>
+                                    {/* Action button for multiple students could go here */}
+                                </div>
+                            )}
+                        </div>
+                   )}
+               </DialogHeader>
+
+              <div className="p-0 overflow-y-auto flex-1">
+                  {previewLoading ? (
+                      <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
+                          <Loader2 className="h-8 w-8 animate-spin mb-4 text-[#002147]"/>
+                          <p>Analyzing student database...</p>
+                      </div>
+                  ) : previewStudents.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+                          <div className="bg-gray-100 p-4 rounded-full mb-4">
+                              <Users className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <p className="font-medium text-gray-700 text-lg">No students match these criteria</p>
+                          <p className="text-sm mt-1">Try loosening the constraints (CGPA, marks, or backlogs).</p>
+                      </div>
+                  ) : (
+                      <div className="border-t overflow-x-auto w-full">
+                               <Table className="min-w-max border-separate border-spacing-0">
+                                   <TableHeader className="bg-gray-50/80 sticky top-0 z-20 shadow-sm border-b">
+                                       <TableRow className="hover:bg-transparent">
+                                           <TableHead className="w-[50px] pl-6 py-4">
+                                               <Checkbox 
+                                                  checked={selectedStudentIds.length === displayStudents.length && displayStudents.length > 0}
+                                                  onCheckedChange={toggleAllSelection}
+                                               />
+                                           </TableHead>
+                                           <TableHead className="min-w-[200px] sticky left-0 z-30 bg-gray-50 border-r py-4">Student</TableHead>
+                                           {visibleColumns.register_number && <TableHead className="py-4">Register No.</TableHead>}
+                                           {visibleColumns.department && <TableHead className="py-4">Department</TableHead>}
+                                           {visibleColumns.batch_year && <TableHead className="py-4">Batch</TableHead>}
+                                           {visibleColumns.tenth_mark && <TableHead className="text-right py-4">10th %</TableHead>}
+                                           {visibleColumns.twelfth_mark && <TableHead className="text-right py-4">12th %</TableHead>}
+                                           {visibleColumns.diploma_mark && <TableHead className="text-right py-4">Diploma %</TableHead>}
+                                           {visibleColumns.ug_cgpa && <TableHead className="text-right py-4">UG CGPA</TableHead>}
+                                           {visibleColumns.pg_cgpa && <TableHead className="text-right py-4">PG CGPA</TableHead>}
+                                           {visibleColumns.current_backlogs && <TableHead className="text-right py-4">Current Backlogs</TableHead>}
+                                           {visibleColumns.history_backlogs && <TableHead className="text-right py-4">History Backlogs</TableHead>}
+                                           <TableHead className="text-right pr-6 py-4">Action</TableHead>
+                                       </TableRow>
+                                   </TableHeader>
+                               <TableBody>
+                                   {displayStudents.map((s) => (
+                                       <TableRow key={s.id} className="hover:bg-gray-50/50 group">
+                                           <TableCell className="pl-6 py-4">
+                                               <Checkbox 
+                                                  checked={selectedStudentIds.includes(s.id)}
+                                                  onCheckedChange={() => toggleStudentSelection(s.id)}
+                                               />
+                                           </TableCell>
+                                           <TableCell className="font-medium sticky left-0 z-10 bg-white border-r py-4">
+                                               <div className="flex items-center gap-3 relative z-0">
+                                                   <Avatar className="h-9 w-9 shrink-0 relative mt-0.5 ring-1 ring-gray-100">
+                                                       <AvatarImage src={s.profile_photo_url || ''} />
+                                                       <AvatarFallback className="text-xs bg-[#002147]/5 text-[#002147] font-semibold">{s.full_name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                   </Avatar>
+                                                   <div>
+                                                       <div className="font-semibold text-gray-900 truncate max-w-[150px]">{s.full_name}</div>
+                                                       <div className="text-[11px] text-muted-foreground truncate">{s.email}</div>
+                                                   </div>
+                                               </div>
+                                           </TableCell>
+                                           {visibleColumns.register_number && <TableCell className="py-4 font-mono text-xs">{s.register_number}</TableCell>}
+                                           {visibleColumns.department && (
+                                               <TableCell className="py-4">
+                                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                                                       {s.department}
+                                                   </span>
+                                               </TableCell>
+                                           )}
+                                           {visibleColumns.batch_year && <TableCell className="py-4">{s.batch_year}</TableCell>}
+                                           {visibleColumns.tenth_mark && <TableCell className="text-right py-4">{s.tenth_mark?.toFixed(2) || '—'}</TableCell>}
+                                           {visibleColumns.twelfth_mark && <TableCell className="text-right py-4">{s.twelfth_mark?.toFixed(2) || '—'}</TableCell>}
+                                           {visibleColumns.diploma_mark && <TableCell className="text-right py-4">{s.diploma_mark?.toFixed(2) || '—'}</TableCell>}
+                                           {visibleColumns.ug_cgpa && <TableCell className="text-right py-4 font-medium">{s.ug_cgpa > 0 ? s.ug_cgpa.toFixed(2) : '—'}</TableCell>}
+                                           {visibleColumns.pg_cgpa && (
+                                               <TableCell className="text-right py-4 font-medium">
+                                                   {s.pg_cgpa > 0 ? s.pg_cgpa.toFixed(2) : <span className="text-gray-400">—</span>}
+                                               </TableCell>
+                                           )}
+                                           {visibleColumns.current_backlogs && (
+                                              <TableCell className="text-right py-4">
+                                                <span className={cn(
+                                                  "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                                                  s.current_backlogs > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                                                )}>
+                                                  {s.current_backlogs}
+                                                </span>
+                                              </TableCell>
+                                           )}
+                                           {visibleColumns.history_backlogs && <TableCell className="text-right py-4">{s.history_of_backlogs}</TableCell>}
+                                           <TableCell className="text-right pr-6 py-4">
+                                               <Button 
+                                                 variant="ghost" 
+                                                 size="sm" 
+                                                 className="text-gray-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0 transition-opacity"
+                                                 onClick={() => handleRemoveStudentFromPreview(s.id)}
+                                                 title="Remove from this preview"
+                                               >
+                                                   <Trash2 className="h-4 w-4" />
+                                               </Button>
+                                           </TableCell>
+                                       </TableRow>
+                                   ))}
+                               </TableBody>
+                          </Table>
+                      </div>
+                  )}
+              </div>
+          </DialogContent>
+      </Dialog>
+
        {/* Scroll To Top Button */}
        <button
         onClick={scrollToTop}

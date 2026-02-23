@@ -46,6 +46,26 @@ class NotificationStorageService {
     await prefs.remove(_storageKey);
   }
 
+  // Remove a single notification by matching ID or sentTime
+  static Future<void> removeNotification(
+    Map<String, dynamic> notificationToRemove,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> history = prefs.getStringList(_storageKey) ?? [];
+
+    // Filter out the notification that matches
+    final updatedHistory = history.where((e) {
+      final map = jsonDecode(e) as Map<String, dynamic>;
+      // Match by ID if it exists, otherwise fallback to sentTime which is fairly unique
+      if (map['id'] != null && notificationToRemove['id'] != null) {
+        return map['id'] != notificationToRemove['id'];
+      }
+      return map['sentTime'] != notificationToRemove['sentTime'];
+    }).toList();
+
+    await prefs.setStringList(_storageKey, updatedHistory);
+  }
+
   // Mark all as read (Optional enhancement for future)
   static Future<void> markAllAsRead() async {
     final prefs = await SharedPreferences.getInstance();

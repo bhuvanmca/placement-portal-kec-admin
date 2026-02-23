@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -161,6 +162,7 @@ func (r *ApplicationRepository) GetStudentDriveRequests(ctx context.Context, stu
 		JOIN placement_drives pd ON da.drive_id = pd.id
 		WHERE da.student_id = $1 
 		AND da.status IN ('request_to_attend', 'opted_in', 'rejected')
+		AND da.is_deleted_by_student = FALSE
 		ORDER BY da.applied_at DESC
 	`
 	rows, err := r.DB.Query(ctx, query, studentID)
@@ -204,4 +206,17 @@ func (r *ApplicationRepository) GetStudentDriveRequests(ctx context.Context, stu
 		requests = []map[string]interface{}{}
 	}
 	return requests, nil
+}
+
+// SoftDeleteStudentDriveRequest hides the request from the student app history
+func (r *ApplicationRepository) SoftDeleteStudentDriveRequest(ctx context.Context, studentID, driveID int64) error {
+	query := `UPDATE drive_applications SET is_deleted_by_student = TRUE WHERE student_id = $1 AND drive_id = $2`
+	tag, err := r.DB.Exec(ctx, query, studentID, driveID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("request not found")
+	}
+	return nil
 }

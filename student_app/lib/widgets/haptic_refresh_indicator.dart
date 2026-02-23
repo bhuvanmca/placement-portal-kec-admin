@@ -27,7 +27,7 @@ class _HapticRefreshIndicatorState extends State<HapticRefreshIndicator> {
   // Wrap onRefresh to fire Phase 2 haptic right before the actual callback
   Future<void> _onRefreshWithHaptic() async {
     // Phase 2: Subtle confirmation on release
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
     await widget.onRefresh();
   }
 

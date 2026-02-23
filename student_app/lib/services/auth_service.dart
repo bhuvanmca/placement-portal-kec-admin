@@ -72,11 +72,21 @@ class AuthService {
           throw Exception('Token not found in response');
         }
       } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error'] ?? 'Login failed');
+        final errorMsg = _parseError(response.body);
+        throw Exception(errorMsg);
       }
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Helper to parse error safely
+  String _parseError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return decoded['error'] ?? body;
+    } catch (_) {
+      return body;
     }
   }
 

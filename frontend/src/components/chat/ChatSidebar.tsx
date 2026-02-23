@@ -696,11 +696,9 @@ export function ChatSidebar({ selectedGroupId, onSelectGroup, onSelectUser }: Om
                         />
                         <label htmlFor="check-email" className="text-sm cursor-pointer">Email</label>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="check-whatsapp" checked={broadcastChannels.includes('whatsapp')} 
-                            onCheckedChange={(c) => setBroadcastChannels(prev => c ? [...prev, 'whatsapp'] : prev.filter(x => x !== 'whatsapp'))} 
-                        />
-                        <label htmlFor="check-whatsapp" className="text-sm cursor-pointer">WhatsApp</label>
+                    <div className="flex items-center space-x-2 opacity-50 cursor-not-allowed">
+                        <Checkbox id="check-whatsapp" checked={false} disabled />
+                        <label htmlFor="check-whatsapp" className="text-sm cursor-not-allowed">WhatsApp (Coming Soon)</label>
                     </div>
                 </div>
 

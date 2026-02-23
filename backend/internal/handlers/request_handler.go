@@ -143,3 +143,18 @@ func (h *RequestHandler) GetMyRequests(c *fiber.Ctx) error {
 
 	return c.JSON(requests)
 }
+
+// DeleteMyRequest handles DELETE /api/v1/student/requests/:id
+func (h *RequestHandler) DeleteMyRequest(c *fiber.Ctx) error {
+	studentID := int64(c.Locals("user_id").(float64))
+	requestID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request ID"})
+	}
+
+	if err := h.Repo.SoftDeleteStudentChangeRequest(c.Context(), studentID, requestID); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to remove request or request not found"})
+	}
+
+	return c.JSON(fiber.Map{"success": true, "message": "Request removed from history"})
+}

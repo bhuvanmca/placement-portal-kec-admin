@@ -48,6 +48,7 @@ func SetupRoutes(app *fiber.App) {
 	admin.Get("/drives", handlers.ListAdminDrives)                                           // List All Drives
 	admin.Post("/drives", handlers.CreateDrive)                                              // Create
 	admin.Put("/drives/:id", handlers.UpdateDrive)                                           // Update / Extend Deadline
+	admin.Patch("/drives/:id", handlers.PatchDrive)                                          // Selective Patch
 	admin.Delete("/drives/:id", handlers.DeleteDrive)                                        // Delete
 	admin.Post("/drives/bulk-delete", handlers.BulkDeleteDrives)                             // Bulk Delete
 	admin.Get("/drives/:id/applicants", handlers.GetDriveApplicants)                         // View Applicants
@@ -58,6 +59,7 @@ func SetupRoutes(app *fiber.App) {
 	admin.Put("/users/:id/block", handlers.ToggleBlockUser)                                  // Toggle Block
 	admin.Put("/applications/status", handlers.UpdateApplicationStatus)                      // Update Student Status (Places, Not-Placed)
 	admin.Put("/applications/bulk-status", handlers.BulkUpdateDriveRequestStatus)            // [NEW] Bulk Approve/Reject
+	admin.Post("/drives/eligibility-preview", handlers.EligibilityPreview)                   // [NEW] Preview Eligible Students
 	admin.Get("/drive-requests", handlers.GetDriveRequests)                                  // [NEW] Get Pending Requests
 	admin.Delete("/students/:id", handlers.DeleteStudent)                                    // Delete One
 	admin.Delete("/students/bulk", handlers.BulkDeleteStudents)                              // Delete Many (Filter)
@@ -145,8 +147,10 @@ func SetupRoutes(app *fiber.App) {
 
 	// Student: Mark Update Request
 	v1.Post("/student/request", requestHandler.CreateRequest)
-	v1.Get("/student/requests", requestHandler.GetMyRequests)      // [NEW]
-	v1.Get("/student/drive-requests", handlers.GetMyDriveRequests) // [NEW] Student Drive Requests
+	v1.Get("/student/requests", requestHandler.GetMyRequests)               // [NEW]
+	v1.Get("/student/drive-requests", handlers.GetMyDriveRequests)          // [NEW] Student Drive Requests
+	v1.Delete("/student/drive-requests/:id", handlers.DeleteMyDriveRequest) // [NEW] Soft-delete Drive Request
+	v1.Delete("/student/requests/:id", requestHandler.DeleteMyRequest)      // [NEW] Soft-delete Change Request
 
 	admin.Get("/settings/fields", settingsHandler.GetFieldPermissions)
 	admin.Put("/settings/fields/:name", settingsHandler.ToggleFieldPermission)

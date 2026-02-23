@@ -47,7 +47,6 @@ const ADMIN_ITEMS: SidebarItem[] = [
 const SUPER_ADMIN_ITEMS: SidebarItem[] = [
   { id: 'home', icon: Home, label: 'Home', href: '/dashboard' },
   { id: 'users', icon: UserCog, label: 'Users', href: '/dashboard/users' },
-  { id: 'messages', icon: MessageSquare, label: 'Messages', href: '/dashboard/chat' },
   { id: 'activity', icon: Activity, label: 'Activity Log', href: '/dashboard/activity' },
   { id: 'settings', icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   { id: 'storage', icon: HardDrive, label: 'Storage', href: '/dashboard/storage' },

@@ -218,8 +218,10 @@ export const driveService = {
   },
   
   // Admin specific fetch
-  getAdminDrives: async () => {
-    const response = await api.get<Drive[]>(API_ROUTES.ADMIN_DRIVES);
+  getAdminDrives: async (page = 1, limit = 10) => {
+    const response = await api.get<{ drives: Drive[]; total: number; page: number; limit: number }>(
+      `${API_ROUTES.ADMIN_DRIVES}?page=${page}&limit=${limit}`
+    );
     return response.data;
   },
 
@@ -250,6 +252,11 @@ export const driveService = {
     return response.data;
   },
 
+  patchDrive: async (id: number, data: Partial<Drive>) => {
+    const response = await api.patch(`${API_ROUTES.ADMIN_DRIVES}/${id}`, data);
+    return response.data;
+  },
+
   deleteDrive: async (id: number) => {
     const response = await api.delete(`${API_ROUTES.ADMIN_DRIVES}/${id}`);
     return response.data;
@@ -260,23 +267,15 @@ export const driveService = {
     return response.data;
   },
 
+  eligibilityPreview: async (data: Partial<CreateDriveInput>) => {
+    const response = await api.post<DriveApplicantDetailed[]>(`${API_ROUTES.ADMIN_DRIVES}/eligibility-preview`, data);
+    return response.data || [];
+  },
+
   getDriveById: async (id: number) => {
-    const response = await api.get<Drive>(`${API_ROUTES.ADMIN_DRIVES}`); // We fetch all and find locally or fetch one if endpoint exists
-    // Ideally backend should have GET /drives/:id, it does exist in repo but maybe not exposed for Admin directly?
-    // DriveRepo has GetDriveByID. Handler doesn't seem to have a dedicated GetDriveById for Admin? 
-    // Ah, ListAdminDrives lists all. But `UpdateDrive` uses ID.
-    // Let's check routes. 
-    // `admin.Get("/drives/:id/applicants")` exists.
-    // `admin.Get("/drives")` exists.
-    // We don't have `admin.Get("/drives/:id")`. 
-    // But we can use the Student one `/v1/drives` for details if we want, OR just filter from list.
-    // For now, let's implement a filtered fetch from list as a fallback or add the endpoint.
-    // Actually, good practice is to add the endpoint. But I didn't plan it.
-    // Let's use the list fetch for now as I did in the key file.
-    // Wait, I can just use `getAdminDrives` and find it. 
-    // BUT the service method name `getDriveById` is useful.
-    const drives = await driveService.getAdminDrives();
-    return drives.find(d => d.id === id);
+    // Current workaround: fetch first 100 drives and find locally
+    const response = await driveService.getAdminDrives(1, 100);
+    return (response.drives || []).find((d: Drive) => d.id === id);
   },
 
   applyForDrive: async (driveId: number) => {
@@ -284,8 +283,11 @@ export const driveService = {
     return response.data;
   },
 
-  manualRegisterStudent: async (driveId: number, registerNumber: string) => {
-    const response = await api.post(`${API_ROUTES.ADMIN_DRIVES}/${driveId}/add-student`, { register_number: registerNumber });
+  manualRegisterStudent: async (driveId: number, registerNumber: string, roleIds?: number[]) => {
+    const response = await api.post(`${API_ROUTES.ADMIN_DRIVES}/${driveId}/add-student`, { 
+        register_number: registerNumber,
+        role_ids: roleIds || []
+    });
     return response.data;
   },
 

@@ -56,9 +56,18 @@ class StudentService {
       final data = jsonDecode(response.body);
       return data['url'];
     } else {
-      throw Exception(
-        'Failed to upload file: ${response.statusCode} ${response.body}',
-      );
+      final errorMsg = _parseError(response.body);
+      throw Exception('Failed to upload file: $errorMsg');
+    }
+  }
+
+  // Helper to parse error safely
+  String _parseError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return decoded['error'] ?? body;
+    } catch (_) {
+      return body;
     }
   }
 
@@ -77,7 +86,8 @@ class StudentService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to update profile: ${response.body}');
+      final errorMsg = _parseError(response.body);
+      throw Exception(errorMsg);
     }
   }
 
@@ -96,7 +106,8 @@ class StudentService {
       final data = jsonDecode(response.body);
       return data['url'];
     } else {
-      throw Exception('Failed to get document URL: ${response.body}');
+      final errorMsg = _parseError(response.body);
+      throw Exception(errorMsg);
     }
   }
 
@@ -203,6 +214,38 @@ class StudentService {
       return [];
     } else {
       throw Exception('Failed to load drive requests');
+    }
+  }
+
+  // Delete/Clear a mark/personal update request
+  Future<void> deleteChangeRequest(int requestId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/v1/student/requests/$requestId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to delete request');
+    }
+  }
+
+  // Delete/Clear a drive request
+  Future<void> deleteDriveRequest(int driveId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/v1/student/drive-requests/$driveId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to delete drive request');
     }
   }
 }

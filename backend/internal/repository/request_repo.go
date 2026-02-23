@@ -106,7 +106,7 @@ func (r *RequestRepository) GetRequestByID(id int64) (*models.StudentChangeReque
 }
 
 func (r *RequestRepository) GetRequestsByStudentID(studentID int64) ([]models.StudentChangeRequest, error) {
-	query := `SELECT id, student_id, field_name, old_value, new_value, reason, status, created_at, admin_comment FROM student_change_requests WHERE student_id = $1 ORDER BY created_at DESC`
+	query := `SELECT id, student_id, field_name, old_value, new_value, reason, status, created_at, admin_comment FROM student_change_requests WHERE student_id = $1 AND is_deleted_by_student = FALSE ORDER BY created_at DESC`
 	rows, err := r.DB.Query(context.Background(), query, studentID)
 	if err != nil {
 		return nil, err
@@ -129,4 +129,17 @@ func (r *RequestRepository) GetRequestsByStudentID(studentID int64) ([]models.St
 		requests = append(requests, r)
 	}
 	return requests, nil
+}
+
+// SoftDeleteStudentChangeRequest hides the mark/personal update request from the student app history
+func (r *RequestRepository) SoftDeleteStudentChangeRequest(ctx context.Context, studentID, requestID int64) error {
+	query := `UPDATE student_change_requests SET is_deleted_by_student = TRUE WHERE student_id = $1 AND id = $2`
+	tag, err := r.DB.Exec(ctx, query, studentID, requestID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("request not found")
+	}
+	return nil
 }

@@ -182,6 +182,22 @@ func GetMyDriveRequests(c *fiber.Ctx) error {
 	return c.JSON(requests)
 }
 
+// DeleteMyDriveRequest handles DELETE /api/v1/student/drive-requests/:id
+func DeleteMyDriveRequest(c *fiber.Ctx) error {
+	studentID := int64(c.Locals("user_id").(float64))
+	driveID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid drive ID"})
+	}
+
+	repo := repository.NewApplicationRepository(database.DB)
+	if err := repo.SoftDeleteStudentDriveRequest(c.Context(), studentID, driveID); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to remove drive request or request not found"})
+	}
+
+	return c.JSON(fiber.Map{"success": true, "message": "Drive request removed from history"})
+}
+
 // BulkUpdateDriveRequestStatus handles PUT /api/v1/admin/applications/bulk-status
 func BulkUpdateDriveRequestStatus(c *fiber.Ctx) error {
 	adminID := int64(c.Locals("user_id").(float64))
@@ -233,6 +249,40 @@ func BulkUpdateDriveRequestStatus(c *fiber.Ctx) error {
 	if input.Status == "rejected" {
 		action = "rejected"
 	}
+
+	// [NEW] Notify students about the action
+	go func() {
+		ns, err := services.NewNotificationService("firebase-service-account.json")
+		if err != nil {
+			log.Printf("Failed to initialize notification service: %v", err)
+			return
+		}
+
+		for _, req := range pairs {
+			var token, studentName, companyName string
+			_ = database.DB.QueryRow(context.Background(), "SELECT fcm_token, COALESCE(name, '') FROM users WHERE id = $1 AND fcm_token IS NOT NULL AND fcm_token != ''", req.StudentID).Scan(&token, &studentName)
+			_ = database.DB.QueryRow(context.Background(), "SELECT company_name FROM placement_drives WHERE id = $1", req.DriveID).Scan(&companyName)
+
+			if token != "" && companyName != "" {
+				var title, body string
+				if input.Status == "opted_in" {
+					title = "Drive Request Approved! 🎉"
+					body = fmt.Sprintf("Your request to attend %s has been approved! You are now automatically opted in.", companyName)
+				} else {
+					title = "Drive Request Update"
+					body = fmt.Sprintf("Your request to attend %s has been reviewed. Status: %s. Remarks: %s", companyName, "Rejected", input.Remarks)
+				}
+
+				_, err := ns.SendMulticastNotification(context.Background(), []string{token}, title, body, map[string]string{
+					"type":     "drive_request_status",
+					"drive_id": fmt.Sprintf("%d", req.DriveID),
+				})
+				if err != nil {
+					log.Printf("Failed to notify student %d: %v", req.StudentID, err)
+				}
+			}
+		}
+	}()
 
 	return c.JSON(fiber.Map{
 		"success":  true,

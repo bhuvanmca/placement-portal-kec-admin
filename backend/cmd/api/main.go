@@ -72,6 +72,7 @@ func main() {
 	app.Use(cors.New())   // Enable CORS to allow requests from the frontend/client applications
 
 	// Register all application routes (handlers and groups)
+	// The PATCH route for drives in the admin group is handled within this function.
 	routes.SetupRoutes(app)
 
 	// Run the server in a separate goroutine so it doesn't block the main thread.

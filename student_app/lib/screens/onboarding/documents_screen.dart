@@ -163,12 +163,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
         border: Border.all(
           color: isUploaded
               ? AppConstants.successColor
-              : AppConstants.borderColor,
+              : Theme.of(context).dividerColor,
         ),
       ),
       child: Row(
@@ -177,7 +177,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             isUploaded ? Icons.check_circle : Icons.cloud_upload_outlined,
             color: isUploaded
                 ? AppConstants.successColor
-                : AppConstants.primaryColor,
+                : Theme.of(context).colorScheme.primary,
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -194,8 +194,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 if (fileName != null)
                   Text(
                     fileName,
-                    style: const TextStyle(
-                      color: AppConstants.textSecondary,
+                    style: TextStyle(
+                      color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                       fontSize: 12,
                     ),
                     maxLines: 1,
@@ -216,7 +216,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         leading: IconButton(
@@ -234,8 +234,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             children: [
               LinearProgressIndicator(
                 value: 1.0,
-                backgroundColor: AppConstants.borderColor,
-                color: AppConstants.primaryColor,
+                backgroundColor: Theme.of(context).dividerColor,
+                color: Theme.of(context).colorScheme.primary,
                 minHeight: 4,
                 borderRadius: BorderRadius.circular(2),
               ),
@@ -244,14 +244,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 'Almost done!',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppConstants.textPrimary,
+                  color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Please provide your identity numbers and upload essential documents.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppConstants.textSecondary,
+                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                 ),
               ),
               const SizedBox(height: 24),
@@ -263,12 +263,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           "Identity Details",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: AppConstants.textPrimary,
+                            color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -323,12 +323,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                         ),
 
                         const SizedBox(height: 32),
-                        const Text(
+                        Text(
                           "Documents",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: AppConstants.textPrimary,
+                            color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                           ),
                         ),
                         const SizedBox(height: 16),

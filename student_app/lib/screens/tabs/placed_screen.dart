@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/drive_provider.dart';
 import '../../widgets/drive_card.dart';
-import '../../utils/constants.dart';
 import '../../widgets/haptic_refresh_indicator.dart';
 
 class PlacedScreen extends ConsumerStatefulWidget {
@@ -31,20 +30,18 @@ class _PlacedScreenState extends ConsumerState<PlacedScreen>
       appBar: AppBar(
         title: Text(
           'Placed Drives',
-          style: GoogleFonts.geist(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+          style: GoogleFonts.geist(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        foregroundColor: AppConstants.textPrimary,
+        foregroundColor:
+            (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
       ),
       body: drivesAsync.when(
-        loading: () => const Column(
+        loading: () => Column(
           children: [
             LinearProgressIndicator(
-              color: AppConstants.primaryColor,
+              color: Theme.of(context).colorScheme.primary,
               backgroundColor: Colors.transparent,
             ),
             Expanded(child: SizedBox()),

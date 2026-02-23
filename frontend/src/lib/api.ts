@@ -67,7 +67,12 @@ api.interceptors.response.use(
         : 'An error occurred';
 
     if (status === 401 || status === 403) {
-      toast.error('Invalid credentials');
+      const isLoginUrl = error.config?.url?.includes('/login');
+      if (isLoginUrl) {
+        toast.error('Invalid credentials');
+      } else if (status === 401 && !error.config?.url?.includes('/user/account')) {
+        toast.error('Session expired. Please login again.');
+      }
     } else if (status === 500) {
       toast.error('Internal Server Error. Please try again later.');
     } else {

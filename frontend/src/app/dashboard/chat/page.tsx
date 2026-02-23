@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import ChatInput from '@/components/chat/ChatInput'; // Default import
 import ChatArea from '@/components/chat/ChatArea';
@@ -11,6 +12,14 @@ import { useAuth } from '@/context/auth-context';
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const router = useRouter();
+
+  // Redirect super_admin away from chat
+  useEffect(() => {
+    if (user && user.role === 'super_admin') {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
   const [selectedGroup, setSelectedGroup] = useState<ChatGroup | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
