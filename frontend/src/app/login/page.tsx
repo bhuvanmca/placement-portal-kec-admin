@@ -57,7 +57,7 @@ export default function LoginPage() {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      <Card className="w-full max-w-[420px] bg-white shadow-2xl border-0 relative z-10 animate-in fade-in zoom-in duration-500 rounded-xl overflow-hidden">
+      <Card className="w-full max-w-[420px] bg-white border-0 relative z-10 animate-in fade-in zoom-in duration-500 rounded-xl overflow-hidden">
         <CardHeader className="text-center flex flex-col items-center space-y-4 pt-10 pb-6">
           <div className="w-24 h-24 relative mb-2 bg-white rounded-full p-2 shadow-sm border border-gray-100 flex items-center justify-center">
              <img 
@@ -68,7 +68,6 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-center gap-2">
-                <ShieldCheck className="h-6 w-6 text-[#002147]" />
                 <CardTitle className="text-[#002147] text-3xl font-bold tracking-tight">Admin Portal</CardTitle>
             </div>
             <CardDescription className="text-gray-500">Secure access for Placement Cell</CardDescription>
@@ -123,10 +122,10 @@ export default function LoginPage() {
               {loading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Admin Login</span>
+                  <span>Login</span>
                 </div>
               ) : (
-                'Admin Login'
+                'Login'
               )}
             </Button>
           </form>
@@ -134,7 +133,7 @@ export default function LoginPage() {
         
         <CardFooter className="flex justify-center py-6 bg-gray-50 border-t border-gray-100">
            <p className="text-xs text-gray-500 font-medium">
-             Authorized Personnel Only
+             Authorized Users Only
            </p>
         </CardFooter>
       </Card>

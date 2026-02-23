@@ -28,9 +28,14 @@ class DriveCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200, width: 1),
+          border: Border.all(
+            color: (Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade800
+                : Colors.grey.shade200),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -56,9 +61,9 @@ class DriveCard extends StatelessWidget {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF002147,
-                          ).withValues(alpha: 0.06),
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade900
+                              : const Color(0xFF002147).withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         clipBehavior: Clip.antiAlias,
@@ -71,21 +76,32 @@ class DriveCard extends StatelessWidget {
                                 ),
                                 memCacheHeight: 150,
                                 placeholder: (context, url) => Container(
-                                  color: const Color(
-                                    0xFF002147,
-                                  ).withValues(alpha: 0.06),
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.grey.shade900
+                                      : const Color(
+                                          0xFF002147,
+                                        ).withValues(alpha: 0.06),
                                 ),
-                                errorWidget: (context, url, error) =>
-                                    const Icon(
-                                      Icons.business_rounded,
-                                      color: Color(0xFF002147),
-                                      size: 22,
-                                    ),
+                                errorWidget: (context, url, error) => Icon(
+                                  Icons.business_rounded,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.grey.shade400
+                                      : const Color(0xFF002147),
+                                  size: 22,
+                                ),
                                 fit: BoxFit.cover,
                               )
-                            : const Icon(
+                            : Icon(
                                 Icons.business_rounded,
-                                color: Color(0xFF002147),
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.grey.shade400
+                                    : const Color(0xFF002147),
                                 size: 22,
                               ),
                       ),
@@ -97,10 +113,14 @@ class DriveCard extends StatelessWidget {
                           children: [
                             Text(
                               drive['company_name'] ?? 'Company',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
-                                color: Color(0xFF002147),
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF002147),
                                 letterSpacing: -0.2,
                               ),
                               maxLines: 2,
@@ -130,8 +150,13 @@ class DriveCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _buildInfoChip(Icons.currency_rupee, _getCtcText(drive)),
                       _buildInfoChip(
+                        context,
+                        Icons.currency_rupee,
+                        _getCtcText(drive),
+                      ),
+                      _buildInfoChip(
+                        context,
                         Icons.location_on_outlined,
                         drive['location'] ?? 'Remote',
                       ),
@@ -145,7 +170,9 @@ class DriveCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade900
+                    : Colors.grey[50],
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(14),
                 ),
@@ -278,11 +305,15 @@ class DriveCard extends StatelessWidget {
     }
   }
 
-  Widget _buildInfoChip(IconData icon, String text) {
+  Widget _buildInfoChip(BuildContext context, IconData icon, String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF002147).withValues(alpha: 0.04),
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : const Color(0xFF002147).withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -291,7 +322,9 @@ class DriveCard extends StatelessWidget {
           Icon(
             icon,
             size: 14,
-            color: const Color(0xFF002147).withValues(alpha: 0.5),
+            color: isDark
+                ? Colors.grey[400]
+                : const Color(0xFF002147).withValues(alpha: 0.5),
           ),
           const SizedBox(width: 5),
           ConstrainedBox(
@@ -299,7 +332,7 @@ class DriveCard extends StatelessWidget {
             child: Text(
               text,
               style: TextStyle(
-                color: Colors.grey[700],
+                color: isDark ? Colors.grey[300] : Colors.grey[700],
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),

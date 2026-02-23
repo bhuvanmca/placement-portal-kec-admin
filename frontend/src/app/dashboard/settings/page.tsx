@@ -11,6 +11,12 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isLoading || !user) return;
 
+    const lastTab = localStorage.getItem('lastSettingsTab');
+    if (lastTab) {
+      router.push(lastTab);
+      return;
+    }
+
     if (user.role === 'super_admin') {
       router.push('/dashboard/settings/college');
     } else if (user.role === 'admin') {

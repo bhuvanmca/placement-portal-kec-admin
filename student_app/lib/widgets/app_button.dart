@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
+import 'package:flutter/services.dart';
 
 /// Custom elevated button matching shadcn styling
 /// - Border radius: 8px (matching shadcn)
@@ -27,9 +27,9 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final buttonStyle = isOutlined
         ? OutlinedButton.styleFrom(
-            foregroundColor: AppConstants.primaryColor,
-            side: const BorderSide(
-              color: AppConstants.primaryColor,
+            foregroundColor: Theme.of(context).colorScheme.primary,
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.primary,
               width: 1.5,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -39,10 +39,14 @@ class AppButton extends StatelessWidget {
             minimumSize: Size(width ?? double.infinity, 52),
           )
         : ElevatedButton.styleFrom(
-            backgroundColor: AppConstants.primaryColor,
-            foregroundColor: Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.black
+                : Colors.white,
             elevation: 2,
-            shadowColor: AppConstants.primaryColor.withValues(alpha: 0.3),
+            shadowColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.3),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8), // shadcn radius
@@ -51,12 +55,16 @@ class AppButton extends StatelessWidget {
           );
 
     final child = isLoading
-        ? const SizedBox(
+        ? SizedBox(
             width: 24,
             height: 24,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).brightness == Brightness.dark
+                    ? Colors.black
+                    : Colors.white,
+              ),
             ),
           )
         : Row(
@@ -82,12 +90,22 @@ class AppButton extends StatelessWidget {
       width: width,
       child: isOutlined
           ? OutlinedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: isLoading || onPressed == null
+                  ? null
+                  : () {
+                      HapticFeedback.lightImpact();
+                      onPressed?.call();
+                    },
               style: buttonStyle,
               child: child,
             )
           : ElevatedButton(
-              onPressed: isLoading ? null : onPressed,
+              onPressed: isLoading || onPressed == null
+                  ? null
+                  : () {
+                      HapticFeedback.lightImpact();
+                      onPressed?.call();
+                    },
               style: buttonStyle,
               child: child,
             ),

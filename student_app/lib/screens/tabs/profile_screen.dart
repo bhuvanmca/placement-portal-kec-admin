@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
-// For HapticFeedback
+import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -15,30 +15,11 @@ import '../../providers/auth_provider.dart';
 import '../../services/student_service.dart';
 import '../../utils/constants.dart';
 import '../edit_profile_screen.dart';
-import '../change_password_screen.dart'; // [NEW]
+import '../change_password_screen.dart';
 import '../../widgets/haptic_refresh_indicator.dart';
 import '../requests_screen.dart'; // [NEW]
 import 'package:google_fonts/google_fonts.dart';
-
-class KeepAlivePage extends StatefulWidget {
-  const KeepAlivePage({super.key, required this.child});
-  final Widget child;
-
-  @override
-  State<KeepAlivePage> createState() => _KeepAlivePageState();
-}
-
-class _KeepAlivePageState extends State<KeepAlivePage>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    return widget.child;
-  }
-}
+import '../../providers/theme_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -47,27 +28,21 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen>
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final StudentService _studentService = StudentService();
   late Future<Map<String, dynamic>> _profileFuture;
-  late TabController _tabController;
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
-      }
-    });
+    _pageController = PageController();
     _profileFuture = _studentService.getProfile();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -78,9 +53,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     });
     await _profileFuture;
   }
-
-  @override
-  bool get wantKeepAlive => true;
 
   Future<void> _launchURL(String url) async {
     if (url.isEmpty) return;
@@ -109,7 +81,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Downloading document...'),
+            content: Text('Opening document...'),
             duration: Duration(seconds: 2),
           ),
         );
@@ -282,19 +254,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Profile',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppConstants.backgroundColor,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        foregroundColor: AppConstants.textPrimary,
+        foregroundColor:
+            (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
         actions: [
+          IconButton(
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.light_mode
+                  : Icons.dark_mode_outlined,
+            ),
+            tooltip: 'Toggle Theme',
+            onPressed: () {
+              ref.read(themeModeProvider.notifier).toggleTheme();
+            },
+          ),
           IconButton(
             icon: Listener(
               // onPointerDown: (_) => HapticFeedback.selectionClick(),
@@ -314,10 +297,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Column(
+            return Column(
               children: [
                 LinearProgressIndicator(
-                  color: AppConstants.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   backgroundColor: Colors.transparent,
                 ),
                 Expanded(child: SizedBox()),
@@ -364,9 +347,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           Container(
                             width: 100,
                             height: 100,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppConstants.primaryColor,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             child: ClipOval(
                               child:
@@ -381,25 +364,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                       ),
                                       fit: BoxFit.cover,
                                       memCacheHeight: 300,
-                                      placeholder: (context, url) =>
-                                          const Center(
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
+                                      placeholder: (context, url) => Center(
+                                        child: CircularProgressIndicator(
+                                          color: Theme.of(context).cardColor,
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
                                       errorWidget: (context, url, error) {
-                                        return const Icon(
+                                        return Icon(
                                           Icons.person,
                                           size: 60,
-                                          color: Colors.white,
+                                          color: Theme.of(context).cardColor,
                                         );
                                       },
                                     )
-                                  : const Icon(
+                                  : Icon(
                                       Icons.person,
                                       size: 60,
-                                      color: Colors.white,
+                                      color: Theme.of(context).cardColor,
                                     ),
                             ),
                           ),
@@ -408,8 +390,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             bottom: 0,
                             child: Container(
                               padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
                                 shape: BoxShape.circle,
                               ),
                               child: Container(
@@ -421,7 +403,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                       ? Colors.red
                                       : const Color(0xFF10B981),
                                   border: Border.all(
-                                    color: Colors.white,
+                                    color: Theme.of(context).cardColor,
                                     width: 2,
                                   ),
                                 ),
@@ -444,7 +426,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: AppConstants.textPrimary,
+                                  color:
+                                      (Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge?.color ??
+                                      Colors.black),
                                   fontSize: 22,
                                 ),
                           ),
@@ -453,7 +439,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             '${_formatValue(data['register_number'])} | ${_formatValue(data['department'])}',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
-                                  color: AppConstants.textSecondary,
+                                  color:
+                                      (Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium?.color ??
+                                      Colors.grey),
                                   fontWeight: FontWeight.w500,
                                 ),
                           ),
@@ -461,7 +451,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           Text(
                             'Batch ${_formatValue(data['batch_year'])} • ${_formatValue(data['student_type'])}',
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppConstants.textSecondary),
+                                ?.copyWith(
+                                  color:
+                                      (Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium?.color ??
+                                      Colors.grey),
+                                ),
                           ),
                           const SizedBox(height: 12),
 
@@ -495,9 +491,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                     child: IconButton(
                                       constraints: const BoxConstraints(),
                                       padding: EdgeInsets.zero,
-                                      icon: const FaIcon(
+                                      icon: FaIcon(
                                         FontAwesomeIcons.github,
-                                        color: Colors.black87,
+                                        color:
+                                            (Theme.of(
+                                              context,
+                                            ).textTheme.bodyMedium?.color ??
+                                            Colors.black87),
                                         size: 22,
                                       ),
                                       tooltip: 'GitHub',
@@ -548,46 +548,127 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget _buildTabSection(Map<String, dynamic> data) {
     return Column(
       children: [
-        Container(
-          decoration: BoxDecoration(
-            color: AppConstants.backgroundColor,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey[200]!, width: 1),
-            ),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AppConstants.primaryColor,
-            unselectedLabelColor: Colors.grey[500],
-            indicatorColor: AppConstants.primaryColor,
-            indicatorSize: TabBarIndicatorSize.label,
-            labelStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-            tabs: const [
-              Tab(text: 'Personal'),
-              Tab(text: 'Academic'),
-              Tab(text: 'Placement'),
-            ],
-          ),
+        AnimatedBuilder(
+          animation: _pageController,
+          builder: (context, _) {
+            double page = 0.0;
+            if (_pageController.hasClients) {
+              if (_pageController.position.hasContentDimensions) {
+                page = _pageController.page ?? 0.0;
+              }
+            }
+            final int activeIndex = page.round();
+
+            return Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                border: Border(
+                  bottom: BorderSide(
+                    color: (Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[200])!,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    bottom: 0,
+                    left: page * (MediaQuery.of(context).size.width / 3),
+                    width: MediaQuery.of(context).size.width / 3,
+                    child: Center(
+                      child: Container(
+                        height: 3,
+                        width: 48,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(3),
+                            topRight: Radius.circular(3),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      _buildCustomTab(
+                        'Personal',
+                        0,
+                        activeIndex,
+                        MediaQuery.of(context).size.width,
+                      ),
+                      _buildCustomTab(
+                        'Academic',
+                        1,
+                        activeIndex,
+                        MediaQuery.of(context).size.width,
+                      ),
+                      _buildCustomTab(
+                        'Placement',
+                        2,
+                        activeIndex,
+                        MediaQuery.of(context).size.width,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         ),
-        // Use TabBarView for swipe support
+        // Pre-build all tabs for zero-frame drop butter smooth swiping using native PageView
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
+          child: PageView(
+            controller: _pageController,
+            physics: const BouncingScrollPhysics(),
             children: [
-              _buildScrollableTab(data, 0),
-              _buildScrollableTab(data, 1),
-              _buildScrollableTab(data, 2),
+              _KeepAliveTab(child: _buildScrollableTab(data, 0)),
+              _KeepAliveTab(child: _buildScrollableTab(data, 1)),
+              _KeepAliveTab(child: _buildScrollableTab(data, 2)),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCustomTab(
+    String text,
+    int index,
+    int activeIndex,
+    double screenWidth,
+  ) {
+    bool isActive = activeIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          if (_pageController.hasClients) {
+            _pageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        },
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: GoogleFonts.geist(
+              fontSize: 14,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+              color: isActive
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey[500],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -607,15 +688,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         content = const SizedBox.shrink();
     }
 
-    return KeepAlivePage(
-      child: HapticRefreshIndicator(
-        onRefresh: _refresh,
-        color: AppConstants.primaryColor,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-          child: content,
-        ),
+    return HapticRefreshIndicator(
+      onRefresh: _refresh,
+      color: Theme.of(context).colorScheme.primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+        child: RepaintBoundary(child: content),
       ),
     );
   }
@@ -655,10 +734,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 data['resume_url'].toString().isNotEmpty))
           _buildSectionCard('Skills & Documents', [
             if (languageSkills.isNotEmpty) ...[
-              const Text(
+              Text(
                 'Language Skills',
                 style: TextStyle(
-                  color: AppConstants.textSecondary,
+                  color:
+                      (Theme.of(context).textTheme.bodyMedium?.color ??
+                      Colors.grey),
                   fontSize: 14,
                 ),
               ),
@@ -670,8 +751,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     .map(
                       (lang) => Chip(
                         label: Text(lang.toString()),
-                        backgroundColor: AppConstants.backgroundColor,
-                        side: const BorderSide(color: AppConstants.borderColor),
+                        backgroundColor: Theme.of(
+                          context,
+                        ).scaffoldBackgroundColor,
+                        side: BorderSide(color: Theme.of(context).dividerColor),
                       ),
                     )
                     .toList(),
@@ -691,16 +774,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: AppConstants.backgroundColor,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppConstants.borderColor),
+                    border: Border.all(color: Theme.of(context).dividerColor),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.description,
-                        color: AppConstants.primaryColor,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 20,
                       ),
                       SizedBox(width: 8),
@@ -708,7 +791,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                         'View Resume',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: AppConstants.textPrimary,
+                          color:
+                              (Theme.of(context).textTheme.bodyLarge?.color ??
+                              Colors.black),
                         ),
                       ),
                     ],
@@ -739,8 +824,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     label: const Text('My Requests'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: AppConstants.borderColor),
-                      foregroundColor: AppConstants.textPrimary,
+                      side: BorderSide(color: Theme.of(context).dividerColor),
+                      foregroundColor:
+                          (Theme.of(context).textTheme.bodyLarge?.color ??
+                          Colors.black),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
@@ -768,8 +855,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     label: const Text('Edit Profile'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: AppConstants.borderColor),
-                      foregroundColor: AppConstants.textPrimary,
+                      side: BorderSide(color: Theme.of(context).dividerColor),
+                      foregroundColor:
+                          (Theme.of(context).textTheme.bodyLarge?.color ??
+                          Colors.black),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
@@ -793,8 +882,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     label: const Text('Change Password'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: AppConstants.borderColor),
-                      foregroundColor: AppConstants.textPrimary,
+                      side: BorderSide(color: Theme.of(context).dividerColor),
+                      foregroundColor:
+                          (Theme.of(context).textTheme.bodyLarge?.color ??
+                          Colors.black),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
@@ -805,6 +896,64 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 ),
               ],
             ),
+          ),
+        ),
+
+        const SizedBox(height: 48),
+
+        // App Info
+        Center(
+          child: Column(
+            children: [
+              Text(
+                'Version 1.0.0+1',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () =>
+                        _launchURL('https://kongu.ac.in/privacy.php'),
+                    isSemanticButton: false,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[500],
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Terms & Conditions',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  Text(
+                    '•',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        _launchURL('https://kongu.ac.in/privacy.php'),
+                    isSemanticButton: false,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[500],
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Privacy Policy',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
@@ -844,10 +993,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         _buildSectionCard('Undergraduate (UG)', [
           _buildDetailItem('CGPA', data['ug_cgpa']),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Semester GPAs',
             style: TextStyle(
-              color: AppConstants.textSecondary,
+              color:
+                  (Theme.of(context).textTheme.bodyMedium?.color ??
+                  Colors.grey),
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
@@ -876,10 +1027,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           _buildSectionCard('Postgraduate (PG)', [
             _buildDetailItem('CGPA', data['pg_cgpa']),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Semester GPAs',
               style: TextStyle(
-                color: AppConstants.textSecondary,
+                color:
+                    (Theme.of(context).textTheme.bodyMedium?.color ??
+                    Colors.grey),
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -918,19 +1071,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-        border: Border.all(color: AppConstants.borderColor, width: 0),
+        border: Border.all(color: Theme.of(context).dividerColor, width: 0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: AppConstants.textPrimary,
+              color:
+                  (Theme.of(context).textTheme.bodyLarge?.color ??
+                  Colors.black),
             ),
           ),
           const SizedBox(height: 12),
@@ -977,7 +1132,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             child: Text(
               isEmpty ? 'N/A' : displayValue,
               style: TextStyle(
-                color: isEmpty ? Colors.grey[400] : AppConstants.textPrimary,
+                color: isEmpty
+                    ? Colors.grey[400]
+                    : (Theme.of(context).textTheme.bodyLarge?.color ??
+                          Colors.black),
                 fontSize: 14,
                 fontWeight: isEmpty ? FontWeight.normal : FontWeight.w600,
               ),
@@ -1001,18 +1159,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         style: TextStyle(
           fontSize: 13,
           color: isEmpty
-              ? AppConstants.textSecondary.withValues(alpha: 0.5)
-              : AppConstants.textPrimary,
+              ? (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey)
+                    .withValues(alpha: 0.5)
+              : (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
           fontWeight: isEmpty ? FontWeight.normal : FontWeight.w500,
         ),
       ),
       backgroundColor: isEmpty
-          ? AppConstants.backgroundColor.withValues(alpha: 0.5)
-          : AppConstants.backgroundColor,
+          ? Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.5)
+          : Theme.of(context).scaffoldBackgroundColor,
       side: BorderSide(
         color: isEmpty
-            ? AppConstants.borderColor.withValues(alpha: 0.5)
-            : AppConstants.borderColor,
+            ? Theme.of(context).dividerColor.withValues(alpha: 0.5)
+            : Theme.of(context).dividerColor,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );
@@ -1054,12 +1213,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   Widget _buildStatCard(String title, dynamic value, MaterialColor color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color[50], // using bracket notation for MaterialColor shades
+        color: isDark ? color.withValues(alpha: 0.15) : color[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color[100]!),
+        border: Border.all(
+          color: isDark ? color.withValues(alpha: 0.3) : color[100]!,
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1069,7 +1232,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             style: GoogleFonts.geist(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: color[800],
+              color: isDark ? color[300] : color[800],
             ),
           ),
           const SizedBox(height: 4),
@@ -1077,7 +1240,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             title,
             style: GoogleFonts.geist(
               fontSize: 13,
-              color: color[700],
+              color: isDark ? color[200] : color[700],
               fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
@@ -1085,5 +1248,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         ],
       ),
     );
+  }
+}
+
+class _KeepAliveTab extends StatefulWidget {
+  final Widget child;
+
+  const _KeepAliveTab({required this.child});
+
+  @override
+  State<_KeepAliveTab> createState() => _KeepAliveTabState();
+}
+
+class _KeepAliveTabState extends State<_KeepAliveTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

@@ -102,12 +102,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Forgot Password'),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        foregroundColor: AppConstants.textPrimary,
+        foregroundColor: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -120,16 +120,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.lock_reset,
                     size: 80,
-                    color: AppConstants.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Reset Your Password',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppConstants.primaryColor,
+                      color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -138,7 +138,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   Text(
                     'Enter your email address and we\'ll send you an OTP to reset your password',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppConstants.textSecondary,
+                      color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -163,16 +163,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.borderColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.primaryColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
                           width: 2,
                         ),
                       ),
@@ -202,7 +202,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       child: Text(
                         'You can request a new OTP after the timer expires',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppConstants.textSecondary,
+                          color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                         ),
                         textAlign: TextAlign.center,
                       ),

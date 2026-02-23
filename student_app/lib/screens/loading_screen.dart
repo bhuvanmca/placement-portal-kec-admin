@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/constants.dart';
 
 class LoadingScreen extends StatelessWidget {
   const LoadingScreen({super.key});
@@ -30,9 +29,9 @@ class LoadingScreen extends StatelessWidget {
             // Horizontal Progress Bar
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.5,
-              child: const LinearProgressIndicator(
+              child: LinearProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  AppConstants.primaryColor,
+                  Theme.of(context).colorScheme.primary,
                 ),
                 backgroundColor: Color(0xFFE0E0E0),
                 minHeight: 4,

@@ -12,7 +12,10 @@ import {
   Plus, 
   Clock, 
   IndianRupee,
-  Trash2 
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,15 +41,19 @@ export default function DriveListPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [drives, setDrives] = useState<Drive[]>([]);
+  const [totalDrives, setTotalDrives] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
   const [selectedDrives, setSelectedDrives] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchDrives = async () => {
+  const fetchDrives = async (page = currentPage) => {
     try {
       setLoading(true);
-      const data = await driveService.getAdminDrives();
-      setDrives(data);
+      const data = await driveService.getAdminDrives(page, pageSize);
+      setDrives(data.drives || []);
+      setTotalDrives(data.total || 0);
     } catch (error) {
       // console.error("Failed to fetch drives", error);
       toast.error("Failed to load drives");
@@ -56,8 +63,8 @@ export default function DriveListPage() {
   };
 
   useEffect(() => {
-    fetchDrives();
-  }, []);
+    fetchDrives(currentPage);
+  }, [currentPage]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this drive?')) return;
@@ -71,16 +78,29 @@ export default function DriveListPage() {
   };
 
   const handleStatusChange = async (id: number, newStatus: string) => {
+      // Deadline Logic: If opening, ensure deadline is in the future
+      if (newStatus === 'open') {
+          const drive = drives.find(d => d.id === id);
+          if (drive && new Date(drive.deadline_date) < new Date()) {
+              toast.error("Deadline is crossed. Please update the due date to reopen.", {
+                description: "You can update the deadline from the Edit Drive page.",
+                duration: 5000,
+                icon: <AlertCircle className="h-5 w-5 text-red-500" />
+              });
+              return;
+          }
+      }
+
       try {
-          const formData = new FormData();
-          formData.append('drive_data', JSON.stringify({ status: newStatus }));
-          await driveService.updateDrive(id, formData);
+          await driveService.patchDrive(id, { status: newStatus });
           toast.success(`Status updated to ${newStatus}`);
           fetchDrives();
       } catch (e) {
           toast.error("Failed to update status");
       }
   };
+
+  const totalPages = Math.ceil(totalDrives / pageSize);
 
 
   const toggleSelect = (id: number) => {
@@ -229,7 +249,7 @@ export default function DriveListPage() {
                                       <DropdownMenuContent align="start">
                                          <DropdownMenuLabel>Change Status</DropdownMenuLabel>
                                          <DropdownMenuSeparator />
-                                         {['closed', 'completed', 'cancelled', 'on_hold', 'draft'].map(s => (
+                                         {['open', 'closed', 'completed', 'cancelled', 'on_hold', 'draft'].map(s => (
                                             <DropdownMenuItem 
                                                 key={s} 
                                                 onClick={() => handleStatusChange(drive.id, s)}
@@ -317,7 +337,60 @@ export default function DriveListPage() {
                </div>
              ))
            )}
-        </div>
+         </div>
+
+         {/* Pagination UI */}
+         {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t mt-4 bg-white/80 backdrop-blur-sm sticky bottom-0 rounded-b-lg shadow-sm">
+               <div className="text-sm text-gray-500">
+                  Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to <span className="font-medium">{Math.min(currentPage * pageSize, totalDrives)}</span> of <span className="font-medium">{totalDrives}</span> drives
+               </div>
+               <div className="flex items-center gap-2">
+                  <Button
+                     variant="outline"
+                     size="sm"
+                     onClick={() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setCurrentPage(p => Math.max(1, p - 1));
+                     }}
+                     disabled={currentPage === 1}
+                     className="h-8 gap-1 pr-3"
+                  >
+                     <ChevronLeft className="h-4 w-4" /> Previous
+                  </Button>
+                  
+                  <div className="flex items-center gap-1 mx-2">
+                     {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <Button
+                           key={page}
+                           variant={currentPage === page ? "default" : "ghost"}
+                           size="sm"
+                           onClick={() => {
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                              setCurrentPage(page);
+                           }}
+                           className={`h-8 w-8 p-0 ${currentPage === page ? 'bg-[#002147] text-white hover:bg-[#003366]' : 'text-gray-600'}`}
+                        >
+                           {page}
+                        </Button>
+                     ))}
+                  </div>
+
+                  <Button
+                     variant="outline"
+                     size="sm"
+                     onClick={() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setCurrentPage(p => Math.min(totalPages, p + 1));
+                     }}
+                     disabled={currentPage === totalPages}
+                     className="h-8 gap-1 pl-3"
+                  >
+                     Next <ChevronRight className="h-4 w-4" />
+                  </Button>
+               </div>
+            </div>
+         )}
       </div>
     </div>
   );

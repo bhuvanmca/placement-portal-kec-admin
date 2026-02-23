@@ -290,6 +290,9 @@ CREATE TABLE drive_applications (
     -- Opt-Out Handling
     opt_out_reason TEXT,
     remarks TEXT,
+    
+    -- Soft Deletes for Student View
+    is_deleted_by_student BOOLEAN DEFAULT FALSE,
 
     -- Offer Details
     offer_letter_url TEXT,
@@ -554,7 +557,9 @@ CREATE TABLE student_change_requests (
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     handled_at TIMESTAMP WITH TIME ZONE,
-    handled_by BIGINT REFERENCES users(id)
+    handled_by BIGINT REFERENCES users(id),
+    -- Soft Deletes for Student View
+    is_deleted_by_student BOOLEAN DEFAULT FALSE
 );
 
 CREATE INDEX idx_requests_status ON student_change_requests(status);

@@ -18,11 +18,14 @@ import {
   ArrowLeft,
   Settings2,
   Filter,
+  ListFilter,
+  Activity,
   UserPlus,
   Loader2,
   Check,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -131,10 +134,20 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
   const [regNo, setRegNo] = useState('');
   const [isAddingStudent, setIsAddingStudent] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [selectedManualRoles, setSelectedManualRoles] = useState<number[]>([]);
   
   // Pagination State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Eligible Students State
+  const [eligibleStudents, setEligibleStudents] = useState<DriveApplicantDetailed[]>([]);
+  const [loadingEligible, setLoadingEligible] = useState(true);
+  const [eligiblePage, setEligiblePage] = useState(1);
+  const [eligiblePageSize, setEligiblePageSize] = useState(10);
+  const [eligibleSearchTerm, setEligibleSearchTerm] = useState('');
 
   // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
@@ -155,11 +168,13 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
     resume: true,
   });
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
-      const allDrives = await driveService.getAdminDrives(); 
-      const foundDrive = allDrives.find(d => d.id === parseInt(id));
+      if (!silent) setLoading(true);
+      else setIsRefreshing(true);
+      
+      const response = await driveService.getAdminDrives(1, 100); 
+      const foundDrive = response.drives.find((d: any) => d.id === parseInt(id as string));
       
       if (foundDrive) {
          setDrive(foundDrive);
@@ -169,6 +184,19 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
          } catch (e) {
             toast.error("Failed to fetch applicant details");
          }
+
+         // Fetch Eligible Students Preview
+         try {
+            setLoadingEligible(true);
+            const eligibleData = await driveService.eligibilityPreview(foundDrive as any);
+            setEligibleStudents(eligibleData);
+         } catch (e) {
+            console.error(e);
+         } finally {
+            setLoadingEligible(false);
+         }
+         
+         if (silent) toast.success("Data refreshed");
       } else {
          toast.error("Drive not found");
          router.push('/dashboard/drives');
@@ -176,7 +204,8 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
     } catch (error) {
       toast.error("Failed to load drive details");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      else setIsRefreshing(false);
     }
   };
 
@@ -217,18 +246,29 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
      }
   };
 
-  const handleManualRegister = async () => {
+  const handleManualRegister = async (forceRoles?: number[]) => {
     if (!regNo) {
       toast.error("Please enter a register number");
       return;
     }
+
+    // If roles not provided and drive has multiple roles, show role dialog
+    if (!forceRoles && drive && drive.roles && drive.roles.length > 1) {
+        setSelectedManualRoles(drive.roles.map(r => r.id)); // Default to all
+        setRoleDialogOpen(true);
+        return;
+    }
     
+    // If only one role, use it if none selected
+    const roleIds = forceRoles || (drive && drive.roles && drive.roles.length === 1 ? [drive.roles[0].id] : []);
+
     try {
       setIsAddingStudent(true);
-      await driveService.manualRegisterStudent(parseInt(id), regNo);
+      await driveService.manualRegisterStudent(parseInt(id), regNo, roleIds);
       toast.success("Student added successfully");
       setRegNo('');
       setAddDialogOpen(false);
+      setRoleDialogOpen(false);
       fetchData();
     } catch (error: any) {
       const msg = error.response?.data?.error || "Failed to add student";
@@ -298,10 +338,32 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
     return filteredApplicants.slice(startIndex, startIndex + pageSize);
   }, [filteredApplicants, page, pageSize]);
 
+  // Filtering for Eligible Students
+  const filteredEligibleStudents = useMemo(() => {
+    return (eligibleStudents || []).filter((s: DriveApplicantDetailed) => {
+      const search = eligibleSearchTerm.toLowerCase();
+      return (
+        s.full_name?.toLowerCase().includes(search) ||
+        s.email?.toLowerCase().includes(search) ||
+        s.register_number?.toLowerCase().includes(search)
+      );
+    });
+  }, [eligibleStudents, eligibleSearchTerm]);
+
+  // Pagination Logic for Eligible Students
+  const paginatedEligibleStudents = useMemo(() => {
+    const startIndex = (eligiblePage - 1) * eligiblePageSize;
+    return filteredEligibleStudents.slice(startIndex, startIndex + eligiblePageSize);
+  }, [filteredEligibleStudents, eligiblePage, eligiblePageSize]);
+
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
   }, [searchTerm, statusFilter, filterBatch, filterDept, filterRoles]);
+
+  useEffect(() => {
+    setEligiblePage(1);
+  }, [eligibleSearchTerm]);
 
   const toggleSelection = (id: number) => {
     setSelectedIds(prev => 
@@ -432,7 +494,7 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                             <DialogFooter>
                               <Button variant="ghost" onClick={() => setAddDialogOpen(false)} disabled={isAddingStudent}>Cancel</Button>
                               <Button 
-                                onClick={handleManualRegister} 
+                                onClick={() => handleManualRegister()} 
                                 disabled={isAddingStudent}
                                 className="bg-[#002147] hover:bg-[#003366]"
                               >
@@ -455,8 +517,73 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
              </div>
           </div>
 
+          {/* Role Selection Dialog */}
+          <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-[#002147]">Select Roles for {regNo}</DialogTitle>
+                <DialogDescription>
+                  This drive has multiple roles. Please select which roles the student should be opted into.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div className="flex items-center justify-between border-b pb-2 mb-2">
+                    <span className="text-sm font-semibold text-gray-700">Available Roles</span>
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 text-xs text-[#002147] hover:bg-gray-100"
+                        onClick={() => {
+                            if (selectedManualRoles.length === drive?.roles?.length) setSelectedManualRoles([]);
+                            else setSelectedManualRoles(drive?.roles?.map(r => r.id) || []);
+                        }}
+                    >
+                        {selectedManualRoles.length === drive?.roles?.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                </div>
+                <div className="grid gap-3">
+                  {drive?.roles?.map((role) => (
+                    <div key={role.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => {
+                        setSelectedManualRoles(prev => 
+                            prev.includes(role.id) ? prev.filter(r => r !== role.id) : [...prev, role.id]
+                        );
+                    }}>
+                      <div className="flex items-center space-x-3">
+                        <Checkbox 
+                            id={`role-${role.id}`} 
+                            checked={selectedManualRoles.includes(role.id)}
+                            onCheckedChange={() => {}} // Handled by div click
+                        />
+                        <label className="text-sm font-medium leading-none cursor-pointer">
+                          {role.role_name}
+                        </label>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] font-bold h-5">{role.ctc}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setRoleDialogOpen(false)} disabled={isAddingStudent}>Back</Button>
+                <Button 
+                  onClick={() => handleManualRegister(selectedManualRoles)} 
+                  disabled={isAddingStudent || selectedManualRoles.length === 0}
+                  className="bg-[#002147] hover:bg-[#003366]"
+                >
+                  {isAddingStudent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirm & Add"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Stats Bar */}
-          <div className="grid grid-cols-4 gap-4 mt-8 pl-10">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-8 pl-10">
+             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                <div className="text-xs text-purple-600/70 font-bold uppercase tracking-wider mb-1">Eligible Students</div>
+                <div className="text-3xl font-black text-purple-700 flex items-center gap-2">
+                   {loadingEligible ? <Loader2 className="h-6 w-6 animate-spin"/> : eligibleStudents.length}
+                </div>
+             </div>
              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                 <div className="text-xs text-blue-600/70 font-bold uppercase tracking-wider mb-1">Total Applicants</div>
                 <div className="text-3xl font-black text-blue-700">{applicants.length}</div>
@@ -485,23 +612,39 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
        {/* Main Content */}
        <div className="flex-1 p-8 overflow-hidden flex flex-col pt-4">
           <Tabs defaultValue="applicants" className="h-full flex flex-col" onValueChange={setActiveTab}>
-             <div className="flex items-center justify-between mb-4 bg-white p-2 rounded-lg border shadow-sm">
-                <TabsList className="bg-transparent border-0 p-0">
-                   <TabsTrigger value="applicants" className="data-[state=active]:bg-[#002147] data-[state=active]:text-white rounded-md transition-all px-6">Applicants</TabsTrigger>
-                   <TabsTrigger value="details" className="data-[state=active]:bg-[#002147] data-[state=active]:text-white rounded-md transition-all px-6">Drive Details</TabsTrigger>
-                   <TabsTrigger value="rounds" className="data-[state=active]:bg-[#002147] data-[state=active]:text-white rounded-md transition-all px-6">Schedule</TabsTrigger>
-                </TabsList>
+             <div className="flex items-center justify-between mb-4">
+                <div className="bg-white p-2 rounded-lg border shadow-sm w-fit">
+                   <TabsList className="bg-transparent border-0 p-0 flex flex-wrap gap-2">
+                      <TabsTrigger value="applicants" className="data-[state=active]:bg-[#002147] data-[state=active]:text-white rounded-md transition-all px-4 sm:px-6 hover:bg-gray-100 data-[state=active]:hover:bg-[#002147]">Applicants</TabsTrigger>
+                      <TabsTrigger value="eligible" className="data-[state=active]:bg-[#002147] data-[state=active]:text-white rounded-md transition-all px-4 sm:px-6 hover:bg-gray-100 data-[state=active]:hover:bg-[#002147]">Eligible Students</TabsTrigger>
+                      <TabsTrigger value="details" className="data-[state=active]:bg-[#002147] data-[state=active]:text-white rounded-md transition-all px-4 sm:px-6 hover:bg-gray-100 data-[state=active]:hover:bg-[#002147]">Drive Details</TabsTrigger>
+                      <TabsTrigger value="rounds" className="data-[state=active]:bg-[#002147] data-[state=active]:text-white rounded-md transition-all px-4 sm:px-6 hover:bg-gray-100 data-[state=active]:hover:bg-[#002147]">Schedule</TabsTrigger>
+                   </TabsList>
+                </div>
+                
+                <Button 
+                   variant="outline" 
+                   size="sm" 
+                   onClick={() => fetchData(true)} 
+                   disabled={isRefreshing}
+                   className="bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm"
+                >
+                   <RefreshCw className={cn("h-4 w-4 mr-2 text-[#002147]", isRefreshing && "animate-spin")} />
+                   <span className="font-medium">Refresh</span>
+                </Button>
+             </div>
 
-                {activeTab === 'applicants' && (
-                   <div className="flex items-center gap-3 pr-2">
+             <TabsContent value="applicants" className="flex-1 overflow-hidden border rounded-xl bg-white shadow-sm flex flex-col">
+                <div className="p-3 border-b flex flex-col xl:flex-row justify-between items-center gap-4 bg-white">
+                   <div className="flex flex-wrap items-center gap-3">
                        {/* Column Config */}
                        <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                             <Button variant="outline" size="sm" className="h-9 px-3 border-gray-200">
+                             <Button variant="outline" size="sm" className="h-9 px-3 border-gray-200 hover:bg-gray-100 transition-colors">
                                 <Settings2 className="h-4 w-4 mr-2" /> Columns
                              </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="start">
                              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
                              <DropdownMenuSeparator />
                              {Object.keys(visibleColumns).map(col => (
@@ -517,9 +660,10 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                              ))}
                           </DropdownMenuContent>
                        </DropdownMenu>
+                       
                        {/* Batch Filter */}
                        <Select value={filterBatch} onValueChange={(val) => { setFilterBatch(val); setPage(1); }}>
-                         <SelectTrigger className="w-[110px] h-9 border-gray-200">
+                         <SelectTrigger className="w-[110px] h-9 border-gray-200 hover:bg-gray-100 transition-colors">
                            <SelectValue placeholder="Batch" />
                          </SelectTrigger>
                          <SelectContent>
@@ -536,7 +680,7 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                             onValueChange={(val) => { setFilterDept(val); setPage(1); }}
                             disabled={user?.role === 'coordinator'}
                        >
-                         <SelectTrigger className="w-[140px] h-9 border-gray-200">
+                         <SelectTrigger className="w-[140px] h-9 border-gray-200 hover:bg-gray-100 transition-colors">
                            <SelectValue placeholder="Department" />
                          </SelectTrigger>
                          <SelectContent className="max-h-[300px]">
@@ -552,11 +696,11 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                        {/* Status Filter */}
                        <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                             <Button variant="outline" size="sm" className="h-9 px-3 border-gray-200">
-                                <Filter className="h-4 w-4 mr-2" /> {statusFilter === 'all' ? 'Status' : statusFilter.replace('_', ' ')}
+                             <Button variant="outline" size="sm" className="h-9 px-3 border-gray-200 hover:bg-gray-100 transition-colors">
+                                <Activity className="h-4 w-4 mr-2" /> {statusFilter === 'all' ? 'Status' : statusFilter.replace('_', ' ')}
                              </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuContent align="start" className="w-48">
                              <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
                              <DropdownMenuSeparator />
                              <DropdownMenuCheckboxItem checked={statusFilter === 'all'} onCheckedChange={() => setStatusFilter('all')}>All Statuses</DropdownMenuCheckboxItem>
@@ -574,11 +718,11 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                        {drive?.roles && drive.roles.length > 0 && (
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                               <Button variant="outline" size="sm" className={`h-9 px-3 border-gray-200 ${filterRoles.length > 0 ? 'border-[#002147] text-[#002147]' : ''}`}>
-                                  <Filter className="h-4 w-4 mr-2" /> Role {filterRoles.length > 0 ? `(${filterRoles.length})` : ''}
+                               <Button variant="outline" size="sm" className={`h-9 px-3 border-gray-200 hover:bg-gray-100 transition-colors ${filterRoles.length > 0 ? 'border-[#002147] text-[#002147]' : ''}`}>
+                                  <Briefcase className="h-4 w-4 mr-2" /> Role {filterRoles.length > 0 ? `(${filterRoles.length})` : ''}
                                </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuContent align="start" className="w-52">
                                <DropdownMenuLabel>Filter by Role</DropdownMenuLabel>
                                <DropdownMenuSeparator />
                                <DropdownMenuCheckboxItem
@@ -600,21 +744,18 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                             </DropdownMenuContent>
                          </DropdownMenu>
                        )}
-
-                       <div className="relative w-64 group">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-[#002147] transition-colors" />
-                          <Input 
-                            placeholder="Search name, reg no or phone..." 
-                            className="pl-9 h-9 border-gray-200 focus-visible:ring-[#002147]/20 transition-all"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                       </div>
                    </div>
-                )}
-             </div>
 
-             <TabsContent value="applicants" className="flex-1 overflow-hidden border rounded-xl bg-white shadow-sm flex flex-col">
+                   <div className="relative w-full sm:w-72 group flex-shrink-0">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-[#002147] transition-colors" />
+                      <Input 
+                        placeholder="Search name, reg no or phone..." 
+                        className="pl-9 h-9 border-gray-200 focus-visible:ring-[#002147]/20 transition-all w-full bg-gray-50/50 hover:bg-white"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                   </div>
+                </div>
                 <div className="flex-1 overflow-auto min-h-0">
                 <Table>
                    <TableHeader className="bg-[#f8fafc] sticky top-0 z-10 font-semibold border-b">
@@ -852,6 +993,138 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                      >
                          Next
                      </Button>
+                   </div>
+                </div>
+             </TabsContent>
+
+              <TabsContent value="eligible" className="flex-1 overflow-hidden border rounded-xl bg-white shadow-sm flex flex-col">
+                <div className="p-3 border-b flex justify-between items-center bg-white">
+                   <div className="flex items-center gap-2">
+                       <Users className="h-4 w-4 text-[#002147]" />
+                       <span className="text-sm font-bold text-[#002147] uppercase tracking-wider">Eligible Students ({filteredEligibleStudents.length})</span>
+                   </div>
+                   <div className="relative w-64 group">
+                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-[#002147] transition-colors" />
+                       <Input 
+                         placeholder="Search eligible students..." 
+                         className="pl-9 h-9 border-gray-200 focus-visible:ring-[#002147]/20 transition-all w-full bg-gray-50/50 hover:bg-white"
+                         value={eligibleSearchTerm}
+                         onChange={(e) => setEligibleSearchTerm(e.target.value)}
+                       />
+                   </div>
+                </div>
+                <div className="flex-1 overflow-auto min-h-0">
+                <Table className="min-w-max">
+                   <TableHeader className="bg-[#f8fafc] sticky top-0 z-10 font-semibold border-b">
+                     <TableRow className="hover:bg-transparent border-b">
+                       <TableHead className="px-6 py-4 w-[250px] sticky left-0 bg-[#f8fafc] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Profile</TableHead>
+                       <TableHead className="px-6 py-4">Register No</TableHead>
+                       <TableHead className="px-6 py-4">Dept</TableHead>
+                       <TableHead className="px-6 py-4">Batch</TableHead>
+                       <TableHead className="px-6 py-4 text-right">UG CGPA</TableHead>
+                       <TableHead className="px-6 py-4 text-right">PG CGPA</TableHead>
+                       <TableHead className="px-6 py-4 text-right">10th %</TableHead>
+                       <TableHead className="px-6 py-4 text-right">12th/Dip %</TableHead>
+                       <TableHead className="px-6 py-4 text-center">Backlogs</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                   <TableBody>
+                     {loadingEligible ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-24">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#002147] mb-4" />
+                            <p className="text-gray-500 font-medium">Gathering eligible students...</p>
+                          </TableCell>
+                        </TableRow>
+                     ) : filteredEligibleStudents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-24">
+                             <div className="flex flex-col items-center justify-center space-y-3 opacity-60">
+                                <Users className="h-12 w-12 text-gray-200" />
+                                <p className="font-medium text-lg text-gray-500">No students match the criteria</p>
+                             </div>
+                          </TableCell>
+                        </TableRow>
+                     ) : (
+                        paginatedEligibleStudents.map((student) => (
+                           <TableRow key={student.id} className="hover:bg-gray-50 border-b group transition-colors">
+                             <TableCell className="px-6 py-4 sticky left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-gray-50">
+                                <Link href={`/dashboard/students/${student.register_number}`} className="flex items-center gap-3">
+                                   <Avatar className="h-9 w-9 border">
+                                      <AvatarImage src={student.profile_photo_url || ""} />
+                                      <AvatarFallback className="bg-[#002147] text-white text-[10px] font-bold">
+                                        {student.full_name?.charAt(0) || '?'}
+                                      </AvatarFallback>
+                                   </Avatar>
+                                   <div className="flex flex-col">
+                                      <span className="text-sm font-semibold text-gray-900 group-hover:text-[#002147] transition-colors tracking-tight">{student.full_name}</span>
+                                      <span className="text-[10px] text-gray-400 tracking-wider truncate max-w-[150px]">{student.email}</span>
+                                   </div>
+                                </Link>
+                             </TableCell>
+                             <TableCell className="px-6 py-4 font-medium text-gray-700">{student.register_number}</TableCell>
+                             <TableCell className="px-6 py-4">
+                               <Badge variant="outline" className="text-xs font-bold py-0.5 px-2 text-gray-600 bg-gray-50 border-gray-200">
+                                 {student.department}
+                               </Badge>
+                             </TableCell>
+                             <TableCell className="px-6 py-4">{student.batch_year}</TableCell>
+                             <TableCell className="px-6 py-4 font-bold text-[#002147] text-right">{student.ug_cgpa > 0 ? student.ug_cgpa.toFixed(2) : '-'}</TableCell>
+                             <TableCell className="px-6 py-4 font-bold text-[#002147] text-right">{student.pg_cgpa > 0 ? student.pg_cgpa.toFixed(2) : '-'}</TableCell>
+                             <TableCell className="px-6 py-4 text-gray-600 text-right">{student.tenth_mark?.toFixed(2) || '-'}%</TableCell>
+                             <TableCell className="px-6 py-4 text-gray-600 text-right">{student.twelfth_mark > 0 ? `${student.twelfth_mark.toFixed(2)}%` : (student.diploma_mark > 0 ? `${student.diploma_mark.toFixed(2)}%` : '-')}</TableCell>
+                             <TableCell className="px-6 py-4 text-center">
+                               {student.current_backlogs > 0 ? (
+                                 <span className="text-red-600 font-bold">{student.current_backlogs}</span>
+                               ) : (
+                                 <span className="text-gray-400">0</span>
+                               )}
+                             </TableCell>
+                           </TableRow>
+                        ))
+                     )}
+                   </TableBody>
+                </Table>
+                </div>
+                
+                {/* Pagination Footer */}
+                <div className="flex items-center justify-between p-4 border-t bg-gray-50/50 mt-auto font-medium">
+                   <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-2">
+                       <span className="text-sm text-gray-600">Rows per page</span>
+                       <Select value={eligiblePageSize.toString()} onValueChange={(val) => { setEligiblePageSize(parseInt(val)); setEligiblePage(1); }}>
+                         <SelectTrigger className="w-[70px] h-8">
+                           <SelectValue placeholder="10" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="10">10</SelectItem>
+                           <SelectItem value="25">25</SelectItem>
+                           <SelectItem value="50">50</SelectItem>
+                           <SelectItem value="100">100</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </div>
+                   </div>
+                    <span className="text-sm text-gray-500">
+                      Showing {Math.min((eligiblePage - 1) * eligiblePageSize + 1, filteredEligibleStudents.length)} to {Math.min(eligiblePage * eligiblePageSize, filteredEligibleStudents.length)} of {filteredEligibleStudents.length} entries
+                    </span>
+                    <div className="flex gap-2">
+                      <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setEligiblePage(p => Math.max(1, p - 1))}
+                          disabled={eligiblePage === 1}
+                      >
+                          Previous
+                      </Button>
+                      <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setEligiblePage(p => p + 1)}
+                          disabled={eligiblePage * eligiblePageSize >= filteredEligibleStudents.length}
+                      >
+                          Next
+                      </Button>
                    </div>
                 </div>
              </TabsContent>

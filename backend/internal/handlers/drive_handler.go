@@ -183,57 +183,12 @@ func CreateDrive(c *fiber.Ctx) error {
 		}
 	}(drive)
 
-	// F. Send WhatsApp Broadcast (Async)
-	go func(d models.PlacementDrive) {
-		// 1. Fetch Numbers
-		numbers, err := repo.GetEligibleStudentPhoneNumbers(context.Background(), d)
-		if err != nil {
-			fmt.Printf("WhatsApp Error: Failed to fetch eligible numbers: %v\n", err)
-			return
-		}
-
-		if len(numbers) == 0 {
-			fmt.Println("WhatsApp: No eligible students with numbers found.")
-			return
-		}
-
-		// 2. Initialize Service
-		waService := services.NewWhatsAppService()
-
-		// 3. Send Template Message
-		// Cloud API requires templates for business-initiated messages.
-		// Template Name: new_placement_drive (assumption, user must create this in Meta Manager)
-		// Variables: {{1}}=Company, {{2}}=Role, {{3}}=Deadline
-
-		// If you haven't created a template yet, use "hello_world" (no params) for testing.
-		// For now, let's assume a generic template "new_drive_alert" exists.
-		// Or simpler: We just send "hello_world" to verify connectivity as requested.
-
-		// Better approach: Since we can't create templates dynamically via API,
-		// we will try to use the "hello_world" template which is standard for testing.
-		// Once the user verifies, they can create a real template.
-
-		templateName := "hello_world"
-		var components []interface{} // No params for hello_world
-
-		// If you have a custom template logic:
-		/*
-			templateName = "new_drive_alert"
-			components = []interface{}{
-				map[string]interface{}{
-					"type": "body",
-					"parameters": []map[string]string{
-						{"type": "text", "text": d.CompanyName},
-						{"type": "text", "text": d.JobRole},
-						{"type": "text", "text": d.DeadlineDate.Format("02 Jan")},
-					},
-				},
-			}
-		*/
-
-		count, _ := waService.SendBroadcast(numbers, templateName, components)
-		fmt.Printf("WhatsApp Cloud Broadcast: Sent to %d/%d students.\n", count, len(numbers))
-	}(drive)
+	// F. Send WhatsApp Broadcast (Async) - DISABLED (Unimplemented/Token errors)
+	/*
+		go func(d models.PlacementDrive) {
+			// ... existing code ...
+		}(drive)
+	*/
 
 	return c.Status(201).JSON(drive)
 }
@@ -326,8 +281,20 @@ func ListStudentDrives(c *fiber.Ctx) error {
 func ListAdminDrives(c *fiber.Ctx) error {
 	repo := repository.NewDriveRepository(database.DB)
 
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
 	// No filters for admin, they see everything
 	filters := make(map[string]interface{})
+	filters["limit"] = limit
+	filters["offset"] = offset
 
 	drives, err := repo.GetDrives(c.Context(), filters)
 	if err != nil {
@@ -335,10 +302,17 @@ func ListAdminDrives(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch drives"})
 	}
 
+	total, _ := repo.GetDrivesCount(c.Context(), filters)
+
 	// Convert attachment URLs to presigned URLs
 	drives = convertAttachmentsToPresigned(drives)
 
-	return c.JSON(drives)
+	return c.JSON(fiber.Map{
+		"drives": drives,
+		"total":  total,
+		"page":   page,
+		"limit":  limit,
+	})
 }
 
 // UpdateDrive - Handles PUT requests
@@ -548,22 +522,17 @@ func UpdateDrive(c *fiber.Ctx) error {
 	// Then, if the result is not empty, update drive.Attachments.
 	// OR if we are explicitly updating, we should overwrite.
 
-	combinedAttachments := input.Attachments
-	if combinedAttachments == nil {
-		combinedAttachments = []models.Attachment{}
-	}
-	combinedAttachments = append(combinedAttachments, newAttachments...)
-
-	// Only update if we have changes or if explicit overwrite intent?
 	// Attachment Update Logic
-	// If it's a multipart request (from Edit Page), we treat input.Attachments + newAttachments as the authoritative list.
-	// This allows deleting all attachments (empty list) or adding new ones.
-	// If not multipart (raw JSON), we only update if attachments are explicitly provided (not nil).
-	// Note: In Go, unmarshaled empty JSON array [] becomes []Attachment{} (not nil).
-
-	if isMultipart || input.Attachments != nil {
-		drive.Attachments = combinedAttachments
+	if isMultipart {
+		// In multipart, we expect the frontend to send the full list of *remaining* attachments
+		// plus any new file uploads.
+		drive.Attachments = append(input.Attachments, newAttachments...)
+	} else if input.Attachments != nil {
+		// In raw JSON, only update if the field is present
+		drive.Attachments = input.Attachments
 	}
+	// If it was a simple status update without multipart, we don't touch drive.Attachments
+	// which preserves the existing ones loaded from DB.
 
 	// Dates
 	// Dates
@@ -628,35 +597,224 @@ func UpdateDrive(c *fiber.Ctx) error {
 		// 3. Send
 		// 3. Send
 		// Logic: If status changed from !open to open, send "New Drive" notification (Republish)
-		// Otherwise send "Updated"
+		// If status changed from open to cancelled/on_hold, notify as well.
 		var title, body, notifType string
+		shouldNotify := false
 
-		isRepublish := oldStatus != "open" && d.Status == "open"
-
-		if isRepublish {
+		if oldStatus != "open" && d.Status == "open" {
+			shouldNotify = true
 			title = "New Placement Drive!" // Treated as new for students
 			body = fmt.Sprintf("%s is hiring. Apply now!", d.CompanyName)
 			notifType = "new_drive"
-		} else {
+		} else if oldStatus == "open" && (d.Status == "cancelled" || d.Status == "on_hold") {
+			shouldNotify = true
+			if d.Status == "cancelled" {
+				title = "Placement Drive Cancelled"
+				body = fmt.Sprintf("The placement drive for %s has been cancelled.", d.CompanyName)
+				notifType = "drive_cancelled"
+			} else {
+				title = "Placement Drive On Hold"
+				body = fmt.Sprintf("The placement drive for %s has been put on hold.", d.CompanyName)
+				notifType = "drive_on_hold"
+			}
+		} else if oldStatus != d.Status {
+			// Other status changes
 			title = "Placement Drive Updated"
 			body = fmt.Sprintf("Updates have been made to %s. Check for changes.", d.CompanyName)
 			notifType = "drive_update"
-		}
-
-		data := map[string]string{
-			"drive_id": strconv.FormatInt(d.ID, 10),
-			"type":     notifType,
-		}
-
-		successCount, err := ns.SendMulticastNotification(context.Background(), tokens, title, body, data)
-		if err != nil {
-			fmt.Printf("Notification Error: Send failed: %v\n", err)
+			shouldNotify = true
 		} else {
-			fmt.Printf("Notification Sent: Successfully sent to %d/%d devices.\n", successCount, len(tokens))
+			// Fallback for non-status updates
+			title = "Placement Drive Updated"
+			body = fmt.Sprintf("Updates have been made to %s. Check for changes.", d.CompanyName)
+			notifType = "drive_update"
+			shouldNotify = true
+		}
+
+		if shouldNotify {
+			data := map[string]string{
+				"drive_id": strconv.FormatInt(d.ID, 10),
+				"type":     notifType,
+			}
+
+			successCount, err := ns.SendMulticastNotification(context.Background(), tokens, title, body, data)
+			if err != nil {
+				fmt.Printf("Notification Error: Send failed: %v\n", err)
+			} else {
+				fmt.Printf("Notification Sent: Successfully sent to %d/%d devices.\n", successCount, len(tokens))
+			}
 		}
 	}(*drive)
 
 	return c.JSON(fiber.Map{"message": "Drive updated successfully", "drive": drive})
+}
+
+// PatchDrive - Handles PATCH requests for selective updates
+// @Summary Partially update a placement drive
+// @Description Selectively update drive details (Admin only). Preserves existing data for missing fields.
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Drive ID"
+// @Param input body models.PatchDriveInput true "Updated Fields"
+// @Success 200 {object} map[string]interface{}
+// @Router /v1/admin/drives/{id} [patch]
+func PatchDrive(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid drive ID"})
+	}
+
+	var input models.PatchDriveInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid JSON input"})
+	}
+
+	repo := repository.NewDriveRepository(database.DB)
+	drive, err := repo.GetDriveByID(c.Context(), id)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Drive not found"})
+	}
+
+	oldStatus := drive.Status
+
+	// Selectively Update
+	if input.CompanyName != nil {
+		drive.CompanyName = *input.CompanyName
+	}
+	if input.JobDescription != nil {
+		drive.JobDescription = *input.JobDescription
+	}
+	if input.Website != nil {
+		drive.Website = *input.Website
+	}
+	if input.LogoURL != nil {
+		drive.LogoURL = *input.LogoURL
+	}
+	if input.Location != nil {
+		drive.Location = *input.Location
+	}
+	if input.LocationType != nil {
+		drive.LocationType = *input.LocationType
+	}
+	if input.DriveType != nil {
+		drive.DriveType = *input.DriveType
+	}
+	if input.CompanyCategory != nil {
+		drive.CompanyCategory = *input.CompanyCategory
+	}
+	if input.SpocID != nil {
+		drive.SpocID = *input.SpocID
+	}
+	if input.Roles != nil {
+		drive.Roles = *input.Roles
+	}
+	if input.MinCgpa != nil {
+		drive.MinCgpa = *input.MinCgpa
+	}
+	if input.TenthPercentage != nil {
+		drive.TenthPercentage = input.TenthPercentage
+	}
+	if input.TwelfthPercentage != nil {
+		drive.TwelfthPercentage = input.TwelfthPercentage
+	}
+	if input.UGMinCGPA != nil {
+		drive.UGMinCGPA = input.UGMinCGPA
+	}
+	if input.PGMinCGPA != nil {
+		drive.PGMinCGPA = input.PGMinCGPA
+	}
+	if input.UseAggregate != nil {
+		drive.UseAggregate = *input.UseAggregate
+	}
+	if input.AggregatePercentage != nil {
+		drive.AggregatePercentage = input.AggregatePercentage
+	}
+	if input.MaxBacklogsAllowed != nil {
+		drive.MaxBacklogsAllowed = *input.MaxBacklogsAllowed
+	}
+	if input.EligibleBatches != nil {
+		drive.EligibleBatches = *input.EligibleBatches
+	}
+	if input.EligibleDepartments != nil {
+		drive.EligibleDepartments = *input.EligibleDepartments
+	}
+	if input.Rounds != nil {
+		drive.Rounds = *input.Rounds
+	}
+	if input.Status != nil {
+		drive.Status = *input.Status
+	}
+
+	if input.DeadlineDate != nil && *input.DeadlineDate != "" {
+		d, err := time.Parse(time.RFC3339, *input.DeadlineDate)
+		if err != nil {
+			d, err = time.Parse("2006-01-02T15:04", *input.DeadlineDate)
+		}
+		if err == nil {
+			drive.DeadlineDate = d
+		}
+	}
+
+	if input.DriveDate != nil && *input.DriveDate != "" {
+		t, err := time.Parse(time.RFC3339, *input.DriveDate)
+		if err != nil {
+			t, err = time.Parse("2006-01-02", *input.DriveDate)
+		}
+		if err == nil {
+			drive.DriveDate = t
+		}
+	}
+
+	if err := repo.UpdateDrive(c.Context(), id, drive); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to patch drive"})
+	}
+
+	// Notification Logic for status change
+	if input.Status != nil && oldStatus != *input.Status {
+		newStatus := *input.Status
+		shouldNotify := false
+		title, body, notifType := "", "", ""
+
+		if newStatus == "open" && oldStatus != "open" {
+			shouldNotify = true
+			title = "New Placement Drive!"
+			body = fmt.Sprintf("%s is hiring. Apply now!", drive.CompanyName)
+			notifType = "new_drive"
+		} else if oldStatus == "open" && (newStatus == "cancelled" || newStatus == "on_hold") {
+			shouldNotify = true
+			if newStatus == "cancelled" {
+				title = "Placement Drive Cancelled"
+				body = fmt.Sprintf("The placement drive for %s has been cancelled.", drive.CompanyName)
+				notifType = "drive_cancelled"
+			} else {
+				title = "Placement Drive On Hold"
+				body = fmt.Sprintf("The placement drive for %s has been put on hold.", drive.CompanyName)
+				notifType = "drive_on_hold"
+			}
+		}
+
+		if shouldNotify {
+			go func(d models.PlacementDrive, t, b, nt string) {
+				// Use the repository method to get tokens
+				tokens, err := repo.GetEligibleStudentTokens(context.Background(), d)
+				if err != nil || len(tokens) == 0 {
+					return
+				}
+				ns, _ := services.NewNotificationService("firebase-service-account.json")
+				if ns != nil {
+					data := map[string]string{
+						"drive_id": strconv.FormatInt(d.ID, 10),
+						"type":     nt,
+					}
+					ns.SendMulticastNotification(context.Background(), tokens, t, b, data)
+				}
+			}(*drive, title, body, notifType)
+		}
+	}
+
+	return c.JSON(fiber.Map{"message": "Drive patched successfully", "drive": drive})
 }
 
 // DeleteDrive - Handles DELETE requests
@@ -797,7 +955,7 @@ func AdminManualRegister(c *fiber.Ctx) error {
 	}
 
 	repo := repository.NewDriveRepository(database.DB)
-	if err := repo.AdminForceRegister(c.Context(), driveID, studentID); err != nil {
+	if err := repo.AdminForceRegister(c.Context(), driveID, studentID, input.RoleIDs); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Manual registration failed", "details": err.Error()})
 	}
 
@@ -914,9 +1072,41 @@ func GetDriveApplicantsDetailedHandler(c *fiber.Ctx) error {
 	repo := repository.NewDriveRepository(database.DB)
 	applicants, err := repo.GetDriveApplicantsDetailed(c.Context(), driveID, nil, deptFilter)
 	if err != nil {
-		fmt.Printf("GetDetailed Error: %v\n", err)
+		fmt.Printf("Get Detailed Applicants Error: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
 	}
 
+	for i := range applicants {
+		if applicants[i].ProfilePhotoURL != "" {
+			applicants[i].ProfilePhotoURL = utils.GenerateSignedProfileURL(applicants[i].ProfilePhotoURL)
+		}
+	}
+
 	return c.JSON(applicants)
+}
+
+// EligibilityPreview - POST /v1/admin/drives/eligibility-preview
+// @Summary Preview eligible students
+// @Description Real-time fetch of students matching the drive rules
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param input body models.PlacementDrive true "Drive Creation Payload Rules"
+// @Success 200 {array} models.DriveApplicantDetailed
+// @Router /v1/admin/drives/eligibility-preview [post]
+func EligibilityPreview(c *fiber.Ctx) error {
+	var input models.PlacementDrive
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request payload"})
+	}
+
+	repo := repository.NewDriveRepository(database.DB)
+	students, err := repo.GetEligibleStudentsPreview(c.Context(), input)
+	if err != nil {
+		fmt.Printf("Eligibility Preview Error: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to evaluate eligibility"})
+	}
+
+	return c.JSON(students)
 }

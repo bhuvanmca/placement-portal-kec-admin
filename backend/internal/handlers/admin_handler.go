@@ -318,7 +318,14 @@ func UpdateApplicationStatus(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
 	}
 
-	validStatuses := map[string]bool{"shortlisted": true, "placed": true, "rejected": true, "opted_in": true}
+	validStatuses := map[string]bool{
+		"shortlisted":       true,
+		"placed":            true,
+		"rejected":          true,
+		"opted_in":          true,
+		"opted_out":         true,
+		"request_to_attend": true,
+	}
 	if !validStatuses[input.Status] {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid status value"})
 	}
@@ -336,22 +343,42 @@ func UpdateApplicationStatus(c *fiber.Ctx) error {
 	}
 
 	// Send Notification
-	if input.Status == "opted_in" || input.Status == "rejected" {
-		go func() {
-			token, err := repo.GetStudentFCMToken(context.Background(), input.StudentID)
-			if err == nil && token != "" {
-				// Init Service (Assuming running from root)
-				ns, err := services.NewNotificationService("firebase-service-account.json")
-				if err == nil {
-					title := "Application Update"
-					body := ""
-					if input.Status == "opted_in" {
-						title = "Request Approved"
-						body = "Your request to attend the drive has been approved."
-					} else {
-						title = "Request Rejected"
-						body = "Your request to attend the drive has been rejected."
-					}
+	go func() {
+		token, err := repo.GetStudentFCMToken(context.Background(), input.StudentID)
+		if err == nil && token != "" {
+			var companyName string
+			_ = database.DB.QueryRow(context.Background(), "SELECT company_name FROM placement_drives WHERE id = $1", input.DriveID).Scan(&companyName)
+			if companyName == "" {
+				companyName = "the"
+			}
+
+			ns, err := services.NewNotificationService("firebase-service-account.json")
+			if err == nil {
+				title := "Application Update"
+				body := ""
+
+				switch input.Status {
+				case "opted_in":
+					title = "Status: Opted In"
+					body = fmt.Sprintf("You are manually opted in by admin for %s drive", companyName)
+				case "opted_out":
+					title = "Status: Opted Out"
+					body = fmt.Sprintf("You are manually opted out by admin for %s drive", companyName)
+				case "request_to_attend":
+					title = "Status: Pending Request"
+					body = "Your request is changed to pending state by admin"
+				case "shortlisted":
+					title = "Status: Shortlisted"
+					body = fmt.Sprintf("You have been shortlisted for the next round for %s drive", companyName)
+				case "placed":
+					title = "Status: Placed"
+					body = fmt.Sprintf("Congrats, you have been placed for %s drive", companyName)
+				case "rejected":
+					title = "Status: Rejected"
+					body = "Your application was rejected by admin"
+				}
+
+				if body != "" {
 					if input.Remarks != "" {
 						body += fmt.Sprintf("\nRemarks: %s", input.Remarks)
 					}
@@ -363,12 +390,12 @@ func UpdateApplicationStatus(c *fiber.Ctx) error {
 					if err != nil {
 						fmt.Printf("Failed to send notification: %v\n", err)
 					}
-				} else {
-					fmt.Printf("Failed to init notification service: %v\n", err)
 				}
+			} else {
+				fmt.Printf("Failed to init notification service: %v\n", err)
 			}
-		}()
-	}
+		}
+	}()
 
 	return c.JSON(fiber.Map{"message": "Student status updated"})
 }
@@ -487,6 +514,12 @@ func GetDriveApplicants(c *fiber.Ctx) error {
 	applicants, err := repo.GetDriveApplicants(c.Context(), driveID)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
+	}
+
+	for i := range applicants {
+		if applicants[i].ProfilePhotoURL != "" {
+			applicants[i].ProfilePhotoURL = utils.GenerateSignedProfileURL(applicants[i].ProfilePhotoURL)
+		}
 	}
 
 	return c.JSON(applicants)

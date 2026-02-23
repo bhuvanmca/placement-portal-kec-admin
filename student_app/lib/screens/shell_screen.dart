@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:go_router/go_router.dart';
-import '../utils/constants.dart';
 
 /// Shell screen with Google Pay-style bottom navigation bar
 class ShellScreen extends StatelessWidget {
@@ -14,7 +14,7 @@ class ShellScreen extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(color: Colors.white),
+        decoration: BoxDecoration(color: Theme.of(context).cardColor),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -23,7 +23,9 @@ class ShellScreen extends StatelessWidget {
               elevation: 0,
               backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
-              indicatorColor: AppConstants.primaryColor.withValues(alpha: 0.12),
+              indicatorColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.12),
               indicatorShape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -32,10 +34,10 @@ class ShellScreen extends StatelessWidget {
                 states,
               ) {
                 if (states.contains(WidgetState.selected)) {
-                  return const TextStyle(
+                  return TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: AppConstants.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   );
                 }
                 return TextStyle(
@@ -46,6 +48,7 @@ class ShellScreen extends StatelessWidget {
               }),
               selectedIndex: navigationShell.currentIndex,
               onDestinationSelected: (index) {
+                HapticFeedback.lightImpact();
                 navigationShell.goBranch(
                   index,
                   initialLocation: index == navigationShell.currentIndex,
@@ -54,25 +57,25 @@ class ShellScreen extends StatelessWidget {
               destinations: [
                 NavigationDestination(
                   icon: const Icon(Icons.work_outline_rounded),
-                  selectedIcon: const Icon(
+                  selectedIcon: Icon(
                     Icons.work_rounded,
-                    color: AppConstants.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   label: 'Drives',
                 ),
                 NavigationDestination(
                   icon: const Icon(Icons.emoji_events_outlined),
-                  selectedIcon: const Icon(
+                  selectedIcon: Icon(
                     Icons.emoji_events_rounded,
-                    color: AppConstants.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   label: 'Placed',
                 ),
                 NavigationDestination(
                   icon: const Icon(Icons.person_outline_rounded),
-                  selectedIcon: const Icon(
+                  selectedIcon: Icon(
                     Icons.person_rounded,
-                    color: AppConstants.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   label: 'Profile',
                 ),

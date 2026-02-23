@@ -148,7 +148,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         leading: IconButton(
@@ -165,7 +165,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
             children: [
               LinearProgressIndicator(
                 value: 0.9,
-                backgroundColor: AppConstants.borderColor,
+                backgroundColor: Theme.of(context).dividerColor,
                 color: AppConstants.successColor,
                 minHeight: 4,
                 borderRadius: BorderRadius.circular(2),
@@ -175,7 +175,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                 'Almost Done!',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppConstants.textPrimary,
+                  color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -183,7 +183,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
               Text(
                 'Add a profile picture to personalize your account.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppConstants.textSecondary,
+                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -194,10 +194,10 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                     width: 150,
                     height: 150,
                     decoration: BoxDecoration(
-                      color: AppConstants.borderColor,
+                      color: Theme.of(context).dividerColor,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppConstants.primaryColor.withValues(alpha: 0.3),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                         width: 3,
                       ),
                       image: imageProvider != null
@@ -208,10 +208,10 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                           : null,
                     ),
                     child: !hasImage
-                        ? const Icon(
+                        ? Icon(
                             Icons.person_rounded,
                             size: 80,
-                            color: AppConstants.textSecondary,
+                            color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                           )
                         : null,
                   ),
@@ -221,14 +221,14 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                     child: Container(
                       width: 48,
                       height: 48,
-                      decoration: const BoxDecoration(
-                        color: AppConstants.primaryColor,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.camera_alt_rounded,
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                         ),
                         onPressed: () => _pickImage(ImageSource.camera),
                       ),
@@ -252,7 +252,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                 onPressed: _isLoading ? null : _next,
                 child: Text(
                   'Skip for now',
-                  style: TextStyle(color: AppConstants.textSecondary),
+                  style: TextStyle(color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey)),
                 ),
               ),
               const SizedBox(height: 16),

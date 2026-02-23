@@ -19,10 +19,12 @@ interface DateTimePickerProps {
     setDate: (date: Date | undefined) => void
     className?: string
     placeholder?: string
+    disablePastDates?: boolean
 }
 
-export function DateTimePicker({ date, setDate, className, placeholder = "Pick a date & time" }: DateTimePickerProps) {
+export function DateTimePicker({ date, setDate, className, placeholder = "Pick a date & time", disablePastDates }: DateTimePickerProps) {
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(date)
+  const disabledDays = disablePastDates ? { before: new Date() } : undefined
 
   React.useEffect(() => {
      setSelectedDate(date)
@@ -78,6 +80,7 @@ export function DateTimePicker({ date, setDate, className, placeholder = "Pick a
           selected={selectedDate}
           onSelect={handleDateSelect}
           initialFocus
+          disabled={disabledDays}
         />
         <div className="p-3 border-t border-gray-100 flex items-center gap-2 bg-gray-50/50">
              <Clock className="h-4 w-4 text-gray-500"/>

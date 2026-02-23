@@ -68,12 +68,12 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-        borderSide: const BorderSide(color: AppConstants.borderColor),
+        borderSide: BorderSide(color: Theme.of(context).dividerColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-        borderSide: const BorderSide(
-          color: AppConstants.primaryColor,
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.primary,
           width: 2,
         ),
       ),
@@ -83,7 +83,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         leading: IconButton(
@@ -102,8 +102,8 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
               children: [
                 LinearProgressIndicator(
                   value: 0.75,
-                  backgroundColor: AppConstants.borderColor,
-                  color: AppConstants.primaryColor,
+                  backgroundColor: Theme.of(context).dividerColor,
+                  color: Theme.of(context).colorScheme.primary,
                   minHeight: 4,
                   borderRadius: BorderRadius.circular(2),
                 ),
@@ -112,14 +112,14 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                   'About You',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppConstants.textPrimary,
+                    color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Please provide your address and personal details.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppConstants.textSecondary,
+                    color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -193,16 +193,16 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                       borderRadius: BorderRadius.circular(
                         AppConstants.borderRadius,
                       ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.borderColor,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
                         AppConstants.borderRadius,
                       ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.primaryColor,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
                         width: 2,
                       ),
                     ),
@@ -235,16 +235,16 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                       borderRadius: BorderRadius.circular(
                         AppConstants.borderRadius,
                       ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.borderColor,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
                         AppConstants.borderRadius,
                       ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.primaryColor,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
                         width: 2,
                       ),
                     ),

@@ -1,0 +1,77 @@
+Analyzing student_app...                                        
+
+warning • Unused import: '../utils/constants.dart' • lib/screens/change_password_screen.dart:3:8 • unused_import
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:392:23 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:563:27 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:583:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:620:21 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:627:40 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:848:31 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:946:29 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/drive_detail_screen.dart:987:20 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/edit_profile_screen.dart:580:24 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/edit_profile_screen.dart:681:23 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/edit_profile_screen.dart:909:29 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/edit_profile_screen.dart:982:53 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/forgot_password_screen.dart:126:28 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/forgot_password_screen.dart:167:34 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/forgot_password_screen.dart:175:34 • const_eval_method_invocation
+warning • Unused import: '../utils/constants.dart' • lib/screens/loading_screen.dart:2:8 • unused_import
+  error • Methods can't be invoked in constant expressions • lib/screens/loading_screen.dart:35:19 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/login_screen.dart:127:36 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/login_screen.dart:135:36 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/login_screen.dart:183:36 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/login_screen.dart:191:36 • const_eval_method_invocation
+warning • Unused import: '../utils/constants.dart' • lib/screens/notifications_screen.dart:4:8 • unused_import
+  error • Methods can't be invoked in constant expressions • lib/screens/notifications_screen.dart:138:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/academic_details_screen.dart:82:45 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/academic_details_screen.dart:87:18 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/address_screen.dart:71:45 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/address_screen.dart:76:18 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/address_screen.dart:197:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/address_screen.dart:205:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/address_screen.dart:239:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/address_screen.dart:247:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/contact_details_screen.dart:123:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/contact_details_screen.dart:131:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/documents_screen.dart:198:31 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/documents_screen.dart:271:37 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/documents_screen.dart:331:37 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/profile_pic_screen.dart:214:37 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/profile_pic_screen.dart:225:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/onboarding/welcome_screen.dart:30:26 • const_eval_method_invocation
+warning • Unused import: '../utils/constants.dart' • lib/screens/requests_screen.dart:5:8 • unused_import
+  error • Methods can't be invoked in constant expressions • lib/screens/requests_screen.dart:306:49 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/requests_screen.dart:556:49 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/reset_password_screen.dart:94:28 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/reset_password_screen.dart:136:34 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/reset_password_screen.dart:144:34 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/reset_password_screen.dart:189:34 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/reset_password_screen.dart:197:34 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/reset_password_screen.dart:244:34 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/reset_password_screen.dart:252:34 • const_eval_method_invocation
+warning • Unused import: '../utils/constants.dart' • lib/screens/shell_screen.dart:4:8 • unused_import
+  error • Methods can't be invoked in constant expressions • lib/screens/shell_screen.dart:38:28 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/shell_screen.dart:59:28 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/shell_screen.dart:67:28 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/shell_screen.dart:75:28 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/drives_screen.dart:261:44 • const_eval_method_invocation
+warning • Unused import: '../../utils/constants.dart' • lib/screens/tabs/placed_screen.dart:6:8 • unused_import
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/placed_screen.dart:47:22 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:302:26 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:351:38 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:579:34 • const_eval_method_invocation
+  error • The method 'HapticRefreshIndicator' isn't defined for the type '_ProfileScreenState' • lib/screens/tabs/profile_screen.dart:695:12 • undefined_method
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:745:24 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:762:34 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:792:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:834:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:867:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:896:32 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:1012:20 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:1046:22 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/screens/tabs/profile_screen.dart:1099:20 • const_eval_method_invocation
+warning • Unused import: '../utils/constants.dart' • lib/widgets/app_button.dart:2:8 • unused_import
+  error • Methods can't be invoked in constant expressions • lib/widgets/app_button.dart:32:22 • const_eval_method_invocation
+  error • Methods can't be invoked in constant expressions • lib/widgets/app_button.dart:64:17 • const_eval_method_invocation
+

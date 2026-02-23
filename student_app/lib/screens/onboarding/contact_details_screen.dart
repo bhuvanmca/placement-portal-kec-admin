@@ -57,7 +57,7 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         leading: IconButton(
@@ -77,8 +77,8 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                 // Progress Indicator
                 LinearProgressIndicator(
                   value: 0.25,
-                  backgroundColor: AppConstants.borderColor,
-                  color: AppConstants.primaryColor,
+                  backgroundColor: Theme.of(context).dividerColor,
+                  color: Theme.of(context).colorScheme.primary,
                   minHeight: 4,
                   borderRadius: BorderRadius.circular(2),
                 ),
@@ -87,14 +87,14 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                   'What\'s your mobile number?',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppConstants.textPrimary,
+                    color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'We\'ll use this to contact you about placement updates.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppConstants.textSecondary,
+                    color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -119,16 +119,16 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                       borderRadius: BorderRadius.circular(
                         AppConstants.borderRadius,
                       ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.borderColor,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
                         AppConstants.borderRadius,
                       ),
-                      borderSide: const BorderSide(
-                        color: AppConstants.primaryColor,
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
                         width: 2,
                       ),
                     ),
@@ -148,7 +148,7 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                   'Social Profiles (Optional)',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppConstants.textPrimary,
+                    color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
                   ),
                 ),
                 const SizedBox(height: 16),

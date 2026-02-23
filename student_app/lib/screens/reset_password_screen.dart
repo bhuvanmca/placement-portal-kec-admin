@@ -70,12 +70,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Reset Password'),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        foregroundColor: AppConstants.textPrimary,
+        foregroundColor: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -88,16 +88,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.verified_user,
                     size: 80,
-                    color: AppConstants.primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Enter OTP & New Password',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppConstants.primaryColor,
+                      color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -106,7 +106,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   Text(
                     'Check your email (${widget.email}) for the OTP',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppConstants.textSecondary,
+                      color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -132,16 +132,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.borderColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.primaryColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
                           width: 2,
                         ),
                       ),
@@ -185,16 +185,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.borderColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.primaryColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
                           width: 2,
                         ),
                       ),
@@ -240,16 +240,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.borderColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
                         ),
-                        borderSide: const BorderSide(
-                          color: AppConstants.primaryColor,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
                           width: 2,
                         ),
                       ),

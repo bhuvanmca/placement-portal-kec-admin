@@ -9,7 +9,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppConstants.spacingLarge),
@@ -21,20 +21,20 @@ class WelcomeScreen extends StatelessWidget {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(60),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.school_rounded,
                   size: 64,
-                  color: AppConstants.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 32),
               Text(
                 'Welcome to KEC',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppConstants.primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
@@ -43,7 +43,7 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 'Placement Portal',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppConstants.textSecondary,
+                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
@@ -52,7 +52,7 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 "Let's complete your profile to get started with placement opportunities.",
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppConstants.textSecondary,
+                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
                 ),
                 textAlign: TextAlign.center,
               ),
