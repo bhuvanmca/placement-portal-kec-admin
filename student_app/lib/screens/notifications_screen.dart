@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/notification_storage_service.dart';
+import '../widgets/slidable_item.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -115,14 +116,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final notification = _notifications[index];
-                return Dismissible(
-                  key: Key(
-                    notification['id']?.toString() ??
-                        notification['sentTime']?.toString() ??
-                        index.toString(),
-                  ),
-                  direction: DismissDirection.endToStart,
-                  onDismissed: (direction) async {
+                return SlidableItem(
+                  onDelete: () async {
                     setState(() {
                       _notifications.removeAt(index);
                     });
@@ -139,20 +134,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       );
                     }
                   },
-                  background: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    alignment: Alignment.centerRight,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
+                  deleteLabel: 'Clear',
                   child: Container(
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,

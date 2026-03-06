@@ -25,6 +25,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
         INSERT INTO placement_drives (
             posted_by, company_name, job_description,
             drive_type, company_category, spoc_id,
+            offer_type, allow_placed_candidates,
             min_cgpa, max_backlogs_allowed, 
             
             tenth_percentage, twelfth_percentage, ug_min_cgpa, pg_min_cgpa,
@@ -41,10 +42,10 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
             
             $9, $10, $11, $12,
             $13, $14,
-
             $15, $16,
             $17, $18,
-            $19, $20, $21, $22,
+            $19, $20,
+            $21, $22, $23, $24,
             'open', NOW()
         ) RETURNING id
     `
@@ -57,6 +58,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 	err := r.DB.QueryRow(ctx, query,
 		drive.PostedBy, drive.CompanyName, drive.JobDescription,
 		drive.DriveType, drive.CompanyCategory, drive.SpocID,
+		drive.OfferType, drive.AllowPlacedCandidates,
 		drive.MinCgpa, drive.MaxBacklogsAllowed,
 
 		drive.TenthPercentage, drive.TwelfthPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
@@ -110,15 +112,27 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 	return nil
 }
 
+// --- Automated State Management ---
+func (r *DriveRepository) TriggerAutoStatusUpdates(ctx context.Context) {
+	// 1. Close drives that have passed deadline
+	r.DB.Exec(ctx, "UPDATE placement_drives SET status = 'closed' WHERE status = 'open' AND deadline_date < NOW()")
+
+	// 2. Complete drives safely after drive date (give a 1-day buffer)
+	r.DB.Exec(ctx, "UPDATE placement_drives SET status = 'completed' WHERE status NOT IN ('completed', 'cancelled', 'draft') AND drive_date + INTERVAL '1 day' < NOW()")
+}
+
 // 2. List Drives (With Dynamic Filters!)
 // This supports queries like: /api/drives?min_salary=500000&category=IT
 func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]interface{}) ([]models.PlacementDrive, error) {
+	r.TriggerAutoStatusUpdates(ctx)
+
 	// Start with the base query
 	// Improved Query: Includes Applicant Count Subquery & Roles
 	query := `
         SELECT 
             pd.id, pd.posted_by, pd.company_name, pd.job_description,
             pd.drive_type, pd.company_category, pd.spoc_id,
+            pd.offer_type, pd.allow_placed_candidates,
             pd.min_cgpa, pd.max_backlogs_allowed, 
             pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
             pd.use_aggregate, pd.aggregate_percentage,
@@ -169,8 +183,24 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
 		argCounter++
 	}
 
-	// Always sort by deadline (Urgency)
-	query += ` ORDER BY pd.deadline_date ASC`
+	// Filter by Search Term
+	if val, ok := filters["search"]; ok && val != "" {
+		searchTerm := fmt.Sprintf("%%%v%%", val)
+		query += fmt.Sprintf(" AND (pd.company_name ILIKE $%d OR pd.job_description ILIKE $%d OR EXISTS (SELECT 1 FROM job_roles jr WHERE jr.drive_id = pd.id AND jr.role_name ILIKE $%d))", argCounter, argCounter, argCounter)
+		args = append(args, searchTerm)
+		argCounter++
+	}
+
+	// Filter by Search Term
+	if val, ok := filters["search"]; ok && val != "" {
+		searchTerm := fmt.Sprintf("%%%v%%", val)
+		query += fmt.Sprintf(" AND (pd.company_name ILIKE $%d OR pd.job_description ILIKE $%d OR EXISTS (SELECT 1 FROM job_roles jr WHERE jr.drive_id = pd.id AND jr.role_name ILIKE $%d))", argCounter, argCounter, argCounter)
+		args = append(args, searchTerm)
+		argCounter++
+	}
+
+	// Always sort by created_at DESC (Most recent first)
+	query += ` ORDER BY pd.created_at DESC`
 
 	// Pagination
 	if val, ok := filters["limit"].(int); ok && val > 0 {
@@ -198,6 +228,7 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
 		err := rows.Scan(
 			&d.ID, &d.PostedBy, &d.CompanyName, &d.JobDescription,
 			&d.DriveType, &d.CompanyCategory, &d.SpocID,
+			&d.OfferType, &d.AllowPlacedCandidates,
 			&d.MinCgpa, &d.MaxBacklogsAllowed,
 			&d.TenthPercentage, &d.TwelfthPercentage, &d.UGMinCGPA, &d.PGMinCGPA,
 			&d.UseAggregate, &d.AggregatePercentage,
@@ -218,7 +249,7 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
 
 // 2.5 Get Drives for Student (Filtered by Batch + Department only)
 // Eligibility is computed per-drive and returned as `is_eligible`
-func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64) ([]models.PlacementDrive, error) {
+func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64, filters map[string]interface{}) ([]models.PlacementDrive, error) {
 	// A. First, fetch the student's academic and personal profile
 	queryStudent := `
         SELECT 
@@ -252,6 +283,7 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
         SELECT 
             pd.id, pd.posted_by, pd.company_name, pd.job_description,
             pd.drive_type, pd.company_category, pd.spoc_id,
+            pd.offer_type, pd.allow_placed_candidates,
             pd.min_cgpa, pd.max_backlogs_allowed, 
             pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
             pd.use_aggregate, pd.aggregate_percentage,
@@ -280,21 +312,47 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
         WHERE pd.status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold')
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id AND department_code = $7::text))
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id AND batch_year = $8::int))
-        ORDER BY pd.deadline_date ASC
+		AND (pd.allow_placed_candidates = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da2 WHERE da2.student_id = $1 AND da2.status = 'placed'))
     `
 
-	// Parameters:
-	// $1 = studentID (for JOIN)
-	// $2 = ugCgpa (for min_cgpa + ug_min_cgpa check)
-	// $3 = backlogs
-	// $4 = tenthMark
-	// $5 = twelfthMark
-	// $6 = pgCgpa
-	// $7 = dept
-	// $8 = batch
-	// $9 = deptType
+	args := []interface{}{studentID, ugCgpa, backlogs, tenthMark, twelfthMark, pgCgpa, dept, batch, deptType}
+	argCounter := 10
 
-	rows, err := r.DB.Query(ctx, queryDrives, studentID, ugCgpa, backlogs, tenthMark, twelfthMark, pgCgpa, dept, batch, deptType)
+	// Filters
+	if val, ok := filters["search"]; ok && val != "" {
+		searchTerm := fmt.Sprintf("%%%v%%", val)
+		queryDrives += fmt.Sprintf(" AND (pd.company_name ILIKE $%d OR pd.job_description ILIKE $%d OR EXISTS (SELECT 1 FROM job_roles jr WHERE jr.drive_id = pd.id AND jr.role_name ILIKE $%d))", argCounter, argCounter, argCounter)
+		args = append(args, searchTerm)
+		argCounter++
+	}
+
+	if val, ok := filters["category"]; ok && val != "" {
+		queryDrives += fmt.Sprintf(" AND pd.company_category = $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	if val, ok := filters["type"]; ok && val != "" {
+		queryDrives += fmt.Sprintf(" AND pd.drive_type = $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	queryDrives += ` ORDER BY pd.created_at DESC`
+
+	// Pagination
+	if val, ok := filters["limit"].(int); ok && val > 0 {
+		queryDrives += fmt.Sprintf(" LIMIT $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+	if val, ok := filters["offset"].(int); ok && val >= 0 {
+		queryDrives += fmt.Sprintf(" OFFSET $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	rows, err := r.DB.Query(ctx, queryDrives, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +364,7 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 		err := rows.Scan(
 			&d.ID, &d.PostedBy, &d.CompanyName, &d.JobDescription,
 			&d.DriveType, &d.CompanyCategory, &d.SpocID,
+			&d.OfferType, &d.AllowPlacedCandidates,
 			&d.MinCgpa, &d.MaxBacklogsAllowed,
 			&d.TenthPercentage, &d.TwelfthPercentage, &d.UGMinCGPA, &d.PGMinCGPA,
 			&d.UseAggregate, &d.AggregatePercentage,
@@ -328,28 +387,82 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 	return drives, nil
 }
 
+func (r *DriveRepository) GetEligibleDrivesCount(ctx context.Context, studentID int64, filters map[string]interface{}) (int, error) {
+	// Need student profile for filtering by Dept + Batch
+	queryStudent := `SELECT department, batch_year FROM student_personal WHERE user_id = $1`
+	var dept string
+	var batch int
+	err := r.DB.QueryRow(ctx, queryStudent, studentID).Scan(&dept, &batch)
+	if err != nil {
+		return 0, err
+	}
+
+	query := `
+        SELECT COUNT(*)
+        FROM placement_drives pd
+        WHERE pd.status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold')
+        AND (NOT EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id AND department_code = $1))
+        AND (NOT EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id AND batch_year = $2))
+		AND (pd.allow_placed_candidates = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da2 WHERE da2.student_id = $3 AND da2.status = 'placed'))
+    `
+	args := []interface{}{dept, batch, studentID}
+	argCounter := 4
+
+	// Filters
+	if val, ok := filters["search"]; ok && val != "" {
+		searchTerm := fmt.Sprintf("%%%v%%", val)
+		query += fmt.Sprintf(" AND (pd.company_name ILIKE $%d OR pd.job_description ILIKE $%d OR EXISTS (SELECT 1 FROM job_roles jr WHERE jr.drive_id = pd.id AND jr.role_name ILIKE $%d))", argCounter, argCounter, argCounter)
+		args = append(args, searchTerm)
+		argCounter++
+	}
+
+	if val, ok := filters["category"]; ok && val != "" {
+		query += fmt.Sprintf(" AND pd.company_category = $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	if val, ok := filters["type"]; ok && val != "" {
+		query += fmt.Sprintf(" AND pd.drive_type = $%d", argCounter)
+		args = append(args, val)
+		argCounter++
+	}
+
+	var count int
+	err = r.DB.QueryRow(ctx, query, args...).Scan(&count)
+	return count, err
+}
+
 // 3. Update Drive (Admin: Extend Deadline, Change CTC, etc.)
 func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *models.PlacementDrive) error {
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	query := `
         UPDATE placement_drives 
         SET company_name=$1, job_description=$2,
             drive_type=$3, company_category=$4, spoc_id=$5,
-            min_cgpa=$6, max_backlogs_allowed=$7, 
+            offer_type=$6, allow_placed_candidates=$7,
+            min_cgpa=$8, max_backlogs_allowed=$9, 
             
-            tenth_percentage=$8, twelfth_percentage=$9, ug_min_cgpa=$10, pg_min_cgpa=$11,
-            use_aggregate=$12, aggregate_percentage=$13,
+            tenth_percentage=$10, twelfth_percentage=$11, ug_min_cgpa=$12, pg_min_cgpa=$13,
+            use_aggregate=$14, aggregate_percentage=$15,
 
-            rounds=$14, attachments=$15,
-            drive_date=$16, deadline_date=$17,
-            website=$18, logo_url=$19, location=$20, location_type=$21,
-            status=$22
-        WHERE id = $23
+            rounds=$16, attachments=$17,
+            drive_date=$18, deadline_date=$19,
+            website=$20, logo_url=$21, location=$22, location_type=$23,
+            status=$24
+        WHERE id = $25
     `
 	// Note: We don't update 'posted_by' or 'created_at'
 	// ...
-	_, err := r.DB.Exec(ctx, query,
+	_, err = tx.Exec(ctx, query,
 		drive.CompanyName, drive.JobDescription,
 		drive.DriveType, drive.CompanyCategory, drive.SpocID,
+		drive.OfferType, drive.AllowPlacedCandidates,
 		drive.MinCgpa, drive.MaxBacklogsAllowed,
 
 		drive.TenthPercentage, drive.TwelfthPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
@@ -366,14 +479,14 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 	}
 
 	// Update Eligible Batches
-	_, err = r.DB.Exec(ctx, "DELETE FROM drive_eligible_batches WHERE drive_id=$1", id)
+	_, err = tx.Exec(ctx, "DELETE FROM drive_eligible_batches WHERE drive_id=$1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete old eligible batches: %v", err)
 	}
 	if len(drive.EligibleBatches) > 0 {
 		batchQuery := `INSERT INTO drive_eligible_batches (drive_id, batch_year) VALUES ($1, $2)`
 		for _, batch := range drive.EligibleBatches {
-			_, err := r.DB.Exec(ctx, batchQuery, id, batch)
+			_, err := tx.Exec(ctx, batchQuery, id, batch)
 			if err != nil {
 				return fmt.Errorf("failed to insert eligible batch %d: %v", batch, err)
 			}
@@ -381,14 +494,14 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 	}
 
 	// Update Eligible Departments
-	_, err = r.DB.Exec(ctx, "DELETE FROM drive_eligible_departments WHERE drive_id=$1", id)
+	_, err = tx.Exec(ctx, "DELETE FROM drive_eligible_departments WHERE drive_id=$1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete old eligible departments: %v", err)
 	}
 	if len(drive.EligibleDepartments) > 0 {
 		deptQuery := `INSERT INTO drive_eligible_departments (drive_id, department_code) VALUES ($1, $2)`
 		for _, dept := range drive.EligibleDepartments {
-			_, err := r.DB.Exec(ctx, deptQuery, id, dept)
+			_, err := tx.Exec(ctx, deptQuery, id, dept)
 			if err != nil {
 				return fmt.Errorf("failed to insert eligible department %s: %v", dept, err)
 			}
@@ -402,7 +515,7 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 		ID   int64
 		Name string
 	}
-	rows, _ := r.DB.Query(ctx, "SELECT id, role_name FROM job_roles WHERE drive_id=$1", id)
+	rows, _ := tx.Query(ctx, "SELECT id, role_name FROM job_roles WHERE drive_id=$1", id)
 	for rows.Next() {
 		var er struct {
 			ID   int64
@@ -422,7 +535,7 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 			if er.Name == role.RoleName {
 				exists = true
 				// Update existing
-				_, err = r.DB.Exec(ctx, "UPDATE job_roles SET ctc=$1, salary=$2, stipend=$3 WHERE id=$4",
+				_, err = tx.Exec(ctx, "UPDATE job_roles SET ctc=$1, salary=$2, stipend=$3 WHERE id=$4",
 					role.Ctc, role.Salary, role.Stipend, er.ID)
 				if err != nil {
 					return fmt.Errorf("failed to update role %s: %v", role.RoleName, err)
@@ -434,7 +547,7 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 		if !exists {
 			// Insert new
 			roleQuery := `INSERT INTO job_roles (drive_id, role_name, ctc, salary, stipend) VALUES ($1, $2, $3, $4, $5)`
-			_, err = r.DB.Exec(ctx, roleQuery, id, role.RoleName, role.Ctc, role.Salary, role.Stipend)
+			_, err = tx.Exec(ctx, roleQuery, id, role.RoleName, role.Ctc, role.Salary, role.Stipend)
 			if err != nil {
 				return fmt.Errorf("failed to insert role %s: %v", role.RoleName, err)
 			}
@@ -444,14 +557,14 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 	// Delete roles that are no longer present
 	for _, er := range existingRoles {
 		if !newRoleNames[er.Name] {
-			_, err = r.DB.Exec(ctx, "DELETE FROM job_roles WHERE id=$1", er.ID)
+			_, err = tx.Exec(ctx, "DELETE FROM job_roles WHERE id=$1", er.ID)
 			if err != nil {
 				return fmt.Errorf("failed to delete removed role %s: %v", er.Name, err)
 			}
 		}
 	}
 
-	return nil
+	return tx.Commit(ctx)
 }
 
 // 3.5 Get Drive By ID (Internal use for deletion/updates)
@@ -460,6 +573,7 @@ func (r *DriveRepository) GetDriveByID(ctx context.Context, id int64) (*models.P
         SELECT
             pd.id, pd.posted_by, pd.company_name, pd.job_description,
             pd.drive_type, pd.company_category, pd.spoc_id,
+            pd.offer_type, pd.allow_placed_candidates,
             pd.min_cgpa, pd.max_backlogs_allowed,
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb),
@@ -475,6 +589,7 @@ func (r *DriveRepository) GetDriveByID(ctx context.Context, id int64) (*models.P
 	err := r.DB.QueryRow(ctx, query, id).Scan(
 		&d.ID, &d.PostedBy, &d.CompanyName, &d.JobDescription,
 		&d.DriveType, &d.CompanyCategory, &d.SpocID,
+		&d.OfferType, &d.AllowPlacedCandidates,
 		&d.MinCgpa, &d.MaxBacklogsAllowed,
 		&d.EligibleBatches, &d.EligibleDepartments,
 		&d.Rounds, &d.Attachments,
@@ -551,6 +666,14 @@ func (r *DriveRepository) GetDrivesCount(ctx context.Context, filters map[string
 		argCounter++
 	}
 
+	// Filter by Search Term
+	if val, ok := filters["search"]; ok && val != "" {
+		searchTerm := fmt.Sprintf("%%%v%%", val)
+		query += fmt.Sprintf(" AND (pd.company_name ILIKE $%d OR pd.job_description ILIKE $%d OR EXISTS (SELECT 1 FROM job_roles jr WHERE jr.drive_id = pd.id AND jr.role_name ILIKE $%d))", argCounter, argCounter, argCounter)
+		args = append(args, searchTerm)
+		argCounter++
+	}
+
 	var count int
 	err := r.DB.QueryRow(ctx, query, args...).Scan(&count)
 	return count, err
@@ -561,6 +684,7 @@ func (r *DriveRepository) GetDrivesByIDs(ctx context.Context, ids []int64) ([]mo
         SELECT 
             id, posted_by, company_name, job_description,
             drive_type, company_category, spoc_id,
+            offer_type, allow_placed_candidates,
             min_cgpa, max_backlogs_allowed, 
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = placement_drives.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = placement_drives.id), '[]'::jsonb),
@@ -582,6 +706,7 @@ func (r *DriveRepository) GetDrivesByIDs(ctx context.Context, ids []int64) ([]mo
 		err := rows.Scan(
 			&d.ID, &d.PostedBy, &d.CompanyName, &d.JobDescription,
 			&d.DriveType, &d.CompanyCategory, &d.SpocID,
+			&d.OfferType, &d.AllowPlacedCandidates,
 			&d.MinCgpa, &d.MaxBacklogsAllowed,
 			&d.EligibleBatches, &d.EligibleDepartments,
 			&d.Rounds, &d.Attachments,
@@ -674,7 +799,7 @@ func (r *DriveRepository) GetHomePageDrives(ctx context.Context) (map[string][]m
                drive_date, deadline_date, status, company_category, logo_url
         FROM placement_drives 
         WHERE status != 'cancelled'
-        ORDER BY deadline_date ASC
+        ORDER BY created_at DESC
     `
 	rows, err := r.DB.Query(ctx, query)
 	if err != nil {
@@ -760,7 +885,6 @@ func (r *DriveRepository) BulkUpdateApplicationStatus(ctx context.Context, reque
 			actioned_by = $3, actioned_at = NOW(),
 			updated_at = NOW() 
 		WHERE drive_id = $4 AND student_id = $5 
-		AND status = 'request_to_attend'
 	`
 
 	affected := 0
@@ -830,11 +954,13 @@ func (r *DriveRepository) GetEligibleStudentTokens(ctx context.Context, drive mo
 		AND (sp.placement_willingness IS NULL OR sp.placement_willingness = 'Interested')
 		AND ($1::text[] IS NULL OR cardinality($1::text[]) = 0 OR sp.department = ANY($1::text[]))
 		AND ($2::int[] IS NULL OR cardinality($2::int[]) = 0 OR sp.batch_year = ANY($2::int[]))
+		AND ($3::boolean = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da WHERE da.student_id = u.id AND da.status = 'placed'))
 	`
 
 	rows, err := r.DB.Query(ctx, query,
 		drive.EligibleDepartments,
 		drive.EligibleBatches,
+		drive.AllowPlacedCandidates,
 	)
 	if err != nil {
 		return nil, err
@@ -865,11 +991,13 @@ func (r *DriveRepository) GetEligibleStudentPhoneNumbers(ctx context.Context, dr
 		AND (sp.placement_willingness IS NULL OR sp.placement_willingness = 'Interested')
 		AND ($1::text[] IS NULL OR cardinality($1::text[]) = 0 OR sp.department = ANY($1::text[]))
 		AND ($2::int[] IS NULL OR cardinality($2::int[]) = 0 OR sp.batch_year = ANY($2::int[]))
+		AND ($3::boolean = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da WHERE da.student_id = u.id AND da.status = 'placed'))
 	`
 
 	rows, err := r.DB.Query(ctx, query,
 		drive.EligibleDepartments,
 		drive.EligibleBatches,
+		drive.AllowPlacedCandidates,
 	)
 	if err != nil {
 		return nil, err

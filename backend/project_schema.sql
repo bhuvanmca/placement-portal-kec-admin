@@ -241,6 +241,10 @@ CREATE TABLE placement_drives (
     
     attachments JSONB DEFAULT '[]', -- JDs, brochures, etc.
     
+    -- Offer Options
+    offer_type VARCHAR(20) DEFAULT 'Regular' CHECK (offer_type IN ('Regular', 'Dream')),
+    allow_placed_candidates BOOLEAN DEFAULT FALSE,
+    
     status VARCHAR(20) DEFAULT 'open' 
     CHECK (status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold', 'draft')),
     

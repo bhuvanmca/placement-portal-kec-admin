@@ -617,6 +617,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               onTap: () => _launchUrl(url),
               child: Text(
                 displayUrl,
+                textAlign: TextAlign.right,
                 style: const TextStyle(
                   fontWeight: FontWeight.w500,
                   color: Colors.blue,
@@ -1181,8 +1182,8 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                 (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
           ),
           const SizedBox(width: 12),
-          SizedBox(
-            width: 100,
+          Expanded(
+            flex: 2,
             child: Text(
               label,
               style: TextStyle(
@@ -1193,8 +1194,10 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
             ),
           ),
           Expanded(
+            flex: 3,
             child: Text(
               value,
+              textAlign: TextAlign.right,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),

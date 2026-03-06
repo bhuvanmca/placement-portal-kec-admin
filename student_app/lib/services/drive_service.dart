@@ -15,10 +15,19 @@ class DriveService {
     return prefs.getString('token');
   }
 
-  Future<List<dynamic>> getDrives() async {
+  Future<Map<String, dynamic>> getDrives({
+    int page = 1,
+    int limit = 100,
+    String? search,
+  }) async {
     final token = await _getToken();
+    String url = '$baseUrl/v1/drives?page=$page&limit=$limit';
+    if (search != null && search.isNotEmpty) {
+      url += '&search=${Uri.encodeComponent(search)}';
+    }
+
     final response = await _apiClient.get(
-      Uri.parse('$baseUrl/v1/drives'),
+      Uri.parse(url),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -27,8 +36,7 @@ class DriveService {
 
     if (response.statusCode == 200) {
       final dynamic decoded = jsonDecode(response.body);
-      if (decoded == null) return [];
-      return decoded as List<dynamic>;
+      return decoded as Map<String, dynamic>;
     } else {
       throw Exception(
         'Failed to load drives: ${response.statusCode} - ${response.body}',

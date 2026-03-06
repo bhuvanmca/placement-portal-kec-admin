@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Link, Element, animateScroll as scroll } from 'react-scroll';
+import { Link as ScrollLink, Element, animateScroll as scroll } from 'react-scroll';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -58,6 +59,8 @@ const driveSchema = z.object({
   location_type: z.enum(['On-Site', 'Hybrid', 'Remote']).default('On-Site'),
   drive_type: z.string().min(1, "Drive type is required"),
   company_category: z.string().min(1, "Category is required"),
+  offer_type: z.enum(['Regular', 'Dream']).default('Regular'),
+  allow_placed_candidates: z.boolean().default(false),
   spoc_id: z.coerce.number().min(1, "SPOC is required"),
   status: z.enum(['open', 'ongoing', 'completed', 'closed', 'on_hold', 'cancelled', 'draft']).optional(),
   
@@ -156,6 +159,8 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
       attachments: [],
       drive_type: 'Full-Time',
       company_category: 'Core',
+      offer_type: 'Regular',
+      allow_placed_candidates: false,
       spoc_id: 0,
       job_description: '',
       location: '',
@@ -200,6 +205,8 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                 logo_url: drive.logo_url,
                 drive_type: drive.drive_type,
                 company_category: drive.company_category,
+                offer_type: (drive as any).offer_type || 'Regular',
+                allow_placed_candidates: (drive as any).allow_placed_candidates || false,
                 spoc_id: drive.spoc_id,
                 
                 roles: drive.roles && drive.roles.length > 0 ? drive.roles : [{ role_name: '', ctc: '', stipend: '' }],
@@ -323,10 +330,12 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="w-full max-w-[1600px] mx-auto p-6 pb-8 bg-gray-50/50 min-h-screen">
-      <div className="mb-8 p-1 flex items-center gap-4">
-         <Button variant="outline" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-         </Button>
+     <div className="mb-8 p-1 flex items-center gap-4">
+         <Link href={`/dashboard/drives/${id}`}>
+            <Button variant="ghost" size="icon" className="-ml-3 rounded-full hover:bg-gray-100 transition-colors">
+               <ArrowLeft className="h-4 w-4" />
+            </Button>
+         </Link>
          <div>
              <h1 className="text-3xl font-bold tracking-tight text-[#002147]">Edit Drive Details</h1>
              <p className="text-muted-foreground mt-2">Update placement drive information.</p>
@@ -466,6 +475,39 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                         </div>
 
                         <div className="space-y-2">
+                             <Label>Offer Type</Label>
+                             <Controller
+                                 name="offer_type"
+                                 control={form.control}
+                                 render={({ field }) => (
+                                     <Select onValueChange={field.onChange} value={field.value || 'Regular'}>
+                                         <SelectTrigger><SelectValue placeholder="Select Offer Type" /></SelectTrigger>
+                                         <SelectContent>
+                                             <SelectItem value="Regular">Regular</SelectItem>
+                                             <SelectItem value="Dream">Dream</SelectItem>
+                                         </SelectContent>
+                                     </Select>
+                                 )}
+                             />
+                        </div>
+
+                         <div className="space-y-2 col-span-1 md:col-span-2 mt-2">
+                            <div className="flex items-center space-x-2 border p-4 rounded-lg bg-gray-50/50">
+                                <Controller
+                                    name="allow_placed_candidates"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <Checkbox id="allow_placed_candidates" checked={field.value} onCheckedChange={field.onChange} />
+                                    )}
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                    <label htmlFor="allow_placed_candidates" className="text-sm font-medium leading-none cursor-pointer">Allow Placed Candidates to Apply</label>
+                                    <p className="text-xs text-muted-foreground">If checked, students who are already placed can apply for this drive.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
                            <Label>Status</Label>
                            <Controller
                                name="status"
@@ -508,7 +550,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                         control={form.control}
                                         render={({ field }) => (
                                             <Select 
-                                                onValueChange={(val) => field.onChange(Number(val))} 
+                                                onValueChange={(val: string) => field.onChange(Number(val))} 
                                                 value={field.value ? field.value.toString() : ""}
                                             >
                                                 <SelectTrigger className="w-full">
@@ -584,23 +626,23 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div className="space-y-2">
                                 <Label>10th Percentage (Min)</Label>
-                                <Input type="number" step="0.1" {...form.register('tenth_percentage')} onWheel={(e) => e.currentTarget.blur()} />
+                                <Input type="number" step="0.1" {...form.register('tenth_percentage')} onWheel={(e: any) => e.currentTarget.blur()} />
                             </div>
                             <div className="space-y-2">
                                 <Label>12th Percentage (Min)</Label>
-                                <Input type="number" step="0.1" {...form.register('twelfth_percentage')} onWheel={(e) => e.currentTarget.blur()} />
+                                <Input type="number" step="0.1" {...form.register('twelfth_percentage')} onWheel={(e: any) => e.currentTarget.blur()} />
                             </div>
                             
                             <div className="space-y-2">
                                 <Label>UG Min CGPA</Label>
-                                <Input type="number" step="0.01" {...form.register('ug_min_cgpa')} onWheel={(e) => e.currentTarget.blur()} />
+                                <Input type="number" step="0.01" {...form.register('ug_min_cgpa')} onWheel={(e: any) => e.currentTarget.blur()} />
                             </div>
 
                             {/* Conditional PG Field */}
                             {hasPgDepartments && (
                                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                                     <Label className="text-[#002147] font-semibold">PG Min CGPA</Label>
-                                    <Input type="number" step="0.01" {...form.register('pg_min_cgpa')} className="border-[#002147]/20 bg-blue-50/30" onWheel={(e) => e.currentTarget.blur()} />
+                                    <Input type="number" step="0.01" {...form.register('pg_min_cgpa')} className="border-[#002147]/20 bg-blue-50/30" onWheel={(e: any) => e.currentTarget.blur()} />
                                 </div>
                             )}
                         </div>
@@ -610,11 +652,11 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                              <div className="space-y-2">
                                 <Label>Overall Min CGPA (General)</Label>
-                                <Input type="number" step="0.01" {...form.register('min_cgpa')} onWheel={(e) => e.currentTarget.blur()} />
+                                <Input type="number" step="0.01" {...form.register('min_cgpa')} onWheel={(e: any) => e.currentTarget.blur()} />
                             </div>
                              <div className="space-y-2">
                                 <Label>Max Backlogs Allowed</Label>
-                                <Input type="number" {...form.register('max_backlogs_allowed')} onWheel={(e) => e.currentTarget.blur()} />
+                                <Input type="number" {...form.register('max_backlogs_allowed')} onWheel={(e: any) => e.currentTarget.blur()} />
                             </div>
                         </div>
                         
@@ -631,7 +673,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                             </div>
                             {form.watch('use_aggregate') && (
                                 <div className="ml-auto w-32">
-                                     <Input type="number" step="0.1" {...form.register('aggregate_percentage')} placeholder="Min %" onWheel={(e) => e.currentTarget.blur()} />
+                                     <Input type="number" step="0.1" {...form.register('aggregate_percentage')} placeholder="Min %" onWheel={(e: any) => e.currentTarget.blur()} />
                                 </div>
                             )}
                         </div>

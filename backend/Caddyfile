@@ -4,7 +4,7 @@
 }
 
 # Local Host Deployment (Native IP)
-http://172.20.10.6 {
+:80 {
     # 1. API Service (Specific Routes to avoid Garage conflict)
     # We explicitly match only our application routes so Garage's /api/* calls fall through
     @go_api {
@@ -34,8 +34,8 @@ http://172.20.10.6 {
     }
     
     # Swagger Documentation
-    handle_path /docs/* {
-        rewrite * /swagger{uri}
+    # The Fiber swagger handler expects requests at /swagger/*
+    handle /swagger/* {
         reverse_proxy api:8080
     }
 

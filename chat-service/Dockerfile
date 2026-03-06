@@ -5,6 +5,8 @@ WORKDIR /app
 
 # Enable Go toolchain auto-download
 ENV GOTOOLCHAIN=auto
+ENV GOPROXY=https://proxy.golang.org,direct
+ENV GOSUMDB=off
 
 # Install build dependencies
 RUN apk add --no-cache git

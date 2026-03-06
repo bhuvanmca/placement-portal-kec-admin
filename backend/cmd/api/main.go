@@ -14,6 +14,7 @@ import (
 	"github.com/SysSyncer/placement-portal-kec/internal/config"
 	"github.com/SysSyncer/placement-portal-kec/internal/database"
 	"github.com/SysSyncer/placement-portal-kec/internal/routes"
+	"github.com/SysSyncer/placement-portal-kec/internal/services"
 	"github.com/SysSyncer/placement-portal-kec/internal/utils"
 	"github.com/SysSyncer/placement-portal-kec/internal/worker"
 )
@@ -45,6 +46,9 @@ func main() {
 	// We defer the close to ensure the connection pool is cleaned up on exit
 	database.ConnectDB(config.GetDBURL())
 	defer database.CloseDB()
+
+	// Initialize Redis for caching
+	services.InitRedis()
 
 	worker.StartScheduler()
 

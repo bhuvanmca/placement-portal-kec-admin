@@ -22,6 +22,10 @@ type PlacementDrive struct {
 	SpocName        string `json:"spoc_name,omitempty"`
 	SpocDesignation string `json:"spoc_designation,omitempty"`
 
+	// Drive Options
+	OfferType             string `json:"offer_type"`              // [NEW] 'Regular' or 'Dream'
+	AllowPlacedCandidates bool   `json:"allow_placed_candidates"` // [NEW]
+
 	// Eligibility
 	MinCgpa float64 `json:"min_cgpa"`
 
@@ -88,6 +92,10 @@ type CreateDriveInput struct {
 	DriveType       string `json:"drive_type"`
 	CompanyCategory string `json:"company_category"`
 	SpocID          int64  `json:"spoc_id"`
+
+	// Drive Options
+	OfferType             string `json:"offer_type"`
+	AllowPlacedCandidates bool   `json:"allow_placed_candidates"`
 
 	// Roles
 	Roles []JobRole `json:"roles"` // [NEW]
@@ -202,6 +210,10 @@ type PatchDriveInput struct {
 	DriveType       *string `json:"drive_type"`
 	CompanyCategory *string `json:"company_category"`
 	SpocID          *int64  `json:"spoc_id"`
+
+	// Drive Options
+	OfferType             *string `json:"offer_type"`
+	AllowPlacedCandidates *bool   `json:"allow_placed_candidates"`
 
 	// Roles
 	Roles *[]JobRole `json:"roles"`

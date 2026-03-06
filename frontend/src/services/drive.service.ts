@@ -142,6 +142,13 @@ export interface Drive {
   user_status?: string;
 }
 
+export interface PaginatedDrives {
+  drives: Drive[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface CreateDriveInput {
   company_name: string;
   job_description: string;
@@ -181,15 +188,10 @@ export interface DriveRequest extends DriveApplicant {
 }
 
 export const driveService = {
-  getAllDrives: async (filters?: { department?: string; batch?: number }) => {
-    let url = API_ROUTES.DRIVES;
-    if (filters) {
-      const params = new URLSearchParams();
-      if (filters.department) params.append('department', filters.department);
-      if (filters.batch) params.append('batch', filters.batch.toString());
-      url += `?${params.toString()}`;
-    }
-    const response = await api.get<Drive[]>(url); 
+  getAllDrives: async (page = 1, limit = 10, search?: string) => {
+    let url = `${API_ROUTES.DRIVES}?page=${page}&limit=${limit}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    const response = await api.get<PaginatedDrives>(url); 
     return response.data;
   },
 
@@ -218,10 +220,10 @@ export const driveService = {
   },
   
   // Admin specific fetch
-  getAdminDrives: async (page = 1, limit = 10) => {
-    const response = await api.get<{ drives: Drive[]; total: number; page: number; limit: number }>(
-      `${API_ROUTES.ADMIN_DRIVES}?page=${page}&limit=${limit}`
-    );
+  getAdminDrives: async (page = 1, limit = 10, search?: string) => {
+    let url = `${API_ROUTES.ADMIN_DRIVES}?page=${page}&limit=${limit}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    const response = await api.get<PaginatedDrives>(url);
     return response.data;
   },
 

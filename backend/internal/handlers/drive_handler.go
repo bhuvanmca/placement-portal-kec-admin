@@ -110,17 +110,19 @@ func CreateDrive(c *fiber.Ctx) error {
 
 	// Map input to proper model
 	drive := models.PlacementDrive{
-		PostedBy:        int64(c.Locals("user_id").(float64)),
-		CompanyName:     input.CompanyName,
-		JobDescription:  input.JobDescription,
-		Website:         input.Website,
-		LogoURL:         input.LogoURL,
-		Location:        input.Location,     // [FIX] Added
-		LocationType:    input.LocationType, // [FIX] Added
-		DriveType:       input.DriveType,
-		CompanyCategory: input.CompanyCategory,
-		SpocID:          input.SpocID,
-		Roles:           input.Roles, // [FIX] Added
+		PostedBy:              int64(c.Locals("user_id").(float64)),
+		CompanyName:           input.CompanyName,
+		JobDescription:        input.JobDescription,
+		Website:               input.Website,
+		LogoURL:               input.LogoURL,
+		Location:              input.Location,     // [FIX] Added
+		LocationType:          input.LocationType, // [FIX] Added
+		DriveType:             input.DriveType,
+		CompanyCategory:       input.CompanyCategory,
+		SpocID:                input.SpocID,
+		OfferType:             input.OfferType,
+		AllowPlacedCandidates: input.AllowPlacedCandidates,
+		Roles:                 input.Roles, // [FIX] Added
 
 		MinCgpa:             input.MinCgpa,
 		TenthPercentage:     input.TenthPercentage,
@@ -190,6 +192,10 @@ func CreateDrive(c *fiber.Ctx) error {
 		}(drive)
 	*/
 
+	// Invalidate Cache
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
+	services.InvalidateCacheByPrefix(c.Context(), "api:admin:drives:")
+
 	return c.Status(201).JSON(drive)
 }
 
@@ -226,7 +232,10 @@ func convertAttachmentsToPresigned(drives []models.PlacementDrive) []models.Plac
 // @Security BearerAuth
 // @Param department query string false "Department"
 // @Param batch query int false "Batch Year"
-// @Success 200 {array} models.PlacementDrive
+// @Param page query int false "Page number"
+// @Param limit query int false "Page limit"
+// @Param search query string false "Search query"
+// @Success 200 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /v1/drives [get]
 func ListStudentDrives(c *fiber.Ctx) error {
@@ -235,38 +244,59 @@ func ListStudentDrives(c *fiber.Ctx) error {
 	// Get Student ID from Token
 	userID := int64(c.Locals("user_id").(float64))
 
-	// Note: GetEligibleDrives filters internally by student's academic criteria (Dept, Batch, CGPA)
-	// It returns drives the student is eligible for, WITH their application status.
-	drives, err := repo.GetEligibleDrives(c.Context(), userID)
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	filters := make(map[string]interface{})
+	filters["limit"] = limit
+	filters["offset"] = offset
+	filters["search"] = c.Query("search")
+	filters["category"] = c.Query("category")
+	filters["type"] = c.Query("type")
+
+	// Generate Cache Key
+	cacheKey := fmt.Sprintf("api:student:drives:u%d:p%d:l%d:s%v:c%v:t%v", userID, page, limit, filters["search"], filters["category"], filters["type"])
+	var cachedData map[string]interface{}
+	if services.GetCache(c.Context(), cacheKey, &cachedData) {
+		return c.JSON(cachedData)
+	}
+
+	// Get drives and total count
+	drives, err := repo.GetEligibleDrives(c.Context(), userID, filters)
 	if err != nil {
-		fmt.Printf("Error fetching eligible drives: %v\n", err) // Debug log
+		fmt.Printf("Error fetching eligible drives: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch drives"})
 	}
 
-	// Optional: We can still apply client-side-like filters (Category, Type) in memory if needed,
-	// or update GetEligibleDrives to accept them.
-	// For now, returning the eligible list is the priority to fix the Status Badge.
-
-	// Check if we need to filter by query params (e.g. Type, Category)
-	// Simple in-memory filter for now to preserve query param functionality
-	filtered := []models.PlacementDrive{}
-	cat := c.Query("category")
-	dtype := c.Query("type")
-
-	for _, d := range drives {
-		if cat != "" && d.CompanyCategory != cat {
-			continue
-		}
-		if dtype != "" && d.DriveType != dtype {
-			continue
-		}
-		filtered = append(filtered, d)
+	total, err := repo.GetEligibleDrivesCount(c.Context(), userID, filters)
+	if err != nil {
+		fmt.Printf("Error fetching eligible drives count: %v\n", err)
+		// Non-critical, let's just use the current drives length as fallback if count fails
+		total = len(drives)
 	}
 
 	// Convert attachment URLs to presigned URLs
-	filtered = convertAttachmentsToPresigned(filtered)
+	drives = convertAttachmentsToPresigned(drives)
 
-	return c.JSON(filtered)
+	responseData := fiber.Map{
+		"drives": drives,
+		"total":  total,
+		"page":   page,
+		"limit":  limit,
+	}
+
+	// Cache the response with generated presigned URLs for 4 minutes
+	// (URLs are valid for 5 mins, so this leaves a 1 min buffer)
+	services.SetCache(c.Context(), cacheKey, responseData, 4*time.Minute)
+
+	return c.JSON(responseData)
 }
 
 // ListAdminDrives - For Admins (All Drives)
@@ -295,6 +325,14 @@ func ListAdminDrives(c *fiber.Ctx) error {
 	filters := make(map[string]interface{})
 	filters["limit"] = limit
 	filters["offset"] = offset
+	filters["search"] = c.Query("search")
+
+	// Generate Cache Key
+	cacheKey := fmt.Sprintf("api:admin:drives:p%d:l%d:s%v", page, limit, filters["search"])
+	var cachedData map[string]interface{}
+	if services.GetCache(c.Context(), cacheKey, &cachedData) {
+		return c.JSON(cachedData)
+	}
 
 	drives, err := repo.GetDrives(c.Context(), filters)
 	if err != nil {
@@ -307,12 +345,16 @@ func ListAdminDrives(c *fiber.Ctx) error {
 	// Convert attachment URLs to presigned URLs
 	drives = convertAttachmentsToPresigned(drives)
 
-	return c.JSON(fiber.Map{
+	responseData := fiber.Map{
 		"drives": drives,
 		"total":  total,
 		"page":   page,
 		"limit":  limit,
-	})
+	}
+
+	services.SetCache(c.Context(), cacheKey, responseData, 4*time.Minute)
+
+	return c.JSON(responseData)
 }
 
 // UpdateDrive - Handles PUT requests
@@ -464,6 +506,12 @@ func UpdateDrive(c *fiber.Ctx) error {
 	if input.SpocID != 0 {
 		drive.SpocID = input.SpocID
 	}
+	if input.OfferType != "" {
+		drive.OfferType = input.OfferType
+	}
+	// For booleans in Update, standard procedure assumes input represents the final desired state
+	drive.AllowPlacedCandidates = input.AllowPlacedCandidates
+
 	if len(input.Roles) > 0 {
 		drive.Roles = input.Roles
 	}
@@ -610,11 +658,11 @@ func UpdateDrive(c *fiber.Ctx) error {
 			shouldNotify = true
 			if d.Status == "cancelled" {
 				title = "Placement Drive Cancelled"
-				body = fmt.Sprintf("The placement drive for %s has been cancelled.", d.CompanyName)
+				body = fmt.Sprintf("%s is cancelled", d.CompanyName)
 				notifType = "drive_cancelled"
 			} else {
 				title = "Placement Drive On Hold"
-				body = fmt.Sprintf("The placement drive for %s has been put on hold.", d.CompanyName)
+				body = fmt.Sprintf("%s is on hold now!", d.CompanyName)
 				notifType = "drive_on_hold"
 			}
 		} else if oldStatus != d.Status {
@@ -645,6 +693,10 @@ func UpdateDrive(c *fiber.Ctx) error {
 			}
 		}
 	}(*drive)
+
+	// Invalidate Cache
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
+	services.InvalidateCacheByPrefix(c.Context(), "api:admin:drives:")
 
 	return c.JSON(fiber.Map{"message": "Drive updated successfully", "drive": drive})
 }
@@ -786,11 +838,11 @@ func PatchDrive(c *fiber.Ctx) error {
 			shouldNotify = true
 			if newStatus == "cancelled" {
 				title = "Placement Drive Cancelled"
-				body = fmt.Sprintf("The placement drive for %s has been cancelled.", drive.CompanyName)
+				body = fmt.Sprintf("%s is cancelled", drive.CompanyName)
 				notifType = "drive_cancelled"
 			} else {
 				title = "Placement Drive On Hold"
-				body = fmt.Sprintf("The placement drive for %s has been put on hold.", drive.CompanyName)
+				body = fmt.Sprintf("%s is on hold now!", drive.CompanyName)
 				notifType = "drive_on_hold"
 			}
 		}
@@ -813,6 +865,10 @@ func PatchDrive(c *fiber.Ctx) error {
 			}(*drive, title, body, notifType)
 		}
 	}
+
+	// Invalidate Cache
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
+	services.InvalidateCacheByPrefix(c.Context(), "api:admin:drives:")
 
 	return c.JSON(fiber.Map{"message": "Drive patched successfully", "drive": drive})
 }
@@ -861,6 +917,10 @@ func DeleteDrive(c *fiber.Ctx) error {
 	if err := repo.DeleteDrive(c.Context(), id); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Delete failed", "details": err.Error()})
 	}
+
+	// Invalidate Cache
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
+	services.InvalidateCacheByPrefix(c.Context(), "api:admin:drives:")
 
 	return c.JSON(fiber.Map{"message": "Drive and attachments deleted successfully"})
 }
@@ -918,6 +978,10 @@ func BulkDeleteDrives(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Bulk delete failed", "details": err.Error()})
 	}
+
+	// Invalidate Cache
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
+	services.InvalidateCacheByPrefix(c.Context(), "api:admin:drives:")
 
 	return c.JSON(fiber.Map{
 		"message": "Bulk delete successful",

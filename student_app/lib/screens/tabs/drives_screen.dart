@@ -78,7 +78,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
   Future<void> _refresh() async {
     // HapticFeedback.selectionClick(); // Satisfying refresher haptic
     try {
-      final _ = await ref.refresh(driveListProvider.future);
+      await ref.read(driveListProvider.notifier).refresh();
       if (mounted) {
         setState(() {
           // Refresh completed
@@ -336,6 +336,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
     final drivesAsync = ref.watch(filteredDrivesProvider);
     final stats = ref.watch(driveStatsProvider);
     final currentFilters = ref.watch(driveFilterProvider);
+    final pillMap = stats;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -368,263 +369,246 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
           ),
         ],
       ),
-      body: drivesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: HapticRefreshIndicator(
-              onRefresh: _refresh,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.cloud_off_rounded,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    Text('$error', textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _refresh,
-                      child: const Text('Retry'),
-                    ),
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.4),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        data: (filteredDrives) {
-          // Stats now come from provider (calculated lazily)
-          final pillMap = stats;
-
-          return HapticRefreshIndicator(
-            onRefresh: _refresh,
-            child: Column(
+      body: Column(
+        children: [
+          // Top Bar: Search and Filter/Sort
+          Container(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
               children: [
-                // Top Bar: Search and Filter/Sort
-                Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                Expanded(
+                  flex: 5,
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      textAlignVertical:
+                          TextAlignVertical.center, // Fix alignment
+                      decoration: const InputDecoration(
+                        // hint: Text('Search'),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets
+                            .zero, // Remove padding to let Align center it
+                        isDense: true,
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: _showFilterModal,
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: currentFilters.categories.isNotEmpty
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.2)
+                            : (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey.shade800
+                                  : Colors.grey[100]), // Highlight if active
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Filter',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.tune,
                             color:
                                 Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey.shade800
-                                : Colors.grey[100],
-                            borderRadius: BorderRadius.circular(10),
+                                ? Colors.white70
+                                : Colors.grey[800],
+                            size: 16,
                           ),
-                          child: TextField(
-                            controller: _searchController,
-                            textAlignVertical:
-                                TextAlignVertical.center, // Fix alignment
-                            decoration: const InputDecoration(
-                              // hint: Text('Search'),
-                              prefixIcon: Icon(
-                                Icons.search,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets
-                                  .zero, // Remove padding to let Align center it
-                              isDense: true,
-                            ),
-                          ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: GestureDetector(
-                          onTap: _showFilterModal,
-                          child: Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: currentFilters.categories.isNotEmpty
-                                  ? Theme.of(
-                                      context,
-                                    ).colorScheme.primary.withValues(alpha: 0.2)
-                                  : (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.grey.shade800
-                                        : Colors
-                                              .grey[100]), // Highlight if active
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  'Filter',
-                                  style: TextStyle(fontWeight: FontWeight.w500),
-                                ),
-                                const SizedBox(width: 8),
-                                Icon(
-                                  Icons.tune,
-                                  color:
-                                      Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.white70
-                                      : Colors.grey[800],
-                                  size: 16,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
+              ],
+            ),
+          ),
 
-                // Horizontal Status Pills
-                Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  height: 60, // Increased height for badges
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
+          // Horizontal Status Pills
+          Container(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            height: 60, // Increased height for badges
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              scrollDirection: Axis.horizontal,
+              itemCount: pillMap.length,
+              separatorBuilder: (c, i) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final name = pillMap.keys.elementAt(index);
+                final count = pillMap.values.elementAt(index);
+                final isSelected = currentFilters.status == name;
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    GestureDetector(
+                      onTap: () => ref
+                          .read(driveFilterProvider.notifier)
+                          .setStatus(name),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Theme.of(context).colorScheme.primary)
+                              : (Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.grey.shade800
+                                    : Colors.grey[200]),
+                          borderRadius: BorderRadius.circular(
+                            isSelected ? 20 : 10,
+                          ),
+                        ),
+                        child: Text(
+                          name, // Just the name
+                          style: TextStyle(
+                            color: isSelected
+                                ? (Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.black
+                                      : Colors.white)
+                                : (Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white70
+                                      : Colors.black),
+                            // fontWeight: isSelected
+                            //     ? FontWeight.bold
+                            //     : FontWeight.normal,
+                          ),
+                        ),
+                      ),
                     ),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: pillMap.length,
-                    separatorBuilder: (c, i) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      final name = pillMap.keys.elementAt(index);
-                      final count = pillMap.values.elementAt(index);
-                      final isSelected = currentFilters.status == name;
-
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(driveFilterProvider.notifier)
-                                .setStatus(name),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
+                    if (count > 0)
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.black
+                                      : Colors.white)
+                                : (Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : AppConstants.primaryColor),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected
+                                  ? (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : Theme.of(context).colorScheme.primary)
+                                  : (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.transparent
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.primary),
+                              width: 1.5,
+                            ),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 20,
+                            minHeight: 20,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
                                 color: isSelected
                                     ? (Theme.of(context).brightness ==
                                               Brightness.dark
                                           ? Colors.white
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.primary)
+                                          : Colors.black)
                                     : (Theme.of(context).brightness ==
                                               Brightness.dark
-                                          ? Colors.grey.shade800
-                                          : Colors.grey[200]),
-                                borderRadius: BorderRadius.circular(
-                                  isSelected ? 20 : 10,
-                                ),
-                              ),
-                              child: Text(
-                                name, // Just the name
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? (Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.black
-                                            : Colors.white)
-                                      : (Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.white70
-                                            : Colors.black),
-                                  // fontWeight: isSelected
-                                  //     ? FontWeight.bold
-                                  //     : FontWeight.normal,
-                                ),
+                                          ? Colors.black
+                                          : Colors.white),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                          if (count > 0)
-                            Positioned(
-                              top: -6,
-                              right: -6,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? (Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.black
-                                            : Colors.white)
-                                      : (Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? Colors.white
-                                            : AppConstants.primaryColor),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? (Theme.of(context).brightness ==
-                                                  Brightness.dark
-                                              ? Colors.white
-                                              : Theme.of(
-                                                  context,
-                                                ).colorScheme.primary)
-                                        : (Theme.of(context).brightness ==
-                                                  Brightness.dark
-                                              ? Colors.transparent
-                                              : Theme.of(
-                                                  context,
-                                                ).colorScheme.primary),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 20,
-                                  minHeight: 20,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '$count',
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? (Theme.of(context).brightness ==
-                                                    Brightness.dark
-                                                ? Colors.white
-                                                : Colors.black)
-                                          : (Theme.of(context).brightness ==
-                                                    Brightness.dark
-                                                ? Colors.black
-                                                : Colors.white),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // Result List
+          Expanded(
+            child: drivesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: HapticRefreshIndicator(
+                    onRefresh: _refresh,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.cloud_off_rounded,
+                            size: 48,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 16),
+                          Text('$error', textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _refresh,
+                            child: const Text('Retry'),
+                          ),
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.4,
+                          ),
                         ],
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
-
-                // Result List
-                Expanded(
+              ),
+              data: (filteredDrives) {
+                return HapticRefreshIndicator(
+                  onRefresh: _refresh,
                   child: filteredDrives.isEmpty
                       ? SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -659,24 +643,49 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                             ),
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filteredDrives.length,
-                          itemBuilder: (context, index) => GestureDetector(
-                            onTap: () {
-                              // HapticFeedback.lightImpact(); // [NEW] Haptic feedback
+                      : NotificationListener<ScrollNotification>(
+                          onNotification: (ScrollNotification scrollInfo) {
+                            if (scrollInfo.metrics.pixels >=
+                                    scrollInfo.metrics.maxScrollExtent - 200 &&
+                                !ref.read(driveListProvider).isLoadingMore) {
+                              ref.read(driveListProvider.notifier).loadMore();
+                            }
+                            return false; // Allow RefreshIndicator to receive scroll events
+                          },
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(16),
+                            itemCount:
+                                filteredDrives.length +
+                                (ref.watch(driveListProvider).isLoadingMore
+                                    ? 1
+                                    : 0),
+                            itemBuilder: (context, index) {
+                              if (index == filteredDrives.length) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 32),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
+                              return GestureDetector(
+                                onTap: () {
+                                  // HapticFeedback.lightImpact(); // [NEW] Haptic feedback
+                                },
+                                child: DriveCard(
+                                  drive: filteredDrives[index],
+                                  onRefresh: _refresh,
+                                ),
+                              );
                             },
-                            child: DriveCard(
-                              drive: filteredDrives[index],
-                              onRefresh: _refresh,
-                            ),
                           ),
                         ),
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

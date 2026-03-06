@@ -216,7 +216,12 @@ function DriveEvent({ drive }: { drive: Drive }) {
         <Dialog>
             <DialogTrigger asChild>
                 <div 
-                    className="text-xs p-1.5 rounded-md bg-[#002147]/5 border border-[#002147]/10 text-[#002147] cursor-pointer hover:bg-[#002147] hover:text-white transition-all truncate group/event flex items-center gap-1.5 shadow-sm hover:shadow-md"
+                    className={cn(
+                        "text-xs p-1.5 rounded-md border cursor-pointer transition-all truncate group/event flex items-center gap-1.5 shadow-sm hover:shadow-md hover:text-white",
+                        (drive as any).offer_type === 'Dream' 
+                        ? "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-600" 
+                        : "bg-[#002147]/5 border-[#002147]/10 text-[#002147] hover:bg-[#002147]"
+                    )}
                     onClick={(e) => e.stopPropagation()} // Prevent bubble to cell click
                 >
                     <div className="w-1.5 h-1.5 rounded-full bg-current shrink-0"></div>
@@ -226,10 +231,15 @@ function DriveEvent({ drive }: { drive: Drive }) {
             <DialogContent className="sm:max-w-[450px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl text-[#002147]">
-                        <div className="p-2 bg-blue-50 rounded-lg">
+                        <div className={cn("p-2 rounded-lg", (drive as any).offer_type === 'Dream' ? "bg-orange-100 text-orange-600" : "bg-blue-50")}>
                             <Briefcase className="h-5 w-5" />
                         </div>
                         {drive.company_name}
+                        {(drive as any).offer_type === 'Dream' && (
+                            <Badge className="bg-gradient-to-r from-orange-400 to-orange-500 text-white ml-2 border-none">
+                                Dream
+                            </Badge>
+                        )}
                     </DialogTitle>
                     <DialogDescription className="text-base">
                         Hiring for <span className="font-semibold text-gray-900">

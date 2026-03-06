@@ -3,6 +3,9 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
+ENV GOSUMDB=off
+ENV GOPROXY=https://proxy.golang.org,direct
+
 # Copy dependency files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download

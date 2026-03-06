@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/student_service.dart';
+import '../../providers/drive_provider.dart';
+import './drive_detail_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../widgets/slidable_item.dart';
 
-class RequestsScreen extends StatefulWidget {
+class RequestsScreen extends ConsumerStatefulWidget {
   const RequestsScreen({super.key});
 
   @override
-  State<RequestsScreen> createState() => _RequestsScreenState();
+  ConsumerState<RequestsScreen> createState() => _RequestsScreenState();
 }
 
-class _RequestsScreenState extends State<RequestsScreen> {
+class _RequestsScreenState extends ConsumerState<RequestsScreen> {
   final StudentService _studentService = StudentService();
   late ScrollController _scrollController;
 
@@ -357,78 +360,39 @@ class _RequestsScreenState extends State<RequestsScreen> {
         itemCount: _markUpdates.length,
         itemBuilder: (context, index) {
           final request = _markUpdates[index];
-          return Dismissible(
-            key: Key(request['id']?.toString() ?? index.toString()),
-            direction: DismissDirection.endToStart,
-            confirmDismiss: (direction) async {
-              HapticFeedback.mediumImpact();
-              return await showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: const Text("Clear Request"),
-                    content: const Text(
-                      "Are you sure you want to clear this request from your history?",
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text("Cancel"),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          HapticFeedback.heavyImpact();
-                          Navigator.of(context).pop(true);
-                        },
-                        child: const Text(
-                          "Clear",
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-            onDismissed: (direction) async {
-              final requestId = request['id'] as int?;
-              setState(() {
-                _markUpdates.removeAt(index);
-              });
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: SlidableItem(
+              key: Key(
+                'mark_update_${request['id']?.toString() ?? index.toString()}',
+              ),
+              onDelete: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final requestId = request['id'] as int?;
+                setState(() {
+                  _markUpdates.removeAt(index);
+                });
 
-              if (requestId != null) {
-                try {
-                  await _studentService.deleteChangeRequest(requestId);
-                } catch (e) {
-                  // Silent failure in UI, but backend attempt made
+                if (requestId != null) {
+                  try {
+                    await _studentService.deleteChangeRequest(requestId);
+                  } catch (e) {
+                    // Silent failure in UI, but backend attempt made
+                  }
                 }
-              }
 
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).clearSnackBars();
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (!mounted) return;
+
+                scaffoldMessenger.clearSnackBars();
+                scaffoldMessenger.showSnackBar(
                   const SnackBar(
                     content: Text('Request cleared'),
                     duration: Duration(seconds: 2),
                   ),
                 );
-              }
-            },
-            background: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              alignment: Alignment.centerRight,
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.delete_outline,
-                color: Colors.white,
-                size: 28,
-              ),
+              },
+              child: _buildMarkUpdateCard(request),
             ),
-            child: _buildMarkUpdateCard(request),
           );
         },
       ),
@@ -682,78 +646,66 @@ class _RequestsScreenState extends State<RequestsScreen> {
         itemCount: _driveRequests.length,
         itemBuilder: (context, index) {
           final request = _driveRequests[index];
-          return Dismissible(
-            key: Key(request['drive_id']?.toString() ?? index.toString()),
-            direction: DismissDirection.endToStart,
-            confirmDismiss: (direction) async {
-              HapticFeedback.mediumImpact();
-              return await showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: const Text("Clear Request"),
-                    content: const Text(
-                      "Are you sure you want to clear this request from your history?",
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text("Cancel"),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          HapticFeedback.heavyImpact();
-                          Navigator.of(context).pop(true);
-                        },
-                        child: const Text(
-                          "Clear",
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-            onDismissed: (direction) async {
-              final driveId = request['drive_id'] as int?;
-              setState(() {
-                _driveRequests.removeAt(index);
-              });
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: SlidableItem(
+              key: Key(
+                'drive_req_${request['drive_id']?.toString() ?? index.toString()}',
+              ),
+              onDelete: () async {
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final driveId = request['drive_id'] as int?;
+                setState(() {
+                  _driveRequests.removeAt(index);
+                });
 
-              if (driveId != null) {
-                try {
-                  await _studentService.deleteDriveRequest(driveId);
-                } catch (e) {
-                  // Silent failure in UI, but backend attempt made
+                if (driveId != null) {
+                  try {
+                    await _studentService.deleteDriveRequest(driveId);
+                  } catch (e) {
+                    // Silent failure in UI, but backend attempt made
+                  }
                 }
-              }
 
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).clearSnackBars();
-                ScaffoldMessenger.of(context).showSnackBar(
+                if (!mounted) return;
+
+                scaffoldMessenger.clearSnackBars();
+                scaffoldMessenger.showSnackBar(
                   const SnackBar(
                     content: Text('Drive request cleared'),
                     duration: Duration(seconds: 2),
                   ),
                 );
-              }
-            },
-            background: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              alignment: Alignment.centerRight,
-              decoration: BoxDecoration(
-                color: Colors.red,
+              },
+              child: InkWell(
+                onTap: () {
+                  final drives = ref.read(driveListProvider).drives;
+                  final drive = drives.firstWhere(
+                    (d) => d['id'] == request['drive_id'],
+                    orElse: () => null,
+                  );
+
+                  if (drive != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DriveDetailScreen(drive: drive),
+                      ),
+                    );
+                  } else {
+                    // If not in global list, we might have enough in request to show something
+                    // but it's risky. For now, only redirect if found in master list.
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Drive details not available'),
+                      ),
+                    );
+                  }
+                },
                 borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.delete_outline,
-                color: Colors.white,
-                size: 28,
+                child: _buildDriveRequestCard(request),
               ),
             ),
-            child: _buildDriveRequestCard(request),
           );
         },
       ),

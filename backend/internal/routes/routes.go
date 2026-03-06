@@ -72,6 +72,7 @@ func SetupRoutes(app *fiber.App) {
 	// System Monitoring & Data Archival
 	admin.Get("/system/storage", handlers.GetStorageInfo)              // [NEW] Get disk usage and storage stats
 	admin.Get("/archive/placements", handlers.ArchivePlacementRecords) // [NEW] Download placement records as ZIP
+	admin.Get("/analytics/dashboard", handlers.GetDashboardAnalytics)  // [NEW] Comprehensive analytics dashboard
 
 	// Garage Storage Admin Panel
 	admin.Get("/storage/objects", handlers.ListGarageObjects)               // [NEW] List all files in Garage

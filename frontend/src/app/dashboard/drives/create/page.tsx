@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm, useFieldArray, Controller, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,7 +25,8 @@ import {
   Users, // Added
   Settings2, // Added
   Search,
-  CheckSquare
+  CheckSquare,
+  ArrowLeft
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -63,6 +65,8 @@ const driveSchema = z.object({
   location_type: z.enum(['On-Site', 'Hybrid', 'Remote']).default('On-Site'),
   drive_type: z.string().min(1, "Drive type is required"),
   company_category: z.string().min(1, "Category is required"),
+  offer_type: z.enum(['Regular', 'Dream']).default('Regular'),
+  allow_placed_candidates: z.boolean().default(false),
   spoc_id: z.coerce.number().min(1, "SPOC is required"),
   
   // Eligibility
@@ -113,6 +117,7 @@ const SECTIONS = [
 export default function CreateDrivePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'open' | 'draft'>('open');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [activeSection, setActiveSection] = useState('company-details');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -274,6 +279,8 @@ export default function CreateDrivePage() {
       location: '',
       location_type: 'On-Site',
       roles: [{ role_name: '', ctc: '', stipend: '' }], // Start with 1 empty role
+      offer_type: 'Regular',
+      allow_placed_candidates: false,
       min_cgpa: 0,
       max_backlogs_allowed: 0,
       // New fields default
@@ -456,7 +463,10 @@ export default function CreateDrivePage() {
     try {
       const formData = new FormData();
       const { attachments, ...driveData } = data;
-      formData.append('drive_data', JSON.stringify(driveData));
+      
+      const payload = { ...driveData, status: submitStatus };
+      formData.append('drive_data', JSON.stringify(payload));
+
       selectedFiles.forEach((file) => formData.append('attachments', file));
 
       await driveService.createDrive(formData, (progress) => {
@@ -489,9 +499,16 @@ export default function CreateDrivePage() {
 
   return (
     <div className="w-full max-w-[1600px] mx-auto p-6 pb-8 bg-gray-50/50 min-h-screen">
-      <div className="mb-8 p-1">
-         <h1 className="text-3xl font-bold tracking-tight text-[#002147]">Create New Drive</h1>
-         <p className="text-muted-foreground mt-2">Fill in the details below to post a new placement drive for students.</p>
+      <div className="mb-8 p-1 flex items-center gap-4">
+         <Link href="/dashboard/drives">
+            <Button variant="ghost" size="icon" className="-ml-3 rounded-full hover:bg-gray-100 transition-colors">
+               <ArrowLeft className="h-4 w-4" />
+            </Button>
+         </Link>
+         <div>
+             <h1 className="text-3xl font-bold tracking-tight text-[#002147]">Create New Drive</h1>
+             <p className="text-muted-foreground mt-2">Fill in the details below to post a new placement drive for students.</p>
+         </div>
       </div>
 
       <div className="flex gap-10 items-start">
@@ -666,6 +683,39 @@ export default function CreateDrivePage() {
                                     </Select>
                                 )}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                             <Label>Offer Type</Label>
+                             <Controller
+                                 name="offer_type"
+                                 control={form.control}
+                                 render={({ field }) => (
+                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                         <SelectTrigger><SelectValue placeholder="Select Offer Type" /></SelectTrigger>
+                                         <SelectContent>
+                                             <SelectItem value="Regular">Regular</SelectItem>
+                                             <SelectItem value="Dream">Dream</SelectItem>
+                                         </SelectContent>
+                                     </Select>
+                                 )}
+                             />
+                        </div>
+
+                         <div className="space-y-2 col-span-1 md:col-span-2 mt-2">
+                            <div className="flex items-center space-x-2 border p-4 rounded-lg bg-gray-50/50">
+                                <Controller
+                                    name="allow_placed_candidates"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <Checkbox id="allow_placed_candidates" checked={field.value} onCheckedChange={field.onChange} />
+                                    )}
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                    <label htmlFor="allow_placed_candidates" className="text-sm font-medium leading-none cursor-pointer">Allow Placed Candidates to Apply</label>
+                                    <p className="text-xs text-muted-foreground">If checked, students who are already placed can apply for this drive.</p>
+                                </div>
+                            </div>
                         </div>
 
                          <div className="space-y-2">
@@ -1014,9 +1064,28 @@ export default function CreateDrivePage() {
                             />
                         </div>
                         
-                        <div className="flex justify-end mt-4">
-                             <Button type="submit" size="lg" disabled={isSubmitting} className="w-full md:w-auto min-w-[200px] bg-[#002147]">
-                                {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Posting...</> : 'Post Drive'}
+                        <div className="flex justify-end gap-4 mt-4">
+                             <Button 
+                                 type="button" 
+                                 variant="outline" 
+                                 size="lg" 
+                                 disabled={isSubmitting} 
+                                 className="w-full md:w-auto min-w-[150px]"
+                                 onClick={() => {
+                                     setSubmitStatus('draft'); 
+                                     form.handleSubmit(onSubmit)();
+                                 }}
+                             >
+                                {isSubmitting && submitStatus === 'draft' ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Saving...</> : 'Save as Draft'}
+                            </Button>
+                             <Button 
+                                 type="submit" 
+                                 size="lg" 
+                                 disabled={isSubmitting} 
+                                 className="w-full md:w-auto min-w-[200px] bg-[#002147]"
+                                 onClick={() => setSubmitStatus('open')}
+                             >
+                                {isSubmitting && submitStatus === 'open' ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Posting...</> : 'Post Drive'}
                             </Button>
                         </div>
                     </CardContent>
