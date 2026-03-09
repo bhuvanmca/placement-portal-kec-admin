@@ -39,6 +39,18 @@ Before starting, you need:
 
 ---
 
+## 🛑 Important Clarifications (Read First!)
+
+### 1. What to ask from your College/IT?
+You do **NOT** need them to open any inbound ports (like 80, 443, or 8080) in the firewall. You only need:
+- **Outbound internet access**: The VM must be able to reach the internet (port 443) to connect to Cloudflare.
+- **Root/Sudo access**: To install the `cloudflared` agent.
+
+### 2. Do I need many domains?
+No. You only need **ONE domain** (e.g., `placementkec.com`). 
+- Once you add your main domain to Cloudflare, you can create as many **subdomains** as you want for free (e.g., `api.placementkec.com`, `docs.placementkec.com`, `admin.placementkec.com`).
+- You do **NOT** need to buy subdomains from the college or anywhere else.
+
 ## Step 1: Domain Setup on Cloudflare
 
 ### Option A: Use Existing Domain

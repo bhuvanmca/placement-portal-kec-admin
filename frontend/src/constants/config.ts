@@ -1,13 +1,13 @@
 export const APP_CONFIG = {
   NAME: 'KEC Placement Portal',
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api',
+  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost/api',
   DESCRIPTION: 'Placement Portal Admin Dashboard',
 };
 
 export const API_ROUTES = {
   ADMIN_AUTH: {
-    LOGIN: '/v1/admin/auth/login',
-    REGISTER: '/v1/admin/auth/register',
+    LOGIN: '/v1/auth/login',
+    REGISTER: '/v1/auth/register',
     FORGOT_PASSWORD: '/v1/admin/auth/forgot-password',
     RESET_PASSWORD: '/v1/admin/auth/reset-password',
   },

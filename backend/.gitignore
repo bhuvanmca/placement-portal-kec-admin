@@ -1,5 +1,29 @@
-.DS_Store
-.air.toml
-.env.example
+# Binaries
+main
+chat-service
+drive-service
+student-service
+admin-service
+auth-service
+analytics-service
+server
+
+# Go specific
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Docker specific
+*.tar
+*.tar.gz
 firebase-service-account.json
-api

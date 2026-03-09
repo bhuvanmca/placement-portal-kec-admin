@@ -443,8 +443,13 @@ GARAGE_PUBLIC_URL=https://api.yourdomain.com/storage
 **For 10K+ Users:**
 - API Replicas: 5-7 instances
 - Database: Consider read replicas
-- Caching: Add Redis
+- **Caching**: Redis (Already included in `docker-compose.yml`)
 - CDN: Cloudflare for static assets
+
+### Redis Usage Note
+Redis is currently running in your infrastructure (`redis_cache` container). It is **ready for use** but currently **inactive** in the Go code. 
+- **Purpose**: Future implementation of caching for hot routes (Drive lists, Student profiles) and WebHook rate limiting.
+- **Overhead**: Negligible (< 20MB RAM). It is safe to keep running.
 
 ---
 

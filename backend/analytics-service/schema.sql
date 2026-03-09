@@ -1,0 +1,14 @@
+-- ==========================================
+-- ANALYTICS SERVICE — Schema Definition
+-- Schema: (read-only, no owned tables)
+-- search_path: student, drive, admin, public
+--
+-- This service does NOT own any tables.
+-- It reads from all other service schemas
+-- for aggregation and reporting.
+-- ==========================================
+
+-- No tables to create.
+-- Analytics queries resolve via search_path configured
+-- in the service's DATABASE_URL:
+--   search_path=student,drive,admin,public

@@ -20,10 +20,6 @@ jobs:
         # 1. Stop old containers (if running)
         docker compose down || true
         
-        # 1.5 Force clean any lingering containers on port 8080
-        # If placement_api exists but is stopped/stuck, remove it
-        docker rm -f placement_api || true
-        
         # 2. Rebuild the API image
         docker compose build
         

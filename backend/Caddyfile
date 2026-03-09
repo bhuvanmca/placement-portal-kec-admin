@@ -3,56 +3,156 @@
     email harikrishnan4665@gmail.com
 }
 
-# Local Host Deployment (Native IP)
-http://172.20.10.6 {
-    # 1. API Service (Specific Routes to avoid Garage conflict)
-    # We explicitly match only our application routes so Garage's /api/* calls fall through
-    @go_api {
-        path /api/health
-        path /api/v1/auth/*
-        path /api/v1/admin/*
-        path /api/v1/student/*
-        path /api/v1/drives*
-        path /api/v1/spocs*
-        path /api/v1/brands/*
-        path /api/v1/user/*
-        path /api/v1/config/*
-        path /api/v1/profile
-        path /api/webhooks/*
+# API Gateway — Routes to Microservices
+:80 {
+    # ──────────────────────────────────────────────
+    # 1. Auth Service (port 8081)
+    # ──────────────────────────────────────────────
+    handle /api/v1/auth/* {
+        reverse_proxy auth-service:8081
     }
-    handle @go_api {
-        reverse_proxy api:8080
-    }
-    
-    # 2. Chat Service (Microservice)
+
+    # ──────────────────────────────────────────────
+    # 2. Chat Service (port 8082)
+    # ──────────────────────────────────────────────
     handle /api/chat/* {
         reverse_proxy chat-service:8081
     }
-    
     handle /ws {
         reverse_proxy chat-service:8081
     }
-    
-    # Swagger Documentation
-    handle_path /docs/* {
-        rewrite * /swagger{uri}
-        reverse_proxy api:8080
+
+    # ──────────────────────────────────────────────
+    # 3. Drive Service (port 8083)
+    # ──────────────────────────────────────────────
+    handle /api/v1/drives* {
+        reverse_proxy drive-service:8083
+    }
+    handle /api/v1/admin/drives* {
+        reverse_proxy drive-service:8083
     }
 
-    # 3. Garage Storage (Public Access)
-    # Routes /storage/bucket/file -> garage:3900/bucket/file
+    # ──────────────────────────────────────────────
+    # 4. Student Service (port 8084)
+    # ──────────────────────────────────────────────
+    handle /api/v1/student/* {
+        reverse_proxy student-service:8084
+    }
+    handle /api/v1/admin/students/*/documents/* {
+        reverse_proxy student-service:8084
+    }
+    handle /api/v1/user/upload/profile-photo {
+        reverse_proxy student-service:8084
+    }
+    handle /api/v1/user/fcm-token {
+        reverse_proxy student-service:8084
+    }
+
+    # ──────────────────────────────────────────────
+    # 5. Admin Service (port 8085)
+    # ──────────────────────────────────────────────
+    # Config (public read)
+    handle /api/v1/config/* {
+        reverse_proxy admin-service:8085
+    }
+    # SPOCs (public read)
+    handle /api/v1/spocs* {
+        reverse_proxy admin-service:8085
+    }
+    # Brands
+    handle /api/v1/brands/* {
+        reverse_proxy admin-service:8085
+    }
+    # User account management
+    handle /api/v1/user/account {
+        reverse_proxy admin-service:8085
+    }
+    handle /api/v1/user/password {
+        reverse_proxy admin-service:8085
+    }
+    # Settings (public)
+    handle /api/v1/settings* {
+        reverse_proxy admin-service:8085
+    }
+    # Admin student management
+    handle /api/v1/admin/students* {
+        reverse_proxy admin-service:8085
+    }
+    # Admin users block
+    handle /api/v1/admin/users/* {
+        reverse_proxy admin-service:8085
+    }
+    # Admin storage
+    handle /api/v1/admin/storage/* {
+        reverse_proxy admin-service:8085
+    }
+    # Admin system
+    handle /api/v1/admin/system/* {
+        reverse_proxy admin-service:8085
+    }
+    # Admin archive
+    handle /api/v1/admin/archive/* {
+        reverse_proxy admin-service:8085
+    }
+    # Admin drive requests and applications
+    handle /api/v1/admin/applications/* {
+        reverse_proxy admin-service:8085
+    }
+    handle /api/v1/admin/drive-requests* {
+        reverse_proxy admin-service:8085
+    }
+    # Admin settings/fields, requests, broadcast, eligibility
+    handle /api/v1/admin/settings* {
+        reverse_proxy admin-service:8085
+    }
+    handle /api/v1/admin/requests* {
+        reverse_proxy admin-service:8085
+    }
+    handle /api/v1/admin/broadcast/* {
+        reverse_proxy admin-service:8085
+    }
+    handle /api/v1/admin/eligibility-templates* {
+        reverse_proxy admin-service:8085
+    }
+    handle /api/v1/admin/spocs* {
+        reverse_proxy admin-service:8085
+    }
+    # Super admin
+    handle /api/v1/super-admin/* {
+        reverse_proxy admin-service:8085
+    }
+
+    # ──────────────────────────────────────────────
+    # 6. Analytics Service (port 8086)
+    # ──────────────────────────────────────────────
+    handle /api/v1/admin/analytics/* {
+        reverse_proxy analytics-service:8086
+    }
+
+    # ──────────────────────────────────────────────
+    # Health Check (aggregated)
+    # ──────────────────────────────────────────────
+    handle /api/health {
+        respond "Placement Portal Gateway OK" 200
+    }
+
+    # ──────────────────────────────────────────────
+    # Garage Storage (Public Access)
+    # ──────────────────────────────────────────────
     handle_path /storage/* {
         reverse_proxy garage:3900
     }
 
-    # 4. Static Assets for Caddy checks
+    # ──────────────────────────────────────────────
+    # Static Assets
+    # ──────────────────────────────────────────────
     handle /assets/* {
         root * /app/assets
         file_server
     }
 
-    # 5. Default handler
+    # Default handler
     handle /* {
-        respond "Placement Portal API" 200
+        respond "Placement Portal API Gateway" 200
     }
 }

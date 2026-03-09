@@ -1,0 +1,20 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o admin-service ./cmd/api
+
+FROM alpine:latest
+
+WORKDIR /app
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/admin-service .
+
+EXPOSE 8085
+
+CMD ["./admin-service"]

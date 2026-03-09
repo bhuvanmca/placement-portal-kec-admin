@@ -48,10 +48,10 @@ export default function DriveListPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchDrives = async (page = currentPage) => {
+  const fetchDrives = async (page = currentPage, search = searchTerm) => {
     try {
       setLoading(true);
-      const data = await driveService.getAdminDrives(page, pageSize);
+      const data = await driveService.getAdminDrives(page, pageSize, search);
       setDrives(data.drives || []);
       setTotalDrives(data.total || 0);
     } catch (error) {
@@ -62,9 +62,23 @@ export default function DriveListPage() {
     }
   };
 
+  // Handle pagination change
   useEffect(() => {
-    fetchDrives(currentPage);
+    fetchDrives(currentPage, searchTerm);
   }, [currentPage]);
+
+  // Handle search with debounce
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (currentPage === 1) {
+        fetchDrives(1, searchTerm);
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this drive?')) return;
@@ -110,18 +124,13 @@ export default function DriveListPage() {
   };
 
   const toggleSelectAll = () => {
-     if (selectedDrives.length === filteredDrives.length) {
+     if (selectedDrives.length === drives.length) {
         setSelectedDrives([]);
      } else {
-        setSelectedDrives(filteredDrives.map(d => d.id));
+        setSelectedDrives(drives.map(d => d.id));
      }
   };
 
-  const filteredDrives = (drives || []).filter(drive => 
-    drive.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    drive.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    drive.roles.some(r => r.role_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
 
   // ... inside component ...
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -171,7 +180,7 @@ export default function DriveListPage() {
         <div className="flex items-center gap-2 p-4 bg-white border rounded-lg shadow-sm">
            <div className="flex items-center h-full px-2">
               <Checkbox 
-                 checked={filteredDrives.length > 0 && selectedDrives.length === filteredDrives.length}
+                 checked={drives.length > 0 && selectedDrives.length === drives.length}
                  onCheckedChange={toggleSelectAll}
               />
            </div>
@@ -191,7 +200,7 @@ export default function DriveListPage() {
         <div className="flex-1 overflow-y-auto space-y-4">
            {loading ? (
              <div className="p-8 text-center text-gray-500">Loading drives...</div>
-           ) : filteredDrives.length === 0 ? (
+            ) : drives.length === 0 ? (
              <div className="p-12 text-center border rounded-lg bg-gray-50">
                 <Building2 className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                 <h3 className="text-lg font-medium text-gray-900">No Drives Found</h3>
@@ -205,7 +214,7 @@ export default function DriveListPage() {
                 )}
              </div>
            ) : (
-             filteredDrives.map((drive) => (
+             drives.map((drive: Drive) => (
                <div 
                   key={drive.id} 
                   onClick={() => toggleSelect(drive.id)}
@@ -237,29 +246,40 @@ export default function DriveListPage() {
                            {/* Status Action */}
                            <div onClick={(e) => e.stopPropagation()}>
                                {user?.role !== 'coordinator' ? (
-                                   <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                          <Badge 
-                                             variant={drive.status === 'open' ? 'default' : 'secondary'} 
-                                             className={`cursor-pointer hover:opacity-80 ${drive.status === 'open' ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                          >
-                                             {drive.status}
-                                          </Badge>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="start">
-                                         <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-                                         <DropdownMenuSeparator />
-                                         {['open', 'closed', 'completed', 'cancelled', 'on_hold', 'draft'].map(s => (
-                                            <DropdownMenuItem 
-                                                key={s} 
-                                                onClick={() => handleStatusChange(drive.id, s)}
-                                                className={drive.status === s ? 'bg-accent' : ''}
-                                            >
-                                               {s.charAt(0).toUpperCase() + s.slice(1)}
-                                            </DropdownMenuItem>
-                                         ))}
-                                      </DropdownMenuContent>
-                                   </DropdownMenu>
+                                   drive.status === 'draft' ? (
+                                       <div className="flex items-center gap-2">
+                                           <Badge variant="secondary">Draft</Badge>
+                                           <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => handleStatusChange(drive.id, 'open')}>
+                                               Post Drive
+                                           </Button>
+                                       </div>
+                                   ) : drive.status === 'cancelled' ? (
+                                       <Badge variant="secondary">Cancelled</Badge>
+                                   ) : (
+                                       <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                              <Badge 
+                                                 variant={drive.status === 'open' ? 'default' : 'secondary'} 
+                                                 className={`cursor-pointer hover:opacity-80 ${drive.status === 'open' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                              >
+                                                 {drive.status}
+                                              </Badge>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="start">
+                                             <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                                             <DropdownMenuSeparator />
+                                             {['open', 'on_hold', 'cancelled'].map(s => (
+                                                <DropdownMenuItem 
+                                                    key={s} 
+                                                    onClick={() => handleStatusChange(drive.id, s)}
+                                                    className={drive.status === s ? 'bg-accent' : ''}
+                                                >
+                                                   {s.replace('_', ' ').charAt(0).toUpperCase() + s.replace('_', ' ').slice(1)}
+                                                </DropdownMenuItem>
+                                             ))}
+                                          </DropdownMenuContent>
+                                       </DropdownMenu>
+                                   )
                                ) : (
                                    <Badge 
                                       variant={drive.status === 'open' ? 'default' : 'secondary'} 

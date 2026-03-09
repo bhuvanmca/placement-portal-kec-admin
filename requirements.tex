@@ -1,0 +1,102 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{calc}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+
+% Page Geometry
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+
+% Headers and Footers
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Kongu Engineering College (Autonomous)}
+\rhead{Project Budget Proposal}
+\cfoot{\thepage}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Kongu Engineering College (Autonomous)}} \\
+    \vspace{0.2cm}
+    {\large Perundurai, Erode -- 638 060} \\
+    \vspace{0.8cm}
+    {\Large \textbf{Project Requirements \& Budget Proposal}} \\
+    \vspace{0.3cm}
+    {\large \textbf{Project Name: Placement Portal (KEC)}} \\
+\end{center}
+
+\vspace{0.5cm}
+
+\noindent \textbf{Date:} \today \\
+\textbf{Subject:} Detailed Infrastructure Requirements and Operational Budget Estimate
+
+\vspace{0.5cm}
+
+\section*{1. Project Overview}
+The Placement Portal is a centralized platform designed to streamline student recruitment processes at Kongu Engineering College. This document outlines the external services, developer licenses, and operational costs required for successful deployment and long-term maintenance.
+
+\section*{2. Infrastructure \& Software Requirements}
+
+\subsection*{2.1 Developer Accounts \& License Fees (One-time and Annual)}
+These accounts are essential for publishing applications and managing official communication channels.
+
+\vspace{0.3cm}
+\noindent
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{|l|p{8cm}|r|}
+\hline
+\textbf{S.No} & \textbf{Item Description} & \textbf{Estimated Cost (INR)} \\ \hline
+1 & Google Play Console Developer Account (One-time) & 2,500.00 \\ \hline
+2 & Apple Developer Program Membership (Annual) & 10,000.00 \\ \hline
+3 & Facebook Developer Account (Meta Cloud API) & Free \\ \hline
+4 & Amazon Web Services (AWS) Account & Free (Usage based) \\ \hline
+\multicolumn{2}{|r|}{\textbf{Subtotal (Initial Setup \& 1st Year Licensing)}} & \textbf{12,500.00} \\ \hline
+\end{tabular}
+\vspace{0.5cm}
+
+\subsection*{2.2 Operational Costs (Usage-based Estimates)}
+Monthly estimates based on projected traffic (e.g., 5 companies per month, 800 eligible students per drive).
+
+\vspace{0.3cm}
+\noindent
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{|l|p{10cm}|r|}
+\hline
+\textbf{S.No} & \textbf{Item Description} & \textbf{Monthly Est. (INR)} \\ \hline
+1 & \textbf{Meta WhatsApp Cloud API (per month)} \newline
+    - Authentication \& OTP (New Users): \newline ~~~ $\sim$ 500 new logins/month $\times$ 0.115 \newline
+    - Authentication / Utility Messages for Drive Alerts: \newline ~~~ 5 drives $\times$ 800 students = 4,000 msgs $\times$ 0.115 \newline
+    - Opt-in / Opt-out Interactive Bot Responses: \newline ~~~ (Response processing \& DB Sync via webhook) \newline
+    - Service Conversation Window (User replies): Free &  \\ 
+  & \raggedleft \textit{Calculated subtotal for API usage:} & \textbf{517.50} \\ \hline
+2 & Amazon SES (Email Notification Service -- 50k emails) & 600.00 \\ \hline
+\multicolumn{2}{|r|}{\textbf{Total Recurring Monthly Estimate}} & \textbf{1,117.50} \\ \hline
+\end{tabular}
+\vspace{0.5cm}
+
+\section*{3. Budget Summary}
+\vspace{0.3cm}
+\noindent
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{|p{10cm}|r|}
+\hline
+\textbf{Particulars} & \textbf{Amount (INR)} \\ \hline
+Total Initial Setup \& Annual Licensing (Year 1) & 12,500.00 \\ \hline
+Annual Usage-based Operational Buffer (Estimated: $1117.50 \times 12$) & 13,410.00 \\ \hline
+\textbf{Total Proposed Annual Budget (Year 1)} & \textbf{25,910.00} \\ \hline
+\end{tabular}
+\vspace{0.5cm}
+
+
+
+\vfill
+\begin{center}
+    \textit{* All prices are approximate and subject to prevailing exchange rates and local GST.}
+\end{center}
+
+\end{document}

@@ -246,6 +246,20 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
      }
   };
 
+  const handleBulkStatusUpdate = async (newStatus: string) => {
+     if (selectedIds.length === 0) return;
+     try {
+        const requests = selectedIds.map(studentId => ({ drive_id: parseInt(id), student_id: studentId }));
+        await driveService.bulkUpdateDriveRequestStatus(requests, newStatus, "");
+        toast.success(`Marked ${selectedIds.length} students as ${newStatus}`);
+        const updated = await driveService.getDriveApplicantsDetailed(parseInt(id));
+        setApplicants(updated);
+        setSelectedIds([]);
+     } catch (e) {
+        toast.error(`Failed to bulk update status to ${newStatus}`);
+     }
+  };
+
   const handleManualRegister = async (forceRoles?: number[]) => {
     if (!regNo) {
       toast.error("Please enter a register number");
@@ -508,6 +522,33 @@ export default function DriveDetailsPage({ params }: { params: Promise<{ id: str
                            Edit Drive
                         </Button>
                         
+                        {selectedIds.length > 0 && (
+                            <DropdownMenu>
+                               <DropdownMenuTrigger asChild>
+                                  <Button className="bg-green-600 hover:bg-green-700 shadow-md transition-all active:scale-95">
+                                     <CheckCircle2 className="mr-2 h-4 w-4" /> 
+                                     Bulk Actions ({selectedIds.length})
+                                  </Button>
+                               </DropdownMenuTrigger>
+                               <DropdownMenuContent align="end" className="w-52 p-2">
+                                  <DropdownMenuLabel className="text-xs uppercase text-gray-400 font-bold px-2 py-1.5 tracking-widest">Mark Selected As</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleBulkStatusUpdate('placed')} className="cursor-pointer gap-2 py-2">
+                                     <div className="h-2 w-2 rounded-full bg-green-500" /> Placed
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleBulkStatusUpdate('shortlisted')} className="cursor-pointer gap-2 py-2">
+                                     <div className="h-2 w-2 rounded-full bg-amber-400" /> Shortlisted
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleBulkStatusUpdate('opted_in')} className="cursor-pointer gap-2 py-2">
+                                     <div className="h-2 w-2 rounded-full bg-[#002147]" /> Opted In
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleBulkStatusUpdate('rejected')} className="text-red-500 focus:text-red-600 cursor-pointer gap-2 py-2">
+                                     <div className="h-2 w-2 rounded-full bg-red-500" /> Rejected
+                                  </DropdownMenuItem>
+                               </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+
                         <Button className="bg-[#002147] hover:bg-[#003366] shadow-md transition-all active:scale-95" onClick={handleExport}>
                            <Download className="mr-2 h-4 w-4" /> 
                            {selectedIds.length > 0 ? `Export Selected (${selectedIds.length})` : 'Export All'}
