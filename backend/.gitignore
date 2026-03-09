@@ -2,4 +2,3 @@
 .air.toml
 .env.example
 firebase-service-account.json
-api
