@@ -5,9 +5,9 @@ import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { User, LoginCredentials, AuthResponse } from '@/types/auth'; // Centralized types
 import { API_ROUTES } from '@/constants/config';
-import { APP_ROUTES as PAGE_ROUTES } from '@/constants/routes'; 
+import { APP_ROUTES as PAGE_ROUTES } from '@/constants/routes';
 import { isTokenExpired } from '@/utils/auth';
-import { toast } from 'sonner'; 
+import { toast } from 'sonner';
 
 export interface CollegeSettings {
   college_name: string;
@@ -41,16 +41,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const initAuth = async () => {
       console.log("[AuthProvider] Initializing auth...");
       const token = localStorage.getItem('token');
-      
+
       // Fetch college settings regardless of auth (public endpoint usually, or cached)
       // But actually /v1/settings is public.
       try {
         const { data } = await api.get('/v1/settings');
         if (data.settings) {
-            setCollegeSettings({
-                college_name: data.settings.college_name || '',
-                college_logo_url: data.settings.college_logo_url || ''
-            });
+          setCollegeSettings({
+            college_name: data.settings.college_name || '',
+            college_logo_url: data.settings.college_logo_url || ''
+          });
         }
       } catch (e) {
         console.log("[AuthProvider] Failed to fetch initial settings", e);
@@ -58,52 +58,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (token) {
         if (isTokenExpired(token)) {
-            console.log("[AuthProvider] Token expired, logging out.");
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            setUser(null);
-            setIsAuthenticated(false);
-            toast.error("Session expired. Please login again.");
-            router.push(PAGE_ROUTES.LOGIN);
+          console.log("[AuthProvider] Token expired, logging out.");
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+          setIsAuthenticated(false);
+          toast.error("Session expired. Please login again.");
+          router.push(PAGE_ROUTES.LOGIN);
         } else {
-            console.log("[AuthProvider] Found valid token, refreshing session...");
-            // Optimistically set authenticated
-            setIsAuthenticated(true);
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-                 setUser(JSON.parse(storedUser));
-            }
-            
-            // Fetch fresh user data (and presigned URL)
-            try {
-                const { data } = await api.get('/v1/user/account');
-                const updatedUser: User = {
-                    id: data.id,
-                    email: data.email,
-                    role: data.role,
-                    name: data.name,
-                    department_code: data.department_code,
-                    permissions: data.permissions || [], 
-                    profile_photo_url: data.profile_photo_url
-                };
+          console.log("[AuthProvider] Found valid token, refreshing session...");
+          // Optimistically set authenticated
+          setIsAuthenticated(true);
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            setUser(JSON.parse(storedUser));
+          }
 
-                if (storedUser) {
-                    const parsed = JSON.parse(storedUser);
-                    if (parsed.permissions) {
-                        updatedUser.permissions = parsed.permissions;
-                    }
-                }
+          // Fetch fresh user data (and presigned URL)
+          try {
+            const { data } = await api.get('/v1/user/account');
+            const updatedUser: User = {
+              id: data.id,
+              email: data.email,
+              role: data.role,
+              name: data.name,
+              department_code: data.department_code,
+              permissions: data.permissions || [],
+              profile_photo_url: data.profile_photo_url
+            };
 
-                console.log("[AuthProvider] Session refreshed:", updatedUser);
-                setUser(updatedUser);
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-            } catch (error) {
-                console.error("[AuthProvider] Failed to refresh session:", error);
-            }
+            console.log("[AuthProvider] Session refreshed:", updatedUser);
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          } catch (error) {
+            console.error("[AuthProvider] Failed to refresh session:", error);
+          }
         }
       } else {
         console.log("[AuthProvider] No token found.");
-        setIsAuthenticated(false); 
+        setIsAuthenticated(false);
       }
       setIsLoading(false);
     };
@@ -118,33 +111,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user, isAuthenticated, isLoading]);
 
   const updateCollegeSettings = (settings: Partial<CollegeSettings>) => {
-      setCollegeSettings(prev => ({ ...prev, ...settings }));
+    setCollegeSettings(prev => ({ ...prev, ...settings }));
   };
 
   const login = async (data: LoginCredentials, type: 'admin' | 'student' = 'admin'): Promise<boolean> => {
     console.log(`[AuthProvider] ${type} Login called with:`, data);
     try {
       const endpoint = type === 'admin' ? API_ROUTES.ADMIN_AUTH.LOGIN : API_ROUTES.STUDENT_AUTH.LOGIN;
-      const response = await api.post(endpoint, data); 
+      const response = await api.post(endpoint, data);
       console.log("[AuthProvider] Login response:", response);
 
       const responseData = response.data;
-      
+
       const token = responseData.token;
-      
+
       if (token) {
         console.log("[AuthProvider] Token received:", token);
 
         const allowedRoles = ['admin', 'coordinator', 'super_admin'];
         if (type === 'admin' && !allowedRoles.includes(responseData.role)) {
-           toast.error("Unauthorized access. Dashboard credentials required.");
-           return false;
+          toast.error("Unauthorized access. Dashboard credentials required.");
+          return false;
         }
 
         localStorage.setItem('token', token);
-        
+
         const userData: User = {
-          id: responseData.id, 
+          id: responseData.id,
           email: responseData.email,
           role: responseData.role,
           name: responseData.name || responseData.email.split('@')[0],
@@ -164,8 +157,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
     } catch (error: any) {
-       console.warn("[AuthProvider] Login handled:", error?.message || 'Auth error');
-       return false;
+      console.warn("[AuthProvider] Login handled:", error?.message || 'Auth error');
+      return false;
     }
   };
 

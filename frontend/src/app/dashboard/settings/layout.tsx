@@ -75,28 +75,28 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   // Route Protection: basic check to ensure user doesn't access unauthorized tab
   // We can't easily check children props here during render for redirection, 
   // but we can check if the current pathname is allowed.
-  
+
   // Find which item corresponds to current path
   // This is a bit loose but works for the tab structure
   // We skip this check for the root /settings since page.tsx handles that redirect
   if (pathname !== '/dashboard/settings') {
-     const currentItem = settingsNavItems.find(item => pathname.startsWith(item.href));
-     if (currentItem && !currentItem.roles.includes(userRole)) {
-        // Unauthorized access - redirect to their default
-        return (
-          <div className="flex h-full items-center justify-center bg-gray-50 text-center p-8">
-             <div className="max-w-lg space-y-4">
-                <h2 className="text-xl text-slate-600">You need to be an admin or a coordinator to use this page</h2>
-                <Link 
-                   href="/dashboard/settings" 
-                   className="inline-block bg-[#002147] text-white px-4 py-2 rounded-md hover:bg-[#002147]/90"
-                >
-                   Go to Settings
-                </Link>
-             </div>
+    const currentItem = settingsNavItems.find(item => pathname.startsWith(item.href));
+    if (currentItem && !currentItem.roles.includes(userRole)) {
+      // Unauthorized access - redirect to their default
+      return (
+        <div className="flex h-full items-center justify-center bg-gray-50 text-center p-8">
+          <div className="max-w-lg space-y-4">
+            <h2 className="text-xl text-slate-600">You need to be an admin or a coordinator to use this page</h2>
+            <Link
+              href="/dashboard/settings"
+              className="inline-block bg-[#002147] text-white px-4 py-2 rounded-md hover:bg-[#002147]/90"
+            >
+              Go to Settings
+            </Link>
           </div>
-        )
-     }
+        </div>
+      )
+    }
   }
 
   return (
@@ -106,12 +106,12 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-[#002147] px-3">Settings</h2>
         </div>
-        
+
         <nav className="space-y-1">
           {filteredItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-            
+
             return (
               <Link
                 key={item.href}
@@ -119,8 +119,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-[#002147] hover:bg-gray-100 hover:text-slate-500 text-white hover:text-slate-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'text-slate-700 bg-gray-200/50 hover:bg-[#002147] hover:text-white'
+                    : 'text-gray-700 hover:bg-gray-200/50'
                 )}
               >
                 <Icon className="h-5 w-5" />
