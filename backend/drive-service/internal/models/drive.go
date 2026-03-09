@@ -36,6 +36,7 @@ type PlacementDrive struct {
 	PGMinCGPA           *float64 `json:"pg_min_cgpa"`
 	UseAggregate        bool     `json:"use_aggregate"`
 	AggregatePercentage *float64 `json:"aggregate_percentage"`
+	EligibleGender      string   `json:"eligible_gender"`
 
 	MaxBacklogsAllowed  int      `json:"max_backlogs_allowed"`
 	EligibleBatches     []int    `json:"eligible_batches"`     // JSONB

@@ -1,21 +1,20 @@
-FROM golang:1.25-alpine
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Copy the go mod and sum files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the source code
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o student-service ./cmd/api
 
-# Ensure go.mod is tidy (handles version inconsistencies)
-RUN go mod tidy
+FROM alpine:latest
 
-# Build the binary
-RUN go build -o main ./cmd/api
+WORKDIR /app
+RUN apk add --no-cache ca-certificates
 
-# The API runs on 8084 inside the container
+COPY --from=builder /app/student-service .
+
 EXPOSE 8084
 
-CMD ["/app/main"]
+CMD ["./student-service"]

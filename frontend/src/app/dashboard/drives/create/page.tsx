@@ -529,72 +529,74 @@ export default function CreateDrivePage() {
                                     <div className="space-y-2">
                                         <Label>Company Name <span className="text-red-500">*</span></Label>
                                         <div className="flex gap-2 items-center">
-                                            {form.watch('logo_url') && (
-                                                <img src={form.watch('logo_url')} alt="Logo" className="h-10 w-10 object-contain rounded border p-1 bg-white" />
-                                            )}
-                                            <div className="w-full relative flex gap-2" data-company-search>
-                                                <Input
-                                                    placeholder="Search company..."
-                                                    value={companyQuery}
-                                                    onChange={(e) => {
-                                                        setCompanyQuery(e.target.value);
-                                                        setOpenCompanySearch(true);
-                                                    }}
-                                                    onFocus={() => setOpenCompanySearch(true)}
-                                                    className="w-full flex-1"
-                                                />
+                                            <div className="w-full flex gap-2 items-center" data-company-search>
+                                                {form.watch('logo_url') && (
+                                                    <img src={form.watch('logo_url')} alt="Logo" className="h-10 w-10 object-contain rounded border p-1 bg-white" />
+                                                )}
+                                                <div className="relative flex-1">
+                                                    <Input
+                                                        placeholder="Search company..."
+                                                        value={companyQuery}
+                                                        onChange={(e) => {
+                                                            setCompanyQuery(e.target.value);
+                                                            setOpenCompanySearch(true);
+                                                        }}
+                                                        onFocus={() => setOpenCompanySearch(true)}
+                                                        className="w-full"
+                                                    />
 
-                                                {openCompanySearch && companyQuery && (
-                                                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[300px] overflow-y-auto">
-                                                        {loadingCompanies && (
-                                                            <div className="p-3 text-center text-sm text-muted-foreground">
-                                                                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                                                                Searching...
-                                                            </div>
-                                                        )}
+                                                    {openCompanySearch && companyQuery && (
+                                                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[300px] overflow-y-auto">
+                                                            {loadingCompanies && (
+                                                                <div className="p-3 text-center text-sm text-muted-foreground">
+                                                                    <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                                                                    Searching...
+                                                                </div>
+                                                            )}
 
-                                                        {!loadingCompanies && companyResults?.length > 0 && (
-                                                            <div className="p-1">
-                                                                {companyResults.map((company) => (
+                                                            {!loadingCompanies && companyResults?.length > 0 && (
+                                                                <div className="p-1">
+                                                                    {companyResults.map((company) => (
+                                                                        <div
+                                                                            key={company.domain}
+                                                                            onClick={() => {
+                                                                                form.setValue('company_name', company.name);
+                                                                                form.setValue('website', company.domain);
+                                                                                if (company.icon) form.setValue('logo_url', company.icon);
+                                                                                setCompanyQuery(company.name);
+                                                                                setOpenCompanySearch(false);
+                                                                            }}
+                                                                            className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer rounded-sm transition-colors"
+                                                                        >
+                                                                            {company.icon && (
+                                                                                <img src={company.icon} alt={company.name} className="mr-2 h-4 w-4 object-contain" />
+                                                                            )}
+                                                                            <span className="font-medium flex-1">{company.name}</span>
+                                                                            {form.watch('company_name') === company.name && <Check className="ml-2 h-4 w-4 text-green-600" />}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {!loadingCompanies && companyQuery && (
+                                                                <>
+                                                                    {companyResults?.length > 0 && <div className="border-t border-gray-200 my-1" />}
                                                                     <div
-                                                                        key={company.domain}
                                                                         onClick={() => {
-                                                                            form.setValue('company_name', company.name);
-                                                                            form.setValue('website', company.domain);
-                                                                            if (company.icon) form.setValue('logo_url', company.icon);
-                                                                            setCompanyQuery(company.name);
+                                                                            form.setValue('company_name', companyQuery);
+                                                                            form.setValue('website', '');
                                                                             setOpenCompanySearch(false);
                                                                         }}
-                                                                        className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer rounded-sm transition-colors"
+                                                                        className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer rounded-sm transition-colors m-1"
                                                                     >
-                                                                        {company.icon && (
-                                                                            <img src={company.icon} alt={company.name} className="mr-2 h-4 w-4 object-contain" />
-                                                                        )}
-                                                                        <span className="font-medium flex-1">{company.name}</span>
-                                                                        {form.watch('company_name') === company.name && <Check className="ml-2 h-4 w-4 text-green-600" />}
+                                                                        <Plus className="mr-2 h-4 w-4" />
+                                                                        Use "{companyQuery}"
                                                                     </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {!loadingCompanies && companyQuery && (
-                                                            <>
-                                                                {companyResults?.length > 0 && <div className="border-t border-gray-200 my-1" />}
-                                                                <div
-                                                                    onClick={() => {
-                                                                        form.setValue('company_name', companyQuery);
-                                                                        form.setValue('website', '');
-                                                                        setOpenCompanySearch(false);
-                                                                    }}
-                                                                    className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer rounded-sm transition-colors m-1"
-                                                                >
-                                                                    <Plus className="mr-2 h-4 w-4" />
-                                                                    Use "{companyQuery}"
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         {form.formState.errors.company_name && <p className="text-red-500 text-xs">{form.formState.errors.company_name.message}</p>}
@@ -1394,6 +1396,6 @@ export default function CreateDrivePage() {
                 <ArrowUp className="h-6 w-6" />
             </button>
 
-        </div>
+        </div >
     );
 }

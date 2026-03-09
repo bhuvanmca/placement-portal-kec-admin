@@ -22,14 +22,14 @@ func NewDriveRepository(db *pgxpool.Pool) *DriveRepository {
 // 1. Create Drive (Admin Only)
 func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.PlacementDrive) error {
 	query := `
-        INSERT INTO drive.placement_drives (
+        INSERT INTO placement_drives (
             posted_by, company_name, job_description,
             drive_type, company_category, spoc_id,
             offer_type, allow_placed_candidates,
             min_cgpa, max_backlogs_allowed, 
             
             tenth_percentage, twelfth_percentage, ug_min_cgpa, pg_min_cgpa,
-            use_aggregate, aggregate_percentage,
+            use_aggregate, aggregate_percentage, eligible_gender,
 
             rounds, attachments,
             drive_date, deadline_date,
@@ -41,12 +41,12 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
             $7, $8,
             
             $9, $10, $11, $12,
-            $13, $14,
-            $15, $16,
-            $17, $18,
-            $19, $20,
-            $21, $22, $23, $24,
-            'open', $25, NOW()
+            $13, $14, $15,
+            $16, $17,
+            $18, $19,
+            $20, $21, $22, $23,
+            $24, $25,
+            'open', $26, NOW()
         ) RETURNING id
     `
 	// Ensure LocationType has a valid default
@@ -62,7 +62,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 		drive.MinCgpa, drive.MaxBacklogsAllowed,
 
 		drive.TenthPercentage, drive.TwelfthPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
-		drive.UseAggregate, drive.AggregatePercentage,
+		drive.UseAggregate, drive.AggregatePercentage, drive.EligibleGender,
 
 		drive.Rounds, drive.Attachments,
 		drive.DriveDate, drive.DeadlineDate,
@@ -76,7 +76,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 
 	// Insert Eligible Batches
 	if len(drive.EligibleBatches) > 0 {
-		batchQuery := `INSERT INTO drive.eligible_batches (drive_id, batch_year) VALUES ($1, $2)`
+		batchQuery := `INSERT INTO drive_eligible_batches (drive_id, batch_year) VALUES ($1, $2)`
 		for _, batch := range drive.EligibleBatches {
 			_, err := r.DB.Exec(ctx, batchQuery, driveID, batch)
 			if err != nil {
@@ -87,7 +87,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 
 	// Insert Eligible Departments
 	if len(drive.EligibleDepartments) > 0 {
-		deptQuery := `INSERT INTO drive.eligible_departments (drive_id, department_code) VALUES ($1, $2)`
+		deptQuery := `INSERT INTO drive_eligible_departments (drive_id, department_code) VALUES ($1, $2)`
 		for _, dept := range drive.EligibleDepartments {
 			_, err := r.DB.Exec(ctx, deptQuery, driveID, dept)
 			if err != nil {
@@ -99,7 +99,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 	// Insert Job Roles
 	if len(drive.Roles) > 0 {
 		roleQuery := `
-			INSERT INTO drive.job_roles (drive_id, role_name, ctc, salary, stipend)
+			INSERT INTO job_roles (drive_id, role_name, ctc, salary, stipend)
 			VALUES ($1, $2, $3, $4, $5)
 		`
 		for _, role := range drive.Roles {
@@ -452,16 +452,15 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
             min_cgpa=$8, max_backlogs_allowed=$9, 
             
             tenth_percentage=$10, twelfth_percentage=$11, ug_min_cgpa=$12, pg_min_cgpa=$13,
-            use_aggregate=$14, aggregate_percentage=$15,
+            use_aggregate=$14, aggregate_percentage=$15, eligible_gender=$16,
 
-            rounds=$16, attachments=$17,
-            drive_date=$18, deadline_date=$19,
-            website=$20, logo_url=$21, location=$22, location_type=$23,
-            status=$24, excluded_student_ids=$25
-        WHERE id = $26
+            rounds=$17, attachments=$18,
+            drive_date=$19, deadline_date=$20,
+            website=$21, logo_url=$22, location=$23, location_type=$24,
+            status=$25, excluded_student_ids=$26
+        WHERE id = $27
     `
 	// Note: We don't update 'posted_by' or 'created_at'
-	// ...
 	_, err = tx.Exec(ctx, query,
 		drive.CompanyName, drive.JobDescription,
 		drive.DriveType, drive.CompanyCategory, drive.SpocID,
@@ -469,7 +468,7 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 		drive.MinCgpa, drive.MaxBacklogsAllowed,
 
 		drive.TenthPercentage, drive.TwelfthPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
-		drive.UseAggregate, drive.AggregatePercentage,
+		drive.UseAggregate, drive.AggregatePercentage, drive.EligibleGender,
 
 		drive.Rounds, drive.Attachments,
 		drive.DriveDate, drive.DeadlineDate,
@@ -578,7 +577,10 @@ func (r *DriveRepository) GetDriveByID(ctx context.Context, id int64) (*models.P
             pd.id, pd.posted_by, pd.company_name, pd.job_description,
             pd.drive_type, pd.company_category, pd.spoc_id,
             pd.offer_type, pd.allow_placed_candidates,
-            pd.min_cgpa, pd.max_backlogs_allowed,
+            pd.min_cgpa, 
+            pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
+            pd.use_aggregate, pd.aggregate_percentage, pd.eligible_gender,
+            pd.max_backlogs_allowed,
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb),
             COALESCE(pd.rounds, '[]'::jsonb), COALESCE(pd.attachments, '[]'::jsonb),
@@ -594,12 +596,15 @@ func (r *DriveRepository) GetDriveByID(ctx context.Context, id int64) (*models.P
 		&d.ID, &d.PostedBy, &d.CompanyName, &d.JobDescription,
 		&d.DriveType, &d.CompanyCategory, &d.SpocID,
 		&d.OfferType, &d.AllowPlacedCandidates,
-		&d.MinCgpa, &d.MaxBacklogsAllowed,
+		&d.MinCgpa,
+		&d.TenthPercentage, &d.TwelfthPercentage, &d.UGMinCGPA, &d.PGMinCGPA,
+		&d.UseAggregate, &d.AggregatePercentage, &d.EligibleGender,
+		&d.MaxBacklogsAllowed,
 		&d.EligibleBatches, &d.EligibleDepartments,
 		&d.Rounds, &d.Attachments,
 		&d.DriveDate, &d.DeadlineDate, &d.Website, &d.LogoURL, &d.Location, &d.LocationType, &d.Status, &d.CreatedAt, &d.ExcludedStudentIDs,
-		&d.SpocName, &d.SpocDesignation, // [NEW]
-		&d.Roles, // [NEW]
+		&d.SpocName, &d.SpocDesignation,
+		&d.Roles,
 	)
 	if err != nil {
 		return nil, err

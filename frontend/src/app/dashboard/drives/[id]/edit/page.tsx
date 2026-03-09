@@ -842,7 +842,12 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                         />
                                     </div>
 
-                                    <div className="flex justify-end mt-4">
+                                    <div className="flex justify-end gap-4 mt-4">
+                                        <Link href={`/dashboard/drives/${id}`}>
+                                            <Button type="button" variant="outline" size="lg" disabled={isSubmitting} className="w-full md:w-auto min-w-[150px]">
+                                                Cancel
+                                            </Button>
+                                        </Link>
                                         <Button type="submit" size="lg" disabled={isSubmitting} className="w-full md:w-auto min-w-[200px] bg-[#002147]">
                                             {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</> : 'Republish Drive'}
                                         </Button>

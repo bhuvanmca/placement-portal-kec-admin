@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS placement_drives (
     pg_min_cgpa DECIMAL(4,2),
     use_aggregate BOOLEAN DEFAULT FALSE,
     aggregate_percentage DECIMAL(5,2),
+    eligible_gender VARCHAR(20) DEFAULT 'All',
     max_backlogs_allowed INT,
     rounds JSONB DEFAULT '[]',
     attachments JSONB DEFAULT '[]',

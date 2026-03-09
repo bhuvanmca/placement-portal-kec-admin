@@ -1,19 +1,20 @@
-FROM golang:1.25-alpine
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Copy the go mod and sum files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the source code
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o drive-service ./cmd/api
 
-# Build the application
-RUN go build -o main ./cmd/api
+FROM alpine:latest
 
-# Expose port (Drive Service uses 8083)
+WORKDIR /app
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/drive-service .
+
 EXPOSE 8083
 
-# Command to run the executable
-CMD ["./main"]
+CMD ["./drive-service"]

@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -6,11 +6,15 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o analytics-service ./cmd/api
 
-RUN go mod tidy
+FROM alpine:latest
 
-RUN go build -o main ./cmd/api
+WORKDIR /app
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/analytics-service .
 
 EXPOSE 8086
 
-CMD ["/app/main"]
+CMD ["./analytics-service"]
