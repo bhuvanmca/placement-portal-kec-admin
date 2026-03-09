@@ -31,6 +31,7 @@ func SetupDriveRoutes(router fiber.Router, driveHandler *handlers.DriveHandler) 
 	adminGroup.Delete("/:id", driveHandler.DeleteDrive)     // Soft delete
 
 	// Applicant Management
+	adminGroup.Get("/:id/applicants", driveHandler.GetDriveApplicants)
 	adminGroup.Get("/:id/applicants/detailed", driveHandler.GetApplicants)
 	adminGroup.Post("/:id/export", driveHandler.ExportApplicants)         // Change to /export to match frontend
 	adminGroup.Post("/:id/add-student", driveHandler.AdminAddApplication) // Change to /add-student to match frontend

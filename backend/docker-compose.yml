@@ -33,6 +33,8 @@ services:
       - PORT=8081
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=auth,public
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_started
@@ -51,6 +53,8 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=drive,public
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_started
@@ -79,6 +83,8 @@ services:
       - GARAGE_CHAT_BUCKET=${GARAGE_CHAT_BUCKET}
       - GARAGE_REGION=${GARAGE_REGION}
       - GARAGE_USE_SSL=${GARAGE_USE_SSL}
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_started
@@ -112,6 +118,8 @@ services:
       - SMTP_EMAIL=${SMTP_EMAIL}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - LOGO_DEV_SECRET_KEY=${LOGO_DEV_SECRET_KEY}
+    env_file:
+      - .env
     depends_on:
       postgres:
         condition: service_started
@@ -159,6 +167,11 @@ services:
       - GARAGE_CHAT_BUCKET=${GARAGE_CHAT_BUCKET}
       - GARAGE_REGION=${GARAGE_REGION}
       - GARAGE_USE_SSL=${GARAGE_USE_SSL}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_WHATSAPP_FROM=${TWILIO_WHATSAPP_FROM}
+    env_file:
+      - .env
     depends_on:
       - postgres
       - redis

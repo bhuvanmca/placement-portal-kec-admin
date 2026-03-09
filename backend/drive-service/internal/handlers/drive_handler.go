@@ -1312,3 +1312,19 @@ func (h *DriveHandler) GetDriveByID(c *fiber.Ctx) error {
 
 	return c.JSON(drive)
 }
+
+// GetDriveApplicants - GET /v1/admin/drives/:id/applicants
+func (h *DriveHandler) GetDriveApplicants(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive ID"})
+	}
+
+	applicants, err := h.repo.GetDriveApplicants(c.Context(), id)
+	if err != nil {
+		fmt.Printf("Get Applicants Error: %v\n", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
+	}
+
+	return c.JSON(applicants)
+}

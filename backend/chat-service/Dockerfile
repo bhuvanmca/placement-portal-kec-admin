@@ -20,7 +20,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o chat-service ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o chat-service ./cmd/api/main.go
 
 # Final Stage
 FROM alpine:latest

@@ -543,10 +543,6 @@ export default function CreateDrivePage() {
                                                     onFocus={() => setOpenCompanySearch(true)}
                                                     className="w-full flex-1"
                                                 />
-                                                <Button type="button" variant="default" className="bg-[#002147] hover:bg-[#003366]">
-                                                    <Search className="h-4 w-4 md:mr-2" />
-                                                    <span className="hidden md:inline">Search</span>
-                                                </Button>
 
                                                 {openCompanySearch && companyQuery && (
                                                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[300px] overflow-y-auto">

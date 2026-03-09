@@ -275,9 +275,8 @@ export const driveService = {
   },
 
   getDriveById: async (id: number) => {
-    // Current workaround: fetch first 100 drives and find locally
-    const response = await driveService.getAdminDrives(1, 100);
-    return (response.drives || []).find((d: Drive) => d.id === id);
+    const response = await api.get<Drive>(`${API_ROUTES.ADMIN_DRIVES}/${id}`);
+    return response.data;
   },
 
   applyForDrive: async (driveId: number) => {
