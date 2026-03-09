@@ -114,6 +114,9 @@
     handle /api/v1/admin/eligibility-templates* {
         reverse_proxy admin-service:8085
     }
+    handle /api/v1/admin/spocs* {
+        reverse_proxy admin-service:8085
+    }
     # Super admin
     handle /api/v1/super-admin/* {
         reverse_proxy admin-service:8085
