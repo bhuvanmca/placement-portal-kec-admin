@@ -6,9 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/placement-portal-kec/auth-service/internal/routes"
 )
@@ -17,7 +19,7 @@ func main() {
 	// 1. Initialize DB Connection
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://admin:admin123@localhost:5432/placement_portal?sslmode=disable"
+		dbURL = "postgres://admin:admin123@localhost:5432/kecdrives-db?sslmode=disable"
 	}
 
 	config, err := pgxpool.ParseConfig(dbURL)
@@ -25,10 +27,16 @@ func main() {
 		log.Fatalf("Unable to parse database URL: %v", err)
 	}
 
-	config.MaxConns = 10
-	config.MinConns = 2
+	config.MaxConns = 50
+	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
+
+	// persistence search_path for ALL connections in the pool
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET search_path TO auth, public")
+		return err
+	}
 
 	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
@@ -40,12 +48,17 @@ func main() {
 		log.Fatalf("Database ping failed: %v", err)
 	}
 
-	log.Println("Connected to Database for Auth Service")
+	log.Println("Connected to Database for Auth Service (with persistent search_path)")
 
 	// 2. Initialize Fiber App
 	app := fiber.New(fiber.Config{
 		AppName: "Placement Portal - Auth Service",
 	})
+
+	// Prometheus Monitoring
+	prometheus := fiberprometheus.New("auth-service")
+	prometheus.RegisterAt(app, "/metrics")
+	app.Use(prometheus.Middleware)
 
 	// 3. Middlewares
 	app.Use(logger.New())

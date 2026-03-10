@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o analytics-service ./cmd/api
 
-FROM alpine:latest
+FROM alpine:3.21
 
 WORKDIR /app
 RUN apk add --no-cache ca-certificates

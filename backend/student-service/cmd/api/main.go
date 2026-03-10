@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -27,7 +28,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	fmt.Println("✅ Student Service connected to database")
+	fmt.Println("Student Service connected to database")
 
 	// Initialize Redis Cache
 	services.InitRedis()
@@ -45,6 +46,11 @@ func main() {
 		AppName:   "Placement Portal - Student Service",
 		BodyLimit: 10 * 1024 * 1024, // 10MB for uploads
 	})
+
+	// Prometheus Monitoring
+	prometheus := fiberprometheus.New("student-service")
+	prometheus.RegisterAt(app, "/metrics")
+	app.Use(prometheus.Middleware)
 
 	app.Use(cors.New())
 	app.Use(logger.New(logger.Config{

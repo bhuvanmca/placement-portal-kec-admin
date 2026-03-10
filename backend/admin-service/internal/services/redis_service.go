@@ -31,10 +31,10 @@ func InitRedis() {
 	defer cancel()
 
 	if err := RedisClient.Ping(ctx).Err(); err != nil {
-		log.Printf("⚠️ Warning: Could not connect to Redis at %s: %v. Caching will be skipped.", redisAddr, err)
+		log.Printf("Warning: Could not connect to Redis at %s: %v. Caching will be skipped.", redisAddr, err)
 		RedisClient = nil // Keep it nil so we know it failed
 	} else {
-		log.Printf("✅ Connected to Redis at %s", redisAddr)
+		log.Printf("Connected to Redis at %s", redisAddr)
 	}
 }
 

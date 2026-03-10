@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -22,11 +23,16 @@ func main() {
 	}
 	defer pool.Close()
 
-	fmt.Println("✅ Analytics Service connected to database")
+	fmt.Println("Analytics Service connected to database")
 
 	app := fiber.New(fiber.Config{
 		AppName: "Placement Portal - Analytics Service",
 	})
+
+	// Prometheus Monitoring
+	prometheus := fiberprometheus.New("analytics-service")
+	prometheus.RegisterAt(app, "/metrics")
+	app.Use(prometheus.Middleware)
 
 	app.Use(cors.New())
 	app.Use(logger.New(logger.Config{

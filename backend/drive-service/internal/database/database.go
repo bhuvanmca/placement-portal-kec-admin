@@ -6,37 +6,33 @@ import (
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var DB *pgxpool.Pool
 
 // ConnectDB initializes the global PostgreSQL connection pool using the provided connection string.
-//
-// It parses the connection string to create a default configuration and applies specific
-// tuning parameters for the connection pool:
-//   - MaxConns: Limits the pool to 10 concurrent connections to prevent database overload.
-//   - MinConns: Maintains at least 2 idle connections to reduce latency for new requests.
-//   - MaxConnLifetime: Recycles connections every hour to prevent stale connection issues.
-//
-// After configuration, it attempts to establish the pool and verifies connectivity by
-// pinging the database. If any step fails (parsing config, connecting, or pinging),
-// the application will terminate immediately via log.Fatal.
 func ConnectDB(connString string) {
 	var err error
 
-	// Config for connection pool (optional tweaking usually goes here)
 	config, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		log.Fatal("Failed to parse DB config:", err)
 	}
 
-	// Set constraints to prevent resource starvation but allow scaling
-	// Pi 4 has enough RAM for ~50 connections if queries are optimized
+	// Performance tuning for production
 	config.MaxConns = 50
 	config.MinConns = 5
-	config.MaxConnLifetime = 30 * time.Minute
+	config.MaxConnLifetime = time.Hour
+	config.MaxConnIdleTime = time.Minute * 30
 	config.HealthCheckPeriod = 1 * time.Minute
+
+	// persistence search_path for ALL connections in the pool
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET search_path TO drive, public")
+		return err
+	}
 
 	// Establish connection
 	DB, err = pgxpool.NewWithConfig(context.Background(), config)
@@ -50,10 +46,7 @@ func ConnectDB(connString string) {
 		log.Fatal("Could not ping database:", err)
 	}
 
-	// Run Auto-Migrations (Removed: Schema is now stable)
-	// RunMigrations()
-
-	fmt.Println("Connected to PostgreSQL successfully!")
+	fmt.Println("Connected to PostgreSQL successfully (with persistent search_path)!")
 }
 
 // CloseDB closes the connection pool

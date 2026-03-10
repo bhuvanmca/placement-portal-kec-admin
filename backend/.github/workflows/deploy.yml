@@ -7,24 +7,36 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-    
+
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # (Optional) You can remove the 'Set up Docker Buildx' step unless you specifically need it for advanced caching. 
-    # The standard docker compose build works fine without it on a self-hosted runner.
+    - name: Create .env file
+      run: echo "${{ secrets.ENV_FILE }}" > .env
 
     - name: Build and Deploy
       run: |
-        # 1. Stop old containers (if running)
-        docker compose down || true
+        # 1. Stop old containers and remove orphans
+        docker compose down --remove-orphans || true
         
-        # 2. Rebuild the API image
-        docker compose build
+        # 2. Force remove containers with fixed names to prevent conflicts
+        docker rm -f local_storage local_db redis_cache caddy auth_service drive_service student_service admin_service analytics_service chat_service || true
         
-        # 3. Start services in background
-        docker compose up -d
-        
-        # 4. Clean up dangling images to save SD card space
+        # 3. Rebuild all service images
+        docker compose build --no-cache
+
+        # 4. Start services in background
+        docker compose up -d --remove-orphans
+
+        # 5. Synchronize Database Schemas (Crucial for 500 error fix)
+        echo "Synchronizing database schemas..."
+        if echo "${{ github.event.head_commit.message }}" | grep -qi "\[db-reset\]"; then
+          echo "☢️ [db-reset] detected in commit message. Running with FORCE_REINIT=true"
+          FORCE_REINIT=true bash scripts/run_schemas.sh
+        else
+          bash scripts/run_schemas.sh
+        fi
+
+        # 6. Clean up dangling images to save disk space
         docker image prune -f

@@ -130,6 +130,26 @@
     }
 
     # ──────────────────────────────────────────────
+    # Monitoring Stack (Firewall Bypass)
+    # ──────────────────────────────────────────────
+    # Simplify matchers to catch both /path and /path/
+    handle /prometheus* {
+        reverse_proxy prometheus:9090
+    }
+
+    handle /grafana* {
+        reverse_proxy grafana:3000
+    }
+
+    handle /pgadmin* {
+        reverse_proxy pgadmin:80 {
+            header_up X-Script-Name /pgadmin
+            header_up Host {host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # ──────────────────────────────────────────────
     # Health Check (aggregated)
     # ──────────────────────────────────────────────
     handle /api/health {

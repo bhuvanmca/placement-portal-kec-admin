@@ -20,7 +20,7 @@ func NewAuthRepository(db *pgxpool.Pool) *AuthRepository {
 func (r *AuthRepository) CreateUser(ctx context.Context, input *models.RegisterInput, passwordHash string) (*models.User, error) {
 	// Name can be directly from input for admins/coordinators, or synced later for students.
 	query := `
-		INSERT INTO users (email, password_hash, role, name, department_code, is_active) 
+		INSERT INTO public.users (email, password_hash, role, name, department_code, is_active) 
 		VALUES ($1, $2, $3, $4, $5, true) 
 		RETURNING id, email, role, name, department_code, is_active, is_blocked, created_at
 	`
@@ -41,8 +41,8 @@ func (r *AuthRepository) CreateUser(ctx context.Context, input *models.RegisterI
 func (r *AuthRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	query := `
 		SELECT id, email, password_hash, role, name, department_code, profile_photo_url, is_active, is_blocked, last_login 
-		FROM users 
-		WHERE email = $1
+		FROM public.users 
+		WHERE LOWER(email) = LOWER($1)
 	`
 	var user models.User
 	err := r.DB.QueryRow(ctx, query, email).Scan(
@@ -57,13 +57,13 @@ func (r *AuthRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 
 // UpdateLastLogin updates the login timestamp
 func (r *AuthRepository) UpdateLastLogin(ctx context.Context, userID int64) error {
-	_, err := r.DB.Exec(ctx, `UPDATE users SET last_login = NOW() WHERE id = $1`, userID)
+	_, err := r.DB.Exec(ctx, `UPDATE public.users SET last_login = NOW() WHERE id = $1`, userID)
 	return err
 }
 
 // ResetPassword
 func (r *AuthRepository) ResetPassword(ctx context.Context, email, passwordHash string) error {
-	_, err := r.DB.Exec(ctx, `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2`, passwordHash, email)
+	_, err := r.DB.Exec(ctx, `UPDATE public.users SET password_hash = $1, updated_at = NOW() WHERE email = $2`, passwordHash, email)
 	return err
 }
 
