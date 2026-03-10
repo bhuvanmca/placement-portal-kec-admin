@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     if (!fileUrl) {
         return new NextResponse('Missing url parameter', { status: 400 });
     }
-
+    //
     try {
         const response = await fetch(fileUrl);
         

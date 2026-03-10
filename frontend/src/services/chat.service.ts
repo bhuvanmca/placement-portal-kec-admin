@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getAuthToken } from '@/utils/auth-token';
 
-const CHAT_API_URL = process.env.NEXT_PUBLIC_CHAT_API_URL || 'http://localhost:8081/api/chat';
-const WS_URL = process.env.NEXT_PUBLIC_CHAT_WS_URL || 'ws://localhost:8081/ws';
+const CHAT_API_URL = process.env.NEXT_PUBLIC_CHAT_API_URL 
+const WS_URL = process.env.NEXT_PUBLIC_CHAT_WS_URL 
 
 export interface ChatGroup {
   id: number;
@@ -105,7 +105,7 @@ class ChatServiceClass {
     
     // We use the new endpoint
     // APP_CONFIG.API_BASE_URL usually ends with /api, so we optimize.
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
     const response = await axios.post(`${baseUrl}/v1/chat/upload`, formData, {
         headers: { 
             Authorization: `Bearer ${token}`,

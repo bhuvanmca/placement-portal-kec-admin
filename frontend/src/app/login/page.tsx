@@ -48,7 +48,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div 
+    <div
       className="flex items-center justify-center min-h-screen w-full p-4 relative bg-[#f0f4f8]"
       style={{
         backgroundImage: `url('/campus-bg.png')`,
@@ -60,15 +60,15 @@ export default function LoginPage() {
       <Card className="w-full max-w-[420px] bg-white border-0 relative z-10 animate-in fade-in zoom-in duration-500 rounded-xl overflow-hidden">
         <CardHeader className="text-center flex flex-col items-center space-y-4 pt-10 pb-6">
           <div className="w-24 h-24 relative mb-2 bg-white rounded-full p-2 shadow-sm border border-gray-100 flex items-center justify-center">
-             <img 
-               src="/kec-logo.png" 
-               alt="KEC Logo" 
-               className="w-full h-full object-contain"
-             />
+            <img
+              src="/kec-logo.png"
+              alt="KEC Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-center gap-2">
-                <CardTitle className="text-[#002147] text-3xl font-bold tracking-tight">Admin Portal</CardTitle>
+              <CardTitle className="text-[#002147] text-3xl font-bold tracking-tight">Admin Portal</CardTitle>
             </div>
             <CardDescription className="text-gray-500">Secure access for Placement Cell</CardDescription>
           </div>
@@ -80,9 +80,9 @@ export default function LoginPage() {
               <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                <Input 
-                  id="email" 
-                  type="email" 
+                <Input
+                  id="email"
+                  type="email"
                   placeholder="admin@kongu.edu"
                   {...register("email")}
                   className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#002147] focus:ring-[#002147] transition-all"
@@ -90,13 +90,13 @@ export default function LoginPage() {
               </div>
               {errors.email && <p className="text-destructive text-xs font-medium mt-1">{errors.email.message}</p>}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                <Input 
-                  id="password" 
+                <Input
+                  id="password"
                   type="password"
                   placeholder="••••••••"
                   {...register("password")}
@@ -106,19 +106,19 @@ export default function LoginPage() {
               {errors.password && <p className="text-destructive text-xs font-medium mt-1">{errors.password.message}</p>}
               <a href="/admin/forgot-password" className="text-xs text-[#002147] hover:underline font-medium">Forgot Password?</a>
             </div>
-            
+
             {error && (
               <div className="p-3 rounded-md bg-red-50 text-red-600 text-sm border border-red-100 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
                 {error}
               </div>
             )}
-            
-             <Button 
-               className="w-full mt-2 font-bold h-12 text-[15px] bg-[#002147] hover:bg-[#003366] text-white shadow-lg shadow-[#002147]/20 transition-all duration-200" 
-               type="submit" 
-               disabled={loading}
-             >
+
+            <Button
+              className="w-full mt-2 font-bold h-12 text-[15px] bg-[#002147] hover:bg-[#003366] text-white shadow-lg shadow-[#002147]/20 transition-all duration-200"
+              type="submit"
+              disabled={loading}
+            >
               {loading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -130,14 +130,14 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        
+
         <CardFooter className="flex justify-center py-6 bg-gray-50 border-t border-gray-100">
-           <p className="text-xs text-gray-500 font-medium">
-             Authorized Users Only
-           </p>
+          <p className="text-xs text-gray-500 font-medium">
+            Authorized Users Only
+          </p>
         </CardFooter>
       </Card>
-      
+
     </div>
   );
 }

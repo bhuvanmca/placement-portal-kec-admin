@@ -19,7 +19,7 @@ export default function StudentProfilePage({ params, searchParams }: { params: P
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Pending Requests State
+  // Pending Requests state
   const [requests, setRequests] = useState<import('@/services/settings.service').StudentChangeRequest[]>([]);
   const [highlightedField, setHighlightedField] = useState<string | null>(null);
 

@@ -72,9 +72,15 @@ func main() {
 
 	// Middleware
 	app.Use(logger.New())
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "*"
+	}
+
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowOrigins:     allowedOrigins,
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowCredentials: true,
 	}))
 
 	// Initialize Repository and Handler
@@ -104,6 +110,11 @@ func main() {
 	api.Post("/messages/:msgId/pin", chatHandler.PinMessage)
 	api.Delete("/messages/:msgId", chatHandler.DeleteMessage)
 	api.Post("/broadcast", handlers.BroadcastMessage)
+
+	// Health check
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "Chat Service is running"})
+	})
 
 	// WebSocket Route
 	app.Get("/ws", handlers.ServeWs(hub))
