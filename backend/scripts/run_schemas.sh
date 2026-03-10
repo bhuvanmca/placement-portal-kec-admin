@@ -27,8 +27,8 @@ echo ""
 
 # Detect execution method
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${DOCKER_CONTAINER}$"; then
-    # Use -h localhost to force TCP and avoid socket path variations between distros
-    EXEC_CMD="docker exec -i ${DOCKER_CONTAINER} psql -h localhost -U postgres -d ${DB_NAME}"
+    # Use -h 127.0.0.1 to force TCP and avoid socket path variations between distros
+    EXEC_CMD="docker exec -i ${DOCKER_CONTAINER} psql -h 127.0.0.1 -U postgres -d ${DB_NAME}"
     echo -e "  Target: ${GREEN}${DOCKER_CONTAINER}/${DB_NAME}${NC}"
 elif command -v psql &>/dev/null; then
     EXEC_CMD="psql ${DB_URL:-postgres://postgres:postgres@localhost:5432/${DB_NAME}?sslmode=disable}"
@@ -37,6 +37,23 @@ else
     echo -e "${RED}Error: No Docker container or psql found${NC}"
     exit 1
 fi
+
+# 1. Wait for database to be ready (up to 30 seconds)
+echo -ne "  Waiting for database to be ready..."
+MAX_RETRIES=30
+RETRY_COUNT=0
+# Standardize on 127.0.0.1 for local connection to bypass potential IPv6 issues
+$EXEC_CMD -c "SELECT 1" &>/dev/null || true
+until $EXEC_CMD -c "SELECT 1" &>/dev/null; do
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+        echo -e "\n${RED}Error: Database timed out after 30 seconds${NC}"
+        exit 1
+    fi
+    printf "."
+    sleep 1
+done
+echo -e " ${GREEN}Ready!${NC}"
 
 # 0. Check for Force Re-initialization
 if [ "$FORCE_REINIT" = "true" ]; then
@@ -48,28 +65,13 @@ if [ "$FORCE_REINIT" = "true" ]; then
         DROP SCHEMA IF EXISTS admin CASCADE;
         DROP SCHEMA IF EXISTS chat CASCADE;
         DROP SCHEMA IF EXISTS analytics CASCADE;
-        DROP TABLE IF EXISTS public.users CASCADE;
-        DROP TABLE IF EXISTS public.departments CASCADE;
-        DROP TABLE IF EXISTS public.batches CASCADE;
-        DROP TABLE IF EXISTS public.migrations_history CASCADE;
+        DROP SCHEMA public CASCADE;
+        CREATE SCHEMA public;
+        GRANT ALL ON SCHEMA public TO postgres;
+        GRANT ALL ON SCHEMA public TO public;
     " > /dev/null
     echo -e "  ${GREEN}✓${NC} Database Nuked."
 fi
-
-# 1. Wait for database to be ready (up to 30 seconds)
-echo -e "  Waiting for database to be ready..."
-MAX_RETRIES=30
-RETRY_COUNT=0
-until $EXEC_CMD -c "SELECT 1" &>/dev/null; do
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        echo -e "${RED}Error: Database timed out after 30 seconds${NC}"
-        exit 1
-    fi
-    printf "."
-    sleep 1
-done
-echo -e " ${GREEN}Ready!${NC}"
 
 # 2. Ensure migrations_history table exists
 $EXEC_CMD -c "CREATE TABLE IF NOT EXISTS public.migrations_history (

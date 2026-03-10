@@ -30,13 +30,19 @@ services:
     # Removed host ports: firewall blocks them; accessible via Caddy internally
     environment:
       - PORT=8081
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
     env_file:
       - .env
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8081/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # 1.6 Drive Service (Microservice - Phase 2)
   drive-service:
@@ -47,16 +53,22 @@ services:
     restart: always
     environment:
       - PORT=8083
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
     env_file:
       - .env
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8083/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # 1.7 Student Service (Microservice - Phase 3)
   student-service:
@@ -67,7 +79,7 @@ services:
     restart: always
     environment:
       - PORT=8084
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
@@ -82,11 +94,17 @@ services:
       - .env
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       garage:
         condition: service_started
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8084/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # 1.8 Admin Service (Microservice - Phase 4)
   admin-service:
@@ -97,7 +115,7 @@ services:
     restart: always
     environment:
       - PORT=8085
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
@@ -115,11 +133,17 @@ services:
       - .env
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       garage:
         condition: service_started
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8085/api/v1/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # 1.9 Analytics Service (Microservice - Phase 5)
   analytics-service:
@@ -130,11 +154,17 @@ services:
     restart: always
     environment:
       - PORT=8086
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8086/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # 2. Chat Service (Microservice)
   chat-service:
@@ -145,7 +175,7 @@ services:
     restart: always
     environment:
       - CHAT_PORT=8081
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
@@ -162,14 +192,27 @@ services:
     env_file:
       - .env
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8081/health" ] # Chat service internal port
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # 3. Redis (Cache & Pub/Sub)
   redis:
     image: redis:7.4-alpine
     container_name: redis_cache
     restart: always
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # 4. Caddy Web Server (Reverse Proxy & HTTPS)
   caddy:
@@ -185,8 +228,15 @@ services:
       - caddy_config:/config
       - ./assets:/app/assets
     depends_on:
-      - auth-service
-      - admin-service
+      auth-service:
+        condition: service_healthy
+      admin-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "caddy", "version" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # 3. Self-Hosted Database (Replacing Neon)
   postgres:
@@ -199,6 +249,11 @@ services:
       POSTGRES_DB: kecdrives-db
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d kecdrives-db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # 3. Self-Hosted Storage (Replacing Supabase with Garage)
   garage:
@@ -258,11 +313,11 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@kec.edu}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
-      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 10
-      PGADMIN_CONFIG_X_FRAME_OPTIONS: "'ALLOWALL'"
       PGADMIN_CONFIG_X_SCRIPT_NAME: "'/pgadmin'"
-      PGADMIN_CONFIG_COOKIE_SAMESITE: "'Lax'"
-      PGADMIN_CONFIG_CSRF_CHECK_RESULT: "False"
+      SCRIPT_NAME: /pgadmin
+      PGADMIN_CONFIG_SESSION_COOKIE_SAMESITE: "'Lax'"
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "False"
+      PGADMIN_CONFIG_SESSION_COOKIE_PATH: "'/pgadmin/'"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
@@ -295,7 +350,7 @@ services:
     container_name: postgres_exporter
     restart: always
     environment:
-      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable"
     depends_on:
       - postgres
 
@@ -307,6 +362,15 @@ services:
       - REDIS_ADDR=redis:6379
     depends_on:
       - redis
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: logs
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOZZLE_BASE=/logs
 
 volumes:
   pg_data:

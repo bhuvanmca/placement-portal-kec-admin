@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/placement-portal-kec/drive-service/internal/handlers"
 	"github.com/placement-portal-kec/drive-service/internal/repository"
@@ -34,23 +35,32 @@ func main() {
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
 
-	db, err := pgxpool.NewWithConfig(context.Background(), config)
+	// persistence search_path for ALL connections in the pool
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET search_path TO drive, public")
+		return err
+	}
+
+	var db *pgxpool.Pool
+
+	// Retry loop for initial connection
+	for i := 0; i < 10; i++ {
+		db, err = pgxpool.NewWithConfig(context.Background(), config)
+		if err == nil {
+			if err = db.Ping(context.Background()); err == nil {
+				break
+			}
+		}
+		log.Printf("Waiting for database... retry %d/10", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
+		log.Fatalf("Unable to connect to database after retries: %v", err)
 	}
 	defer db.Close()
 
-	if err := db.Ping(context.Background()); err != nil {
-		log.Fatalf("Database ping failed: %v", err)
-	}
-
-	// [FIX] Explicitly set search_path to resolve 500 errors
-	_, err = db.Exec(context.Background(), "SET search_path TO drive, public")
-	if err != nil {
-		log.Printf("Warning: Failed to set search_path: %v", err)
-	}
-
-	log.Println("Connected to Database for Drive Service (with explicit search_path)")
+	log.Println("Connected to Database for Drive Service (with persistent search_path)")
 
 	// Initialize Redis Cache
 	services.InitRedis()

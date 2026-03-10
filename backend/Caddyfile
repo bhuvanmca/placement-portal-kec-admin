@@ -141,12 +141,27 @@
         reverse_proxy grafana:3000
     }
 
-    handle /pgadmin* {
+    # Safety: Block legacy Swagger routes
+    handle /swagger* {
+        error "Not Found" 404
+    }
+
+    handle /pgadmin {
+        redir * /pgadmin/
+    }
+    handle /pgadmin/* {
         reverse_proxy pgadmin:80 {
             header_up X-Script-Name /pgadmin
             header_up Host {host}
             header_up X-Forwarded-Proto {scheme}
         }
+    }
+
+    handle /logs {
+        redir * /logs/
+    }
+    handle /logs/* {
+        reverse_proxy logs:8080
     }
 
     # ──────────────────────────────────────────────

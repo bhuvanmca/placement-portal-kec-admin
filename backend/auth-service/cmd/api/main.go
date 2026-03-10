@@ -38,15 +38,24 @@ func main() {
 		return err
 	}
 
-	db, err := pgxpool.NewWithConfig(context.Background(), config)
+	var db *pgxpool.Pool
+
+	// Retry loop for initial connection
+	for i := 0; i < 10; i++ {
+		db, err = pgxpool.NewWithConfig(context.Background(), config)
+		if err == nil {
+			if err = db.Ping(context.Background()); err == nil {
+				break
+			}
+		}
+		log.Printf("Waiting for database... retry %d/10", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
+		log.Fatalf("Unable to connect to database after retries: %v", err)
 	}
 	defer db.Close()
-
-	if err := db.Ping(context.Background()); err != nil {
-		log.Fatalf("Database ping failed: %v", err)
-	}
 
 	log.Println("Connected to Database for Auth Service (with persistent search_path)")
 
