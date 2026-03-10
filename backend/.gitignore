@@ -1,12 +1,24 @@
-# Binaries
-main
-chat-service
+# Binaries (these can be at the root or nested, but we don't want to ignore dirs)
+# We avoid **/api and **/app because they are common dir names.
+auth-service
 drive-service
 student-service
 admin-service
-auth-service
 analytics-service
-server
+chat-service
+legacy-api
+
+# But always keep the directories
+!**/auth-service/
+!**/drive-service/
+!**/student-service/
+!**/admin-service/
+!**/analytics-service/
+!**/chat-service/
+!**/legacy-api/
+!**/cmd/
+!**/api/
+!**/internal/
 
 # Go specific
 vendor/

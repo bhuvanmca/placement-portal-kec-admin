@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -25,7 +26,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	fmt.Println("✅ Admin Service connected to database")
+	fmt.Println("Admin Service connected to database")
 
 	// Initialize Redis Cache
 	services.InitRedis()
@@ -35,6 +36,11 @@ func main() {
 		AppName:   "Placement Portal - Admin Service",
 		BodyLimit: 50 * 1024 * 1024, // 50MB for file uploads & bulk operations
 	})
+
+	// Prometheus Monitoring
+	prometheus := fiberprometheus.New("admin-service")
+	prometheus.RegisterAt(app, "/metrics")
+	app.Use(prometheus.Middleware)
 
 	app.Use(cors.New())
 	app.Use(logger.New(logger.Config{

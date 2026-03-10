@@ -27,11 +27,10 @@ services:
       dockerfile: Dockerfile
     container_name: auth_service
     restart: always
-    ports:
-      - "8081:8081"
+    # Removed host ports: firewall blocks them; accessible via Caddy internally
     environment:
       - PORT=8081
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=auth,public
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
     env_file:
       - .env
@@ -46,11 +45,9 @@ services:
       dockerfile: Dockerfile
     container_name: drive_service
     restart: always
-    ports:
-      - "8083:8083"
     environment:
       - PORT=8083
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=drive,public
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
     env_file:
@@ -68,11 +65,9 @@ services:
       dockerfile: Dockerfile
     container_name: student_service
     restart: always
-    ports:
-      - "8084:8084"
     environment:
       - PORT=8084
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=student,public
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
@@ -100,11 +95,9 @@ services:
       dockerfile: Dockerfile
     container_name: admin_service
     restart: always
-    ports:
-      - "8085:8085"
     environment:
       - PORT=8085
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=admin,student,drive,public
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
@@ -135,11 +128,9 @@ services:
       dockerfile: Dockerfile
     container_name: analytics_service
     restart: always
-    ports:
-      - "8086:8086"
     environment:
       - PORT=8086
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=student,drive,admin,public
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
     depends_on:
       postgres:
@@ -152,11 +143,9 @@ services:
       dockerfile: Dockerfile
     container_name: chat_service
     restart: always
-    ports:
-      - "8082:8081" # Changed host port to 8082 to avoid collision with auth-service
     environment:
       - CHAT_PORT=8081
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable&search_path=chat,public
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
@@ -178,15 +167,13 @@ services:
 
   # 3. Redis (Cache & Pub/Sub)
   redis:
-    image: redis:alpine
+    image: redis:7.4-alpine
     container_name: redis_cache
     restart: always
-    ports:
-      - "6379:6379"
 
   # 4. Caddy Web Server (Reverse Proxy & HTTPS)
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.9-alpine
     container_name: caddy
     restart: always
     ports:
@@ -196,29 +183,22 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-      - ./assets:/app/assets # Verify assets access
+      - ./assets:/app/assets
     depends_on:
       - auth-service
       - admin-service
 
   # 3. Self-Hosted Database (Replacing Neon)
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.10-alpine
     container_name: local_db
     restart: always
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: placement_portal_kec_v2
+      POSTGRES_DB: kecdrives-db
     volumes:
-      - ./project_schema.sql:/docker-entrypoint-initdb.d/init.sql # Auto-seed schema
-      - ./auth-service/schema.sql:/docker-entrypoint-initdb.d/init-auth.sql # Auto-seed auth schema
-      - ./drive-service/schema.sql:/docker-entrypoint-initdb.d/init-drive.sql # Auto-seed drive schema
-      - ./student-service/schema.sql:/docker-entrypoint-initdb.d/init-student.sql # Auto-seed student schema
-      - ./admin-service/schema.sql:/docker-entrypoint-initdb.d/init-admin.sql # Auto-seed admin schema
-      - pg_data:/var/lib/postgresql/data # Persist data even if container dies
+      - pg_data:/var/lib/postgresql/data
 
   # 3. Self-Hosted Storage (Replacing Supabase with Garage)
   garage:
@@ -227,15 +207,112 @@ services:
     restart: always
     environment:
       RUST_LOG: garage=info
-    ports:
-      - "3900:3900" # S3 API
-      - "3903:3903" # Admin API (for CLI commands)
     volumes:
       - ./garage.toml:/etc/garage.toml
       - garage_data:/var/lib/garage
+
+  # ──────────────────────────────────────────────
+  # Monitoring Stack (Production Ready)
+  # ──────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.external-url=/prometheus/'
+    depends_on:
+      - auth-service
+      - drive-service
+      - student-service
+      - admin-service
+      - analytics-service
+      - chat-service
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: grafana
+    restart: always
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+    depends_on:
+      - prometheus
+
+  pgadmin:
+    image: dpage/pgadmin4:8.14
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@kec.edu}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 10
+      PGADMIN_CONFIG_X_FRAME_OPTIONS: "'ALLOWALL'"
+      PGADMIN_CONFIG_X_SCRIPT_NAME: "'/pgadmin'"
+      PGADMIN_CONFIG_COOKIE_SAMESITE: "'Lax'"
+      PGADMIN_CONFIG_CSRF_CHECK_RESULT: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node_exporter
+    restart: always
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    restart: always
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: postgres_exporter
+    restart: always
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/placement_portal_kec_v2?sslmode=disable"
+    depends_on:
+      - postgres
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.66.0
+    container_name: redis_exporter
+    restart: always
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
 
 volumes:
   pg_data:
   garage_data:
   caddy_data:
   caddy_config:
+  prometheus_data:
+  grafana_data:
+  pgadmin_data:

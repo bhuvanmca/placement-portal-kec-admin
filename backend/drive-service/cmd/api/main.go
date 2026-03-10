@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -20,7 +21,7 @@ func main() {
 	// 1. Initialize DB Connection
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://admin:admin123@localhost:5432/placement_portal?sslmode=disable"
+		dbURL = "postgres://admin:admin123@localhost:5432/kecdrives-db?sslmode=disable"
 	}
 
 	config, err := pgxpool.ParseConfig(dbURL)
@@ -28,8 +29,8 @@ func main() {
 		log.Fatalf("Unable to parse database URL: %v", err)
 	}
 
-	config.MaxConns = 15
-	config.MinConns = 2
+	config.MaxConns = 50
+	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
 
@@ -43,7 +44,13 @@ func main() {
 		log.Fatalf("Database ping failed: %v", err)
 	}
 
-	log.Println("Connected to Database for Drive Service")
+	// [FIX] Explicitly set search_path to resolve 500 errors
+	_, err = db.Exec(context.Background(), "SET search_path TO drive, public")
+	if err != nil {
+		log.Printf("Warning: Failed to set search_path: %v", err)
+	}
+
+	log.Println("Connected to Database for Drive Service (with explicit search_path)")
 
 	// Initialize Redis Cache
 	services.InitRedis()
@@ -55,6 +62,11 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName: "Placement Portal - Drive Service",
 	})
+
+	// Prometheus Monitoring
+	prometheus := fiberprometheus.New("drive-service")
+	prometheus.RegisterAt(app, "/metrics")
+	app.Use(prometheus.Middleware)
 
 	// 4. Middlewares
 	app.Use(logger.New())
