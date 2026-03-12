@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -504,19 +505,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       }
 
-      final presignedURL = await _studentService.getDocumentURL(documentType);
-
-      if (presignedURL.isEmpty) {
-        throw 'Document URL not found';
+      final token = await ref.read(authServiceProvider).getToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Not authenticated');
       }
 
-      final sanitizedURL = AppConstants.sanitizeUrl(
-        presignedURL,
-      ); // [NEW] Sanitize
-      final response = await http.get(Uri.parse(sanitizedURL));
+      // Use the streaming endpoint directly — no intermediate URL required
+      final streamUrl =
+          '${AppConstants.apiBaseUrl}/v1/student/documents/$documentType/stream';
+
+      final response = await http.get(
+        Uri.parse(streamUrl),
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
       if (response.statusCode != 200) {
-        throw 'Failed to download document (Status: ${response.statusCode})';
+        final msg = _tryParseErrorBody(response.body) ??
+            'Status: ${response.statusCode}';
+        throw Exception(msg);
       }
 
       String extension = 'pdf';
@@ -539,7 +545,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final result = await OpenFilex.open(file.path);
 
       if (result.type != ResultType.done) {
-        throw result.message;
+        throw Exception(result.message);
       }
     } catch (e) {
       if (mounted) {
@@ -551,6 +557,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         );
       }
+    }
+  }
+
+  /// Tries to parse a JSON error body and return the "error" field.
+  String? _tryParseErrorBody(String body) {
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      return map['error'] as String?;
+    } catch (_) {
+      return null;
     }
   }
 

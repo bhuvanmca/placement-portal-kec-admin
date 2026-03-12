@@ -21,6 +21,7 @@ func SetupRoutes(app *fiber.App, h *handlers.StudentHandler) {
 
 	// Documents
 	api.Get("/student/documents/:type", h.GetDocumentURL)
+	api.Get("/student/documents/:type/stream", h.StreamMyDocument)
 	api.Post("/student/upload", h.UploadDocument)
 
 	// Generic User Actions

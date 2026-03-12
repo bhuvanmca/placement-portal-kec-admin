@@ -57,7 +57,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatarImage } from "@/components/student-avatar-image";
 import { cn, formatDateTime } from "@/lib/utils";
 import { BulkUploadDialog } from "@/components/student/bulk-upload-dialog";
 import {
@@ -1213,8 +1214,8 @@ export default function StudentsPage() {
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9 border border-gray-100">
-                                  <AvatarImage
-                                    src={student.profile_photo_url}
+                                  <StudentAvatarImage
+                                    studentId={student.id}
                                   />
                                   <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
                                     {student.full_name

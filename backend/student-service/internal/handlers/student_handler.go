@@ -895,6 +895,70 @@ func (h *StudentHandler) StreamMyProfilePhoto(c *fiber.Ctx) error {
 	return c.Send(body)
 }
 
+// StreamMyDocument securely serves the authenticated user's own document (resume or profile_photo).
+func (h *StudentHandler) StreamMyDocument(c *fiber.Ctx) error {
+	userID := int64(c.Locals("user_id").(float64))
+	documentType := c.Params("type")
+
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
+	dbField, valid := validTypes[documentType]
+	if !valid {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume' or 'profile_photo'"})
+	}
+
+	profile, err := h.studentRepo.GetStudentFullProfile(c.Context(), userID)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User profile not found"})
+	}
+
+	var documentURL string
+	switch dbField {
+	case "resume_url":
+		documentURL = profile.ResumeURL
+	case "profile_photo_url":
+		documentURL = profile.ProfilePhotoURL
+	}
+	if documentURL == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
+	}
+
+	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
+	if bucket == "" || key == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Invalid document path"})
+	}
+
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	client := utils.GetS3Client()
+	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not found in storage"})
+	}
+	defer result.Body.Close()
+
+	if documentType == "resume" {
+		c.Set("Content-Type", "application/pdf")
+	} else if result.ContentType != nil && *result.ContentType != "application/octet-stream" {
+		c.Set("Content-Type", *result.ContentType)
+	} else {
+		c.Set("Content-Type", "image/jpeg")
+	}
+	c.Set("Content-Disposition", "inline")
+	c.Set("Cache-Control", "private, max-age=3600")
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to read document"})
+	}
+
+	return c.Send(body)
+}
+
 // StreamStudentDocument streams a student's document (profile_photo or resume) for admin/coordinator/super_admin.
 func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)

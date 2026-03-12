@@ -62,6 +62,13 @@
             unhealthy_status 502 503 504
         }
     }
+    handle /api/v1/student/documents/*/stream {
+        reverse_proxy student-service:8084 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
+    }
     handle /api/v1/student/documents/* {
         reverse_proxy student-service:8084 {
             lb_try_duration 5s
