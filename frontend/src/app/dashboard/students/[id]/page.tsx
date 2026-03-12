@@ -149,7 +149,9 @@ export default function StudentProfilePage({
         return;
       }
 
-      const contentType = response.headers.get('Content-Type') || (docType === 'resume' ? 'application/pdf' : 'image/jpeg');
+      const contentType =
+        response.headers.get("Content-Type") ||
+        (docType === "resume" ? "application/pdf" : "image/jpeg");
       const blob = await response.blob();
       const typedBlob = new Blob([blob], { type: contentType });
       const blobUrl = URL.createObjectURL(typedBlob);
