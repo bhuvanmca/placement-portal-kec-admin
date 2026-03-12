@@ -829,7 +829,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                 }
                                                 return CachedNetworkImage(
                                                   imageUrl: photoUrl,
-                                                  cacheKey: 'my_profile_photo_$_photoVersion',
+                                                  cacheKey:
+                                                      'my_profile_photo_$_photoVersion',
                                                   httpHeaders: {
                                                     'Authorization':
                                                         'Bearer $token',
