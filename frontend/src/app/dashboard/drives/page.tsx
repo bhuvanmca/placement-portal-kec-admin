@@ -15,7 +15,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ export default function DriveListPage() {
   const [selectedDrives, setSelectedDrives] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchDrives = async (page = currentPage, search = searchTerm) => {
     try {
@@ -114,6 +116,17 @@ export default function DriveListPage() {
       }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchDrives(1, searchTerm);
+      setCurrentPage(1);
+      toast.success("Drives refreshed");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const totalPages = Math.ceil(totalDrives / pageSize);
 
 
@@ -165,6 +178,14 @@ export default function DriveListPage() {
                  <Trash2 className="mr-2 h-4 w-4" /> Delete ({selectedDrives.length})
               </Button>
            )}
+           <Button 
+             variant="outline" 
+             onClick={handleRefresh}
+             disabled={isRefreshing}
+             title="Refresh drive list"
+           >
+             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+           </Button>
            {user?.role !== 'coordinator' && (
                <Link href="/dashboard/drives/create">
                  <Button className="bg-[#002147] hover:bg-[#003366]">
