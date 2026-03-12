@@ -167,32 +167,24 @@ final driveFilterProvider = NotifierProvider<DriveFilterNotifier, DriveFilter>(
 // --- Computed Provider ---
 
 // --- Helper Logic ---
+// Section is determined purely by backend status so that
+// a newly-posted 'open' drive always appears in the 'Upcoming' tab.
 String getDriveSection(dynamic drive) {
   final status = drive['status'];
-  if (status == 'cancelled') return 'Cancelled';
-  if (status == 'on_hold') return 'On Hold';
-  // Explicit completed status takes precedence, or we auto-move
-  if (status == 'completed') return 'Completed';
-
-  final dateStr = drive['drive_date'];
-  if (dateStr == null) return 'Upcoming'; // Safe fallback
-
-  final now = DateTime.now();
-  final driveDate = DateTime.parse(dateStr);
-  final completionThreshold = driveDate.add(const Duration(hours: 24));
-
-  // 1. Completed: > 24h after drive date
-  if (now.isAfter(completionThreshold)) {
-    return 'Completed';
+  switch (status) {
+    case 'open':
+      return 'Upcoming';
+    case 'closed':
+      return 'Closed';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'on_hold':
+      return 'On Hold';
+    default:
+      return 'Upcoming';
   }
-
-  // 2. Upcoming: Future date
-  if (driveDate.isAfter(now)) {
-    return 'Upcoming';
-  }
-
-  // 3. Ongoing: Started but not yet 24h past
-  return 'Ongoing';
 }
 
 // --- Computed Provider ---
@@ -330,7 +322,7 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   if (paginatedState.isLoading && drives.isEmpty) {
     return {
       'Upcoming': 0,
-      'Ongoing': 0,
+      'Closed': 0,
       'Completed': 0,
       'Cancelled': 0,
       'On Hold': 0,
@@ -338,7 +330,7 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   }
 
   int upcoming = 0;
-  int ongoing = 0;
+  int closed = 0;
   int completed = 0;
   int cancelled = 0;
   int onHold = 0;
@@ -349,8 +341,8 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
       case 'Upcoming':
         upcoming++;
         break;
-      case 'Ongoing':
-        ongoing++;
+      case 'Closed':
+        closed++;
         break;
       case 'Completed':
         completed++;
@@ -366,7 +358,7 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
 
   return {
     'Upcoming': upcoming,
-    'Ongoing': ongoing,
+    'Closed': closed,
     'Completed': completed,
     'Cancelled': cancelled,
     'On Hold': onHold,

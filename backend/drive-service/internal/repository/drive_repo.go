@@ -280,7 +280,18 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 		&dept, &deptType, &batch, &ugCgpa, &pgCgpa, &backlogs, &tenthMark, &twelfthMark,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch student profile: %v", err)
+		// Student hasn't completed their profile yet.
+		// Use zero/empty values so only drives with no department/batch
+		// restrictions are returned (graceful degradation).
+		fmt.Printf("[GetEligibleDrives] student %d has no profile, falling back to unrestricted drives: %v\n", studentID, err)
+		dept = ""
+		deptType = "UG"
+		batch = 0
+		ugCgpa = 0
+		pgCgpa = 0
+		backlogs = 0
+		tenthMark = 0
+		twelfthMark = 0
 	}
 
 	// B. Query Drives filtered by Batch + Department ONLY
@@ -401,7 +412,9 @@ func (r *DriveRepository) GetEligibleDrivesCount(ctx context.Context, studentID 
 	var batch int
 	err := r.DB.QueryRow(ctx, queryStudent, studentID).Scan(&dept, &batch)
 	if err != nil {
-		return 0, err
+		// Fallback: show unrestricted drives only for students with no profile
+		dept = ""
+		batch = 0
 	}
 
 	query := `
