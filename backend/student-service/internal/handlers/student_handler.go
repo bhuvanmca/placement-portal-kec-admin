@@ -326,6 +326,9 @@ func (h *StudentHandler) GetMyProfile(c *fiber.Ctx) error {
 		if cachedProfile.ProfilePhotoURL != "" {
 			cachedProfile.ProfilePhotoURL = utils.GenerateSignedProfileURL(cachedProfile.ProfilePhotoURL)
 		}
+		if cachedProfile.ResumeURL != "" {
+			cachedProfile.ResumeURL = utils.GenerateSignedDocumentURL(cachedProfile.ResumeURL)
+		}
 		return c.JSON(cachedProfile)
 	}
 
@@ -340,6 +343,9 @@ func (h *StudentHandler) GetMyProfile(c *fiber.Ctx) error {
 
 	if profile.ProfilePhotoURL != "" {
 		profile.ProfilePhotoURL = utils.GenerateSignedProfileURL(profile.ProfilePhotoURL)
+	}
+	if profile.ResumeURL != "" {
+		profile.ResumeURL = utils.GenerateSignedDocumentURL(profile.ResumeURL)
 	}
 	return c.JSON(profile)
 }

@@ -117,7 +117,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		response["department_code"] = *user.DepartmentCode
 	}
 	if user.ProfilePhotoURL != nil && *user.ProfilePhotoURL != "" {
-		response["profile_photo_url"] = *user.ProfilePhotoURL
+		response["profile_photo_url"] = utils.GenerateSignedProfileURL(*user.ProfilePhotoURL)
 	}
 
 	return c.JSON(response)

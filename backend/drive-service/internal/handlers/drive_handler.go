@@ -238,6 +238,9 @@ func (h *DriveHandler) convertAttachmentsToPresigned(drives []models.PlacementDr
 				drives[i].Attachments[j].URL = utils.GetPublicURL(bucket, key)
 			}
 		}
+		if drives[i].LogoURL != "" {
+			drives[i].LogoURL = utils.GenerateSignedProfileURL(drives[i].LogoURL)
+		}
 	}
 	return drives
 }
@@ -1320,6 +1323,19 @@ func (h *DriveHandler) GetDriveByID(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Drive not found"})
 	}
 
+	if drive.LogoURL != "" {
+		drive.LogoURL = utils.GenerateSignedProfileURL(drive.LogoURL)
+	}
+	for j := range drive.Attachments {
+		bucket, key := utils.ExtractBucketAndKeyFromURL(drive.Attachments[j].URL)
+		if bucket == "" {
+			bucket = utils.GetBucketName()
+		}
+		if key != "" {
+			drive.Attachments[j].URL = utils.GetPublicURL(bucket, key)
+		}
+	}
+
 	return c.JSON(drive)
 }
 
@@ -1334,6 +1350,12 @@ func (h *DriveHandler) GetDriveApplicants(c *fiber.Ctx) error {
 	if err != nil {
 		fmt.Printf("Get Applicants Error: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
+	}
+
+	for i := range applicants {
+		if applicants[i].ResumeURL != "" {
+			applicants[i].ResumeURL = utils.GenerateSignedProfileURL(applicants[i].ResumeURL)
+		}
 	}
 
 	return c.JSON(applicants)

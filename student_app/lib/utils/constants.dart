@@ -53,7 +53,11 @@ class AppConstants {
 
     for (final host in internalHosts) {
       if (newUrl.contains(host)) {
-        newUrl = newUrl.replaceAll('http://$host', 'https://$publicHost');
+        // Replace http://host:port or http://host (with optional port) -> https://publicHost
+        newUrl = newUrl.replaceAll(
+          RegExp('http://$host(:\\d+)?'),
+          'https://$publicHost',
+        );
         newUrl = newUrl.replaceAll(host, publicHost);
       }
     }

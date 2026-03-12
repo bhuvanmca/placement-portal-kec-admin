@@ -148,17 +148,22 @@ func InitBucket() error {
 	return nil
 }
 
-// getPublicURL generates a public URL for accessing uploaded files
-// For Garage: http://host:3900/bucket/path
+// getPublicURL generates a browser-accessible URL for uploaded files.
+// Uses PUBLIC_DOMAIN to construct a URL routed through Caddy's /storage/* proxy.
+// Falls back to GARAGE_PUBLIC_URL if PUBLIC_DOMAIN is not set.
 func getPublicURL(bucket, path string) string {
-	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
-	// Ensure no trailing slash in publicURL
-	if len(publicURL) > 0 && publicURL[len(publicURL)-1] == '/' {
-		publicURL = publicURL[:len(publicURL)-1]
-	}
 	// Ensure no leading slash in path
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
+	}
+	// Prefer browser-accessible URL via Caddy proxy
+	if url, err := GetBrowserAccessibleURL(bucket, path); err == nil {
+		return url
+	}
+	// Fallback to raw GARAGE_PUBLIC_URL
+	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
+	if len(publicURL) > 0 && publicURL[len(publicURL)-1] == '/' {
+		publicURL = publicURL[:len(publicURL)-1]
 	}
 	return fmt.Sprintf("%s/%s/%s", publicURL, bucket, path)
 }

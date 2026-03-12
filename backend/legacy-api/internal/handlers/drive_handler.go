@@ -220,6 +220,9 @@ func convertAttachmentsToPresigned(drives []models.PlacementDrive) []models.Plac
 				}
 			}
 		}
+		if drives[i].LogoURL != "" {
+			drives[i].LogoURL = utils.GenerateSignedProfileURL(drives[i].LogoURL)
+		}
 	}
 	return drives
 }

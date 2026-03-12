@@ -144,7 +144,9 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
     if (_imageFile != null) {
       imageProvider = FileImage(_imageFile!);
     } else if (providerState.profilePhotoUrl != null) {
-      imageProvider = NetworkImage(providerState.profilePhotoUrl!);
+      imageProvider = NetworkImage(
+        AppConstants.sanitizeUrl(providerState.profilePhotoUrl!),
+      );
     }
 
     return Scaffold(
