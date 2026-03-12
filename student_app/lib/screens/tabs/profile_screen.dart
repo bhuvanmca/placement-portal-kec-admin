@@ -520,7 +520,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
 
       if (response.statusCode != 200) {
-        final msg = _tryParseErrorBody(response.body) ??
+        final msg =
+            _tryParseErrorBody(response.body) ??
             'Status: ${response.statusCode}';
         throw Exception(msg);
       }

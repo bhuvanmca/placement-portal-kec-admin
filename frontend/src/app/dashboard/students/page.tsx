@@ -1214,9 +1214,7 @@ export default function StudentsPage() {
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9 border border-gray-100">
-                                  <StudentAvatarImage
-                                    studentId={student.id}
-                                  />
+                                  <StudentAvatarImage studentId={student.id} />
                                   <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
                                     {student.full_name
                                       ?.substring(0, 2)
