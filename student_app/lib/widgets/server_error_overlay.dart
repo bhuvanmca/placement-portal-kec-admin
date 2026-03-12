@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/server_status_provider.dart';
@@ -14,6 +15,39 @@ class ServerErrorOverlay extends ConsumerStatefulWidget {
 
 class _ServerErrorOverlayState extends ConsumerState<ServerErrorOverlay> {
   bool _isRetrying = false;
+  Timer? _autoRecoveryTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoRecovery();
+  }
+
+  @override
+  void dispose() {
+    _autoRecoveryTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRecovery() {
+    _autoRecoveryTimer?.cancel();
+    _autoRecoveryTimer = Timer.periodic(const Duration(seconds: 120), (
+      _,
+    ) async {
+      if (!mounted) return;
+      final isServerUp = ref.read(serverStatusProvider);
+      if (isServerUp) {
+        _autoRecoveryTimer?.cancel();
+        return;
+      }
+      final apiClient = ref.read(apiClientProvider);
+      final isUp = await apiClient.checkHealth(AppConstants.apiBaseUrl);
+      if (isUp && mounted) {
+        ref.read(serverStatusProvider.notifier).setStatus(true);
+        _autoRecoveryTimer?.cancel();
+      }
+    });
+  }
 
   Future<void> _retry() async {
     setState(() => _isRetrying = true);

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from '@/lib/api';
 import { getAuthToken } from '@/utils/auth-token';
 
 const CHAT_API_URL = process.env.NEXT_PUBLIC_CHAT_API_URL 
@@ -42,7 +42,11 @@ class ChatServiceClass {
   private ws: WebSocket | null = null;
   private messageHandlers: ((msg: any) => void)[] = [];
   private reconnectInterval = 3000;
+  private reconnectAttempts = 0;
+  private maxReconnectInterval = 60000;
+  private maxReconnectAttempts = 15; // Stop after 15 failures (~5 min at max backoff)
   private shouldReconnect = true;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private messageQueue: any[] = [];
   private connectionStatusHandlers: ((status: 'connected' | 'disconnected' | 'connecting') => void)[] = [];
   
@@ -55,69 +59,56 @@ class ChatServiceClass {
 
   // REST API Methods
   async getGroups(userId: number) {
-      const token = getAuthToken();
-      const response = await axios.get(`${CHAT_API_URL}/groups?user_id=${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`${CHAT_API_URL}/groups?user_id=${userId}`);
       return response.data;
   }
 
   async getChatUsers(userId: number) {
-      const token = getAuthToken();
-      const response = await axios.get(`${CHAT_API_URL}/users/chat-eligible?user_id=${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`${CHAT_API_URL}/users/chat-eligible?user_id=${userId}`);
       return response.data;
   }
 
   async sendBroadcast(data: { channels: string[], recipients: string[], subject?: string, message: string }) {
-      const token = getAuthToken();
-      const response = await axios.post(`${CHAT_API_URL}/broadcast`, data, {
-          headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.post(`${CHAT_API_URL}/broadcast`, data);
       return response.data;
   }
 
   async createGroup(name: string, type: 'direct' | 'group', memberIds: number[], creatorId: number) {
-    const token = getAuthToken();
-    const response = await axios.post(`${CHAT_API_URL}/groups?user_id=${creatorId}`, { name, type, member_ids: memberIds }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const response = await api.post(`${CHAT_API_URL}/groups?user_id=${creatorId}`, { name, type, member_ids: memberIds });
     return response.data;
   }
 
   async getHistory(groupId: number, days: number = 30) {
-    const token = getAuthToken();
-    const response = await axios.get(`${CHAT_API_URL}/groups/${groupId}/messages?days=${days}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    // Backend now returns { messages: [], has_older: bool, start_date: string }
+    const response = await api.get(`${CHAT_API_URL}/groups/${groupId}/messages?days=${days}`);
     return response.data;
   }
 
   async uploadAttachment(file: File, groupId?: number) {
-    const token = getAuthToken();
     const formData = new FormData();
     formData.append('file', file);
     if (groupId) {
         formData.append('group_id', String(groupId));
     }
-    
-    // We use the new endpoint
-    // APP_CONFIG.API_BASE_URL usually ends with /api, so we optimize.
     const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-    const response = await axios.post(`${baseUrl}/v1/chat/upload`, formData, {
-        headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-        }
+    const response = await api.post(`${baseUrl}/v1/chat/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data;
   }
 
   // WebSocket Methods
   connect() {
+    // Guard: already connected or connecting
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
+
+    // Guard: a reconnect is already scheduled — don't create a parallel one
+    if (this.reconnectTimer) return;
+
+    // Guard: exceeded max attempts — stop hammering the server
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn(`ChatService: Stopped reconnecting after ${this.reconnectAttempts} attempts. Call connect() manually to retry.`);
+      return;
+    }
 
     this.shouldReconnect = true;
     this.notifyConnectionStatus('connecting');
@@ -128,13 +119,15 @@ class ChatServiceClass {
         return;
     }
 
-    const wsUrl = `${WS_URL}?token=${token}`;
-    console.log(`ChatService: Connecting to ${WS_URL} with token (len=${token.length})...`);
+    if (this.reconnectAttempts === 0) {
+      console.log(`ChatService: Connecting to ${WS_URL}...`);
+    }
 
-    this.ws = new WebSocket(wsUrl);
+    this.ws = new WebSocket(`${WS_URL}?token=${token}`);
 
     this.ws.onopen = () => {
       console.log('Connected to Chat Service');
+      this.reconnectAttempts = 0;
       this.notifyConnectionStatus('connected');
       this.flushMessageQueue();
     };
@@ -156,26 +149,53 @@ class ChatServiceClass {
     };
 
     this.ws.onclose = () => {
-      console.log('Disconnected from Chat Service');
       this.ws = null;
       this.notifyConnectionStatus('disconnected');
       
-      if (this.shouldReconnect) {
-        setTimeout(() => {
-            console.log("Attempting to reconnect...");
+      if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.reconnectAttempts++;
+        const delay = Math.min(
+          this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1),
+          this.maxReconnectInterval
+        ); // 3s, 6s, 12s, 24s, 48s, 60s max
+        if (this.reconnectAttempts <= 3) {
+          console.log(`ChatService: Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts})...`);
+        } else if (this.reconnectAttempts === 4) {
+          console.warn('ChatService: Connection unstable, suppressing further logs.');
+        }
+        // Clear any existing timer before scheduling (safety)
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
             this.connect();
-        }, this.reconnectInterval);
+        }, delay);
+      } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        console.warn('ChatService: Max reconnect attempts reached. Chat is offline.');
       }
     };
 
-    this.ws.onerror = (error) => {
-        console.error("WebSocket Error:", error);
+    this.ws.onerror = () => {
+        // onclose always fires after onerror — let onclose handle reconnect
         this.ws?.close();
     };
   }
 
+  /** Reset reconnect counter and try again — use after prolonged outage */
+  retryConnect() {
+    this.reconnectAttempts = 0;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.connect();
+  }
+
   disconnect() {
     this.shouldReconnect = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -223,24 +243,19 @@ class ChatServiceClass {
     } else {
       console.warn('WebSocket not connected. Queueing message.');
       this.messageQueue.push(payload);
-      if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
-          this.connect();
+      // Only trigger connect if no reconnect is already scheduled
+      if (!this.ws && !this.reconnectTimer) {
+          this.retryConnect();
       }
     }
   }
 
   async pinMessage(messageId: number) {
-      const token = getAuthToken();
-      await axios.post(`${CHAT_API_URL}/messages/${messageId}/pin`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post(`${CHAT_API_URL}/messages/${messageId}/pin`, {});
   }
 
   async deleteMessage(messageId: number, deleteForEveryone: boolean = false) {
-      const token = getAuthToken();
-      await axios.delete(`${CHAT_API_URL}/messages/${messageId}?delete_for_everyone=${deleteForEveryone}`, {
-          headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`${CHAT_API_URL}/messages/${messageId}?delete_for_everyone=${deleteForEveryone}`);
   }
 
   broadcastDeleteForEveryone(groupId: number, messageId: number) {

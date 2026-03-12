@@ -3,14 +3,17 @@ name: Deploy to Ubuntu VM
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: self-hosted
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Create .env file
       run: echo "${{ secrets.ENV_FILE }}" > .env
@@ -19,17 +22,17 @@ jobs:
       run: |
         # 1. Stop old containers and remove orphans
         docker compose down --remove-orphans || true
-        
+
         # 2. Force remove containers with fixed names to prevent conflicts
-        docker rm -f local_storage local_db redis_cache caddy auth_service drive_service student_service admin_service analytics_service chat_service || true
-        
+        docker rm -f local_storage local_db redis_cache caddy auth_service drive_service student_service admin_service analytics_service chat_service garage_init || true
+
         # 3. Rebuild all service images
         docker compose build --no-cache
 
         # 4. Start services in background
         docker compose up -d --remove-orphans
 
-        # 5. Synchronize Database Schemas (Crucial for 500 error fix)
+        # 5. Synchronize Database Schemas
         echo "Synchronizing database schemas..."
         if echo "${{ github.event.head_commit.message }}" | grep -qi "\[db-reset\]"; then
           echo "☢️ [db-reset] detected in commit message. Running with FORCE_REINIT=true"
@@ -40,3 +43,90 @@ jobs:
 
         # 6. Clean up dangling images to save disk space
         docker image prune -f
+
+    - name: Initialize Garage S3
+      run: |
+        GARAGE_ACCESS_KEY=$(grep '^GARAGE_ACCESS_KEY=' .env | cut -d'=' -f2-)
+        GARAGE_SECRET_KEY=$(grep '^GARAGE_SECRET_KEY=' .env | cut -d'=' -f2-)
+        GARAGE_BUCKET=$(grep '^GARAGE_BUCKET=' .env | cut -d'=' -f2-)
+        GARAGE_CHAT_BUCKET=$(grep '^GARAGE_CHAT_BUCKET=' .env | cut -d'=' -f2-)
+
+        # Wait for Garage RPC to be ready (uses garage CLI directly — no wget/curl needed)
+        echo "Waiting for Garage RPC..."
+        for i in $(seq 1 30); do
+          if docker exec local_storage /garage -h 127.0.0.1:3901 status > /dev/null 2>&1; then
+            echo "Garage is ready."
+            break
+          fi
+          echo "  attempt $i/30..."
+          sleep 2
+        done
+
+        # Get node ID via CLI (no HTTP admin API needed)
+        echo "Discovering Node ID..."
+        NODE_ID=$(docker exec local_storage /garage -h 127.0.0.1:3901 node id 2>/dev/null \
+          | cut -d'@' -f1 | tr -d '[:space:]')
+
+        if [ -z "$NODE_ID" ]; then
+          echo "node id command failed, falling back to status output..."
+          NODE_ID=$(docker exec local_storage /garage -h 127.0.0.1:3901 status 2>/dev/null \
+            | grep -oE '[0-9a-fA-F]{8,}' | head -1)
+        fi
+
+        if [ -z "$NODE_ID" ]; then
+          echo "ERROR: Could not discover Node ID. Garage status:"
+          docker exec local_storage /garage -h 127.0.0.1:3901 status || true
+          exit 1
+        fi
+
+        echo "Node ID: $NODE_ID"
+        REMOTE="${NODE_ID}@127.0.0.1:3901"
+
+        # Layout: only assign if node not already in layout
+        LAYOUT=$(docker exec local_storage /garage -h "$REMOTE" layout show 2>/dev/null)
+        if echo "$LAYOUT" | grep -q "$NODE_ID"; then
+          echo "Node already in layout."
+        else
+          echo "Assigning node to layout..."
+          docker exec local_storage /garage -h "$REMOTE" layout assign "$NODE_ID" -z local -c 350G
+          LAYOUT=$(docker exec local_storage /garage -h "$REMOTE" layout show 2>/dev/null)
+        fi
+
+        # Apply layout only if there are staged changes (avoids invalid version error)
+        if echo "$LAYOUT" | grep -qi "staged"; then
+          STAGED_VER=$(echo "$LAYOUT" | grep -oE 'version [0-9]+' | tail -1 | grep -oE '[0-9]+')
+          echo "Applying staged layout version $STAGED_VER..."
+          docker exec local_storage /garage -h "$REMOTE" layout apply --version "$STAGED_VER" \
+            && echo "Layout applied." || echo "Layout apply failed, continuing..."
+          sleep 3
+        else
+          echo "Layout already up to date, no staged changes."
+        fi
+
+        # Wait for storage engine to be fully operational (not just RPC up)
+        echo "Waiting for storage readiness..."
+        for i in $(seq 1 20); do
+          if docker exec local_storage /garage -h "$REMOTE" bucket list > /dev/null 2>&1; then
+            echo "Storage is ready."
+            break
+          fi
+          echo "  storage not ready yet ($i/20)..."
+          sleep 2
+        done
+
+        docker exec local_storage /garage -h "$REMOTE" key import --yes "$GARAGE_ACCESS_KEY" "$GARAGE_SECRET_KEY" \
+          && echo "Keys imported." || echo "Keys already exist, skipping."
+
+        docker exec local_storage /garage -h "$REMOTE" bucket create "$GARAGE_BUCKET" \
+          && echo "Bucket $GARAGE_BUCKET created." || echo "Bucket $GARAGE_BUCKET already exists."
+        docker exec local_storage /garage -h "$REMOTE" bucket create "$GARAGE_CHAT_BUCKET" \
+          && echo "Bucket $GARAGE_CHAT_BUCKET created." || echo "Bucket $GARAGE_CHAT_BUCKET already exists."
+
+        docker exec local_storage /garage -h "$REMOTE" bucket allow "$GARAGE_BUCKET" \
+          --read --write --key "$GARAGE_ACCESS_KEY" \
+          && echo "Permissions set for $GARAGE_BUCKET." || echo "Permissions already set."
+        docker exec local_storage /garage -h "$REMOTE" bucket allow "$GARAGE_CHAT_BUCKET" \
+          --read --write --key "$GARAGE_ACCESS_KEY" \
+          && echo "Permissions set for $GARAGE_CHAT_BUCKET." || echo "Permissions already set."
+
+        echo "Garage S3 initialization complete."

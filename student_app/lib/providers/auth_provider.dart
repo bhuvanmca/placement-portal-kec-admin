@@ -13,9 +13,17 @@ AuthService authService(Ref ref) {
 /// State class to hold login result
 class AuthState {
   final bool isProfileComplete;
+  final String role;
   final String? error;
 
-  const AuthState({this.isProfileComplete = false, this.error});
+  const AuthState({
+    this.isProfileComplete = false,
+    this.role = 'student',
+    this.error,
+  });
+
+  bool get isAdmin =>
+      role == 'admin' || role == 'coordinator' || role == 'super_admin';
 }
 
 @riverpod
@@ -27,9 +35,10 @@ class AuthController extends _$AuthController {
     final isProfileComplete = await ref
         .read(authServiceProvider)
         .isProfileComplete();
+    final role = await ref.read(authServiceProvider).getRole();
 
     if (token != null && token.isNotEmpty) {
-      return AuthState(isProfileComplete: isProfileComplete);
+      return AuthState(isProfileComplete: isProfileComplete, role: role);
     }
     return null;
   }
@@ -41,10 +50,10 @@ class AuthController extends _$AuthController {
           .read(authServiceProvider)
           .login(email, password);
 
-      // CRITICAL: Invalidate self to trigger rebuild and router redirect
-      ref.invalidateSelf();
-
-      return AuthState(isProfileComplete: response.isProfileComplete);
+      return AuthState(
+        isProfileComplete: response.isProfileComplete,
+        role: response.role,
+      );
     });
   }
 
@@ -57,9 +66,10 @@ class AuthController extends _$AuthController {
   }
 
   Future<void> completeProfile() async {
-    // Optimistic update or wait?
-    // Let's rely on service + state update.
+    final currentRole = state.value?.role ?? 'student';
     await ref.read(authServiceProvider).setProfileComplete(true);
-    state = const AsyncValue.data(AuthState(isProfileComplete: true));
+    state = AsyncValue.data(
+      AuthState(isProfileComplete: true, role: currentRole),
+    );
   }
 }

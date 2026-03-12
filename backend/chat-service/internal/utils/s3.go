@@ -117,20 +117,34 @@ func GetPresignedURL(bucket, key string, expirationMinutes int) (string, error) 
 	return result.URL, nil
 }
 
-// GenerateSignedProfileURL takes a stored DB URL, cleans it, and returns a Presigned URL
+// GetBrowserAccessibleURL constructs a URL accessible from the browser
+// by routing through Caddy's /storage/* reverse proxy to Garage.
+func GetBrowserAccessibleURL(bucketName, objectKey string) (string, error) {
+	if bucketName == "" {
+		bucketName = os.Getenv("GARAGE_BUCKET")
+	}
+	if bucketName == "" {
+		return "", fmt.Errorf("GARAGE_BUCKET env var is not set")
+	}
+	if objectKey == "" {
+		return "", fmt.Errorf("object key is empty")
+	}
+
+	publicDomain := os.Getenv("PUBLIC_DOMAIN")
+	if publicDomain == "" {
+		return "", fmt.Errorf("PUBLIC_DOMAIN env var is not set")
+	}
+	if publicDomain[len(publicDomain)-1] == '/' {
+		publicDomain = publicDomain[:len(publicDomain)-1]
+	}
+
+	return fmt.Sprintf("%s/storage/%s/%s", publicDomain, bucketName, objectKey), nil
+}
+
+// GenerateSignedProfileURL takes a stored DB URL and returns a browser-accessible URL
 func GenerateSignedProfileURL(originalURL string) string {
 	if originalURL == "" {
 		return ""
-	}
-
-	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
-	endpoint := os.Getenv("GARAGE_ENDPOINT")
-
-	// If it's already a full URL not pointing to our Garage, return as is
-	if !strings.Contains(originalURL, publicURL) && !strings.Contains(originalURL, endpoint) {
-		if strings.HasPrefix(originalURL, "http://") || strings.HasPrefix(originalURL, "https://") {
-			return originalURL
-		}
 	}
 
 	bucket, key := ExtractBucketAndKey(originalURL)
@@ -143,13 +157,12 @@ func GenerateSignedProfileURL(originalURL string) string {
 		key = key[:idx]
 	}
 
-	// Generate for 60 minutes
-	signedURL, err := GetPresignedURL(bucket, key, 60)
+	publicURL, err := GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
-		fmt.Printf("Error signing profile URL: %v\n", err)
+		fmt.Printf("Error generating profile URL: %v\n", err)
 		return originalURL
 	}
-	return signedURL
+	return publicURL
 }
 
 // ExtractBucketAndKey parses bucket and key from a Garage URL
@@ -160,6 +173,8 @@ func ExtractBucketAndKey(rawURL string) (string, string) {
 	}
 
 	path := strings.TrimPrefix(parsed.Path, "/")
+	// Handle legacy /storage/ prefix format
+	path = strings.TrimPrefix(path, "storage/")
 	parts := strings.SplitN(path, "/", 2)
 	if len(parts) < 2 {
 		return "", ""

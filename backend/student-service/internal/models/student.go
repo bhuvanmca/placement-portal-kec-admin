@@ -86,6 +86,9 @@ type CreateStudentInput struct {
 	RegisterNumber string `json:"register_number" validate:"required"`
 	BatchYear      int    `json:"batch_year" validate:"required"`
 	Department     string `json:"department" validate:"required"`
+	StudentType    string `json:"student_type"`
+	Gender         string `json:"gender"`
+	MobileNumber   string `json:"mobile_number"`
 	Password       string `json:"password"`
 }
 

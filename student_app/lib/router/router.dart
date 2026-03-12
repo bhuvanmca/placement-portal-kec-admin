@@ -14,6 +14,11 @@ import '../screens/onboarding/address_screen.dart';
 import '../screens/onboarding/profile_pic_screen.dart';
 import '../screens/onboarding/documents_screen.dart';
 import '../screens/loading_screen.dart'; // [NEW]
+import '../screens/admin/admin_shell_screen.dart';
+import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/admin/admin_students_screen.dart';
+import '../screens/admin/admin_drives_screen.dart';
+import '../screens/admin/admin_requests_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 // final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -47,30 +52,40 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoginRoute = state.matchedLocation == '/login';
       final isOnboardingRoute = state.matchedLocation.startsWith('/onboarding');
       final isLoadingRoute = state.matchedLocation == '/loading';
+      final isAdminRoute = state.matchedLocation.startsWith('/admin');
 
       // If loading, show loading screen
       if (isLoading) return '/loading';
 
       // If finished loading and still on loading screen, redirect based on auth
       if (!isLoading && isLoadingRoute) {
-        return isAuthenticated
-            ? (authState.value!.isProfileComplete
-                  ? '/drives'
-                  : '/onboarding/welcome')
-            : '/login';
+        if (!isAuthenticated) return '/login';
+        if (authState.value!.isAdmin) return '/admin/dashboard';
+        return authState.value!.isProfileComplete
+            ? '/drives'
+            : '/onboarding/welcome';
       }
 
       if (!isAuthenticated) {
         return isLoginRoute ? null : '/login';
       }
 
-      // Check profile completion if authenticated
-      if (isAuthenticated) {
+      // Admin role routing
+      if (isAuthenticated && authState.value!.isAdmin) {
+        // Admins should not access student routes
+        if (isLoginRoute) return '/admin/dashboard';
+        if (!isAdminRoute) return '/admin/dashboard';
+        return null;
+      }
+
+      // Student role routing — block admin routes
+      if (isAuthenticated && !authState.value!.isAdmin) {
+        if (isAdminRoute) return '/drives';
+
         final isProfileComplete = authState.value!.isProfileComplete;
         if (!isProfileComplete && !isOnboardingRoute) {
           return '/onboarding/welcome';
         }
-        // If profile complete and trying to go to onboarding, go home
         if (isProfileComplete && isOnboardingRoute) {
           return '/drives';
         }
@@ -141,6 +156,47 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // Admin Shell with Bottom Navigation
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AdminShellScreen(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/dashboard',
+                builder: (context, state) => const AdminDashboardScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/students',
+                builder: (context, state) => const AdminStudentsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/drives',
+                builder: (context, state) => const AdminDrivesScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/admin/requests',
+                builder: (context, state) => const AdminRequestsScreen(),
               ),
             ],
           ),

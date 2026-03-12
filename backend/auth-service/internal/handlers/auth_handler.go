@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"log"
+	"math/big"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/auth-service/internal/models"
@@ -118,4 +121,81 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
+	var input struct {
+		Email string `json:"email"`
+	}
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	if input.Email == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Email is required"})
+	}
+
+	// Check if user exists
+	_, err := h.repo.GetUserByEmail(c.Context(), input.Email)
+	if err != nil {
+		// Don't reveal whether user exists
+		return c.JSON(fiber.Map{"message": "If the email exists, an OTP has been sent"})
+	}
+
+	// Generate 6-digit OTP using crypto/rand
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
+	}
+	otp := fmt.Sprintf("%06d", n.Int64())
+
+	if err := h.repo.SaveOTP(c.Context(), input.Email, otp); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
+	}
+
+	// Log OTP to console (email delivery to be configured later)
+	log.Printf("[PASSWORD RESET] OTP for %s: %s (valid for 10 minutes)", input.Email, otp)
+
+	return c.JSON(fiber.Map{"message": "If the email exists, an OTP has been sent"})
+}
+
+func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
+	var input struct {
+		Email       string `json:"email"`
+		OTP         string `json:"otp"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	if input.Email == "" || input.OTP == "" || input.NewPassword == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Email, OTP, and new password are required"})
+	}
+
+	if len(input.NewPassword) < 6 {
+		return c.Status(400).JSON(fiber.Map{"error": "Password must be at least 6 characters"})
+	}
+
+	// Verify OTP
+	valid, err := h.repo.VerifyOTP(c.Context(), input.Email, input.OTP)
+	if err != nil || !valid {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid or expired OTP"})
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Could not process password"})
+	}
+
+	// Update password
+	if err := h.repo.ResetPassword(c.Context(), input.Email, string(hashedPassword)); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to reset password"})
+	}
+
+	// Clean up OTP
+	_ = h.repo.DeleteOTP(c.Context(), input.Email)
+
+	return c.JSON(fiber.Map{"message": "Password reset successfully"})
 }

@@ -1,4 +1,12 @@
-version: "3.8"
+# Placement Portal Infrastructure
+# ──────────────────────────────────────────────
+
+# Shared logging config — ~2 days retention per container (size-based rotation)
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "25m"
+    max-file: "4"
 
 services:
   # ──────────────────────────────────────────────
@@ -27,6 +35,7 @@ services:
       dockerfile: Dockerfile
     container_name: auth_service
     restart: always
+    logging: *default-logging
     # Removed host ports: firewall blocks them; accessible via Caddy internally
     environment:
       - PORT=8081
@@ -42,9 +51,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
 
   # 1.6 Drive Service (Microservice - Phase 2)
@@ -54,6 +63,7 @@ services:
       dockerfile: Dockerfile
     container_name: drive_service
     restart: always
+    logging: *default-logging
     environment:
       - PORT=8083
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
@@ -67,13 +77,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      garage:
+        condition: service_started
       db-migrations:
         condition: service_completed_successfully
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8083/health" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
 
   # 1.7 Student Service (Microservice - Phase 3)
@@ -83,6 +95,7 @@ services:
       dockerfile: Dockerfile
     container_name: student_service
     restart: always
+    logging: *default-logging
     environment:
       - PORT=8084
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
@@ -104,15 +117,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      garage-init:
-        condition: service_completed_successfully
+      garage:
+        condition: service_started
       db-migrations:
         condition: service_completed_successfully
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8084/health" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
 
   # 1.8 Admin Service (Microservice - Phase 4)
@@ -122,6 +135,7 @@ services:
       dockerfile: Dockerfile
     container_name: admin_service
     restart: always
+    logging: *default-logging
     environment:
       - PORT=8085
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
@@ -146,15 +160,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      garage-init:
-        condition: service_completed_successfully
+      garage:
+        condition: service_started
       db-migrations:
         condition: service_completed_successfully
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8085/health" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
 
   # 1.9 Analytics Service (Microservice - Phase 5)
@@ -164,6 +178,7 @@ services:
       dockerfile: Dockerfile
     container_name: analytics_service
     restart: always
+    logging: *default-logging
     environment:
       - PORT=8086
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
@@ -176,9 +191,9 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8086/health" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
 
   # 2. Chat Service (Microservice)
@@ -188,6 +203,7 @@ services:
       dockerfile: Dockerfile
     container_name: chat_service
     restart: always
+    logging: *default-logging
     environment:
       - CHAT_PORT=8081
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
@@ -212,15 +228,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      garage-init:
-        condition: service_completed_successfully
+      garage:
+        condition: service_started
       db-migrations:
         condition: service_completed_successfully
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ] # Chat service internal port
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
 
   # 3. Redis (Cache & Pub/Sub)
@@ -230,15 +246,16 @@ services:
     restart: always
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   # 4. Caddy Web Server (Reverse Proxy & HTTPS)
   caddy:
     image: caddy:2.9-alpine
     container_name: caddy
     restart: always
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
@@ -267,11 +284,21 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: kecdrives-db
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=8MB"
+      - "-c"
+      - "effective_cache_size=512MB"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -d kecdrives-db" ]
-      interval: 5s
+      interval: 15s
       timeout: 5s
       retries: 5
 
@@ -308,25 +335,6 @@ services:
       - ./garage.toml:/etc/garage.toml
       - garage_data:/var/lib/garage
 
-  # 3.6 Storage Initializer (Automates layout, keys, and buckets)
-  garage-init:
-    build:
-      context: ./garage-init
-      dockerfile: Dockerfile
-    container_name: garage_init
-    volumes:
-      - ./garage-init/init-garage.sh:/app/init-garage.sh
-      - ./garage.toml:/etc/garage.toml
-    working_dir: /app
-    environment:
-      - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY}
-      - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY}
-      - GARAGE_BUCKET=${GARAGE_BUCKET}
-      - GARAGE_CHAT_BUCKET=${GARAGE_CHAT_BUCKET}
-    entrypoint: [ "/bin/sh", "./init-garage.sh" ]
-    depends_on:
-      garage:
-        condition: service_started
 
   # ──────────────────────────────────────────────
   # Monitoring Stack (Production Ready)
@@ -389,17 +397,12 @@ services:
     image: prom/node-exporter:v1.8.2
     container_name: node_exporter
     restart: always
-    command:
-      - '--path.rootfs=/host'
-    volumes:
-      - '/:/host:ro,rslave'
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
     restart: always
     volumes:
-      - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro

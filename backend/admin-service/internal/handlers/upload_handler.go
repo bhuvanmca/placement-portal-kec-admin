@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
 	"github.com/placement-portal-kec/admin-service/internal/utils"
-	"github.com/gofiber/fiber/v2"
 )
 
 // UploadDocument - Uploads a document (resume, aadhar, pan, profile_pic)
@@ -174,7 +174,11 @@ func UploadProfilePicture(c *fiber.Ctx) error {
 	}
 
 	// 4. Update Database
-	if err := repo.UpdateUserProfile(c.Context(), userID, *user.Name, url); err != nil {
+	userName_db := ""
+	if user.Name != nil {
+		userName_db = *user.Name
+	}
+	if err := repo.UpdateUserProfile(c.Context(), userID, userName_db, url); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Database update failed"})
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/placement-portal-kec/drive-service/internal/handlers"
@@ -30,7 +31,7 @@ func main() {
 		log.Fatalf("Unable to parse database URL: %v", err)
 	}
 
-	config.MaxConns = 50
+	config.MaxConns = 25
 	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
@@ -70,7 +71,8 @@ func main() {
 
 	// 3. Initialize Fiber App
 	app := fiber.New(fiber.Config{
-		AppName: "Placement Portal - Drive Service",
+		AppName:   "Placement Portal - Drive Service",
+		BodyLimit: 50 * 1024 * 1024, // 50MB for file uploads
 	})
 
 	// Prometheus Monitoring
@@ -79,6 +81,7 @@ func main() {
 	app.Use(prometheus.Middleware)
 
 	// 4. Middlewares
+	app.Use(recover.New())
 	app.Use(logger.New())
 
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")

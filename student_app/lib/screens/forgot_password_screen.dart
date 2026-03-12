@@ -1,57 +1,28 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/student_service.dart';
 import '../utils/constants.dart';
 import '../widgets/app_button.dart';
 import 'reset_password_screen.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  // Resend timer state
-  Timer? _resendTimer;
-  int _remainingSeconds = 0;
-  static const int _otpExpirySeconds = 120; // 2 minutes
-
   @override
   void dispose() {
     _emailController.dispose();
-    _resendTimer?.cancel();
     super.dispose();
   }
-
-  void _startResendTimer() {
-    setState(() {
-      _remainingSeconds = _otpExpirySeconds;
-    });
-
-    _resendTimer?.cancel();
-    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingSeconds > 0) {
-        setState(() => _remainingSeconds--);
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  String _getTimerText() {
-    if (_remainingSeconds <= 0) return 'Send OTP';
-    final minutes = _remainingSeconds ~/ 60;
-    final seconds = _remainingSeconds % 60;
-    return 'Resend OTP in ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  bool get _canResend => _remainingSeconds <= 0;
 
   Future<void> _sendOTP() async {
     if (!_formKey.currentState!.validate()) return;
@@ -59,7 +30,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await StudentService().forgotPassword(_emailController.text.trim());
+      await ref
+          .read(studentServiceProvider)
+          .forgotPassword(_emailController.text.trim());
 
       if (!mounted) return;
 
@@ -71,9 +44,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-
-      // Start the resend timer
-      _startResendTimer();
 
       // Navigate to Reset Password Screen after a brief delay
       await Future.delayed(const Duration(milliseconds: 500));
@@ -107,7 +77,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         title: const Text('Forgot Password'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        foregroundColor: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+        foregroundColor:
+            (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -138,7 +109,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   Text(
                     'Enter your email address and we\'ll send you an OTP to reset your password',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                      color:
+                          (Theme.of(context).textTheme.bodyMedium?.color ??
+                          Colors.grey),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -192,21 +165,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 24),
                   AppButton(
-                    label: _getTimerText(),
+                    label: 'Send OTP',
                     isLoading: _isLoading,
-                    onPressed: (_isLoading || !_canResend) ? null : _sendOTP,
+                    onPressed: _isLoading ? null : _sendOTP,
                   ),
-                  if (_remainingSeconds > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        'You can request a new OTP after the timer expires',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
                 ],
               ),
             ),

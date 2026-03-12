@@ -100,19 +100,25 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 	// D. Convert Dates & Save
 	driveDate, err := time.Parse(time.RFC3339, input.DriveDate)
 	if err != nil {
-		// Fallback to simple date
-		driveDate, err = time.Parse("2006-01-02", input.DriveDate)
+		driveDate, err = time.Parse(time.RFC3339Nano, input.DriveDate)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive Date format"})
+			// Fallback to simple date
+			driveDate, err = time.Parse("2006-01-02", input.DriveDate)
+			if err != nil {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive Date format"})
+			}
 		}
 	}
 
 	deadline, err := time.Parse(time.RFC3339, input.DeadlineDate)
 	if err != nil {
-		// Try simplified date if ISO fails
-		deadline, err = time.Parse("2006-01-02T15:04", input.DeadlineDate)
+		deadline, err = time.Parse(time.RFC3339Nano, input.DeadlineDate)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Invalid Deadline format"})
+			// Try simplified date if ISO fails
+			deadline, err = time.Parse("2006-01-02T15:04", input.DeadlineDate)
+			if err != nil {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid Deadline format"})
+			}
 		}
 	}
 
@@ -142,18 +148,27 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 		MaxBacklogsAllowed:  input.MaxBacklogsAllowed,
 		EligibleBatches:     input.EligibleBatches,
 		EligibleDepartments: input.EligibleDepartments,
+		EligibleGender:      input.EligibleGender,
 		Rounds:              input.Rounds,
 		Attachments:         input.Attachments,
-		Status:              "open", // Default status switched to open as requested
+		ExcludedStudentIDs:  input.ExcludedStudentIDs,
+		Status:              input.Status,
 		DeadlineDate:        deadline,
 		DriveDate:           driveDate,
 	}
 
+	// Default status to "open" if empty or invalid
+	if drive.Status != "draft" {
+		drive.Status = "open"
+	}
+
 	repo := h.repo
-	if err := repo.CreateDrive(c.Context(), drive); err != nil {
+	driveID, err := repo.CreateDrive(c.Context(), drive)
+	if err != nil {
 		fmt.Printf("Error creating drive in DB: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create drive", "details": err.Error()})
 	}
+	drive.ID = driveID
 
 	// E. Send Notification to Eligible Students (Async)
 	go func(d models.PlacementDrive) {
@@ -207,25 +222,20 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 	return c.Status(201).JSON(drive)
 }
 
-// Helper: Convert drive attachments to presigned URLs
+// Helper: Convert drive attachment URLs to publicly accessible URLs via Caddy proxy.
+// Since the bucket has a public read policy, plain URLs work without signatures.
 func (h *DriveHandler) convertAttachmentsToPresigned(drives []models.PlacementDrive) []models.PlacementDrive {
 	for i := range drives {
 		for j := range drives[i].Attachments {
-			s3Key := drives[i].Attachments[j].URL
+			storedURL := drives[i].Attachments[j].URL
 
-			// Extract S3 key from stored URL
-			bucket, key := utils.ExtractBucketAndKeyFromURL(s3Key) // s3Key variable name is misleading, it holds URL here.
-
+			bucket, key := utils.ExtractBucketAndKeyFromURL(storedURL)
 			if bucket == "" {
 				bucket = utils.GetBucketName()
 			}
 
-			// Generate presigned URL (5-minute expiry)
 			if key != "" {
-				presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
-				if err == nil {
-					drives[i].Attachments[j].URL = presignedURL
-				}
+				drives[i].Attachments[j].URL = utils.GetPublicURL(bucket, key)
 			}
 		}
 	}

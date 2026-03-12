@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt" // Need this for Tx
 
-	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/placement-portal-kec/admin-service/internal/models"
 )
 
 type StudentRepository struct {
@@ -25,24 +25,27 @@ func (r *StudentRepository) CreateStudent(ctx context.Context, user *models.User
 	}
 	defer tx.Rollback(ctx)
 
-	// 1. Insert into Users
+	// 1. Insert into Users (including name)
 	var userID int64
-	queryUser := `INSERT INTO users (email, password_hash, role, is_active, created_at, updated_at) 
-                  VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id`
+	queryUser := `INSERT INTO users (email, password_hash, role, is_active, name, created_at, updated_at) 
+                  VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id`
 
-	err = tx.QueryRow(ctx, queryUser, user.Email, user.PasswordHash, user.Role, user.IsActive).Scan(&userID)
+	err = tx.QueryRow(ctx, queryUser, user.Email, user.PasswordHash, user.Role, user.IsActive, input.FullName).Scan(&userID)
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
 	// 2. Insert into Student Personal
-	// Note: We are setting the initial data provided by admin
+	studentType := input.StudentType
+	if studentType == "" {
+		studentType = "Regular"
+	}
 	queryPersonal := `
 		INSERT INTO student_personal (
-			user_id, register_number, batch_year, department, student_type, placement_willingness
-		) VALUES ($1, $2, $3, $4, 'Regular', 'Interested')
+			user_id, register_number, batch_year, department, student_type, placement_willingness, gender, mobile_number
+		) VALUES ($1, $2, $3, $4, $5, 'Interested', $6, $7)
 	`
-	if _, err := tx.Exec(ctx, queryPersonal, userID, input.RegisterNumber, input.BatchYear, input.Department); err != nil {
+	if _, err := tx.Exec(ctx, queryPersonal, userID, input.RegisterNumber, input.BatchYear, input.Department, studentType, input.Gender, input.MobileNumber); err != nil {
 		return fmt.Errorf("failed to create student profile: %w", err)
 	}
 

@@ -20,7 +20,7 @@ func NewDriveRepository(db *pgxpool.Pool) *DriveRepository {
 }
 
 // 1. Create Drive (Admin Only)
-func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.PlacementDrive) error {
+func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.PlacementDrive) (int64, error) {
 	query := `
         INSERT INTO placement_drives (
             posted_by, company_name, job_description,
@@ -46,12 +46,17 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
             $18, $19,
             $20, $21, $22, $23,
             $24, $25,
-            'open', $26, NOW()
+            $26, $27, NOW()
         ) RETURNING id
     `
 	// Ensure LocationType has a valid default
 	if drive.LocationType == "" {
 		drive.LocationType = "On-Site"
+	}
+
+	// Ensure EligibleGender has a valid default
+	if drive.EligibleGender == "" {
+		drive.EligibleGender = "All"
 	}
 
 	var driveID int64
@@ -67,11 +72,11 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 		drive.Rounds, drive.Attachments,
 		drive.DriveDate, drive.DeadlineDate,
 		drive.Website, drive.LogoURL, drive.Location, drive.LocationType,
-		drive.ExcludedStudentIDs,
+		drive.Status, drive.ExcludedStudentIDs,
 	).Scan(&driveID)
 
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Insert Eligible Batches
@@ -80,7 +85,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 		for _, batch := range drive.EligibleBatches {
 			_, err := r.DB.Exec(ctx, batchQuery, driveID, batch)
 			if err != nil {
-				return fmt.Errorf("failed to insert eligible batch %d: %v", batch, err)
+				return 0, fmt.Errorf("failed to insert eligible batch %d: %v", batch, err)
 			}
 		}
 	}
@@ -91,7 +96,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 		for _, dept := range drive.EligibleDepartments {
 			_, err := r.DB.Exec(ctx, deptQuery, driveID, dept)
 			if err != nil {
-				return fmt.Errorf("failed to insert eligible department %s: %v", dept, err)
+				return 0, fmt.Errorf("failed to insert eligible department %s: %v", dept, err)
 			}
 		}
 	}
@@ -105,12 +110,12 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 		for _, role := range drive.Roles {
 			_, err := r.DB.Exec(ctx, roleQuery, driveID, role.RoleName, role.Ctc, role.Salary, role.Stipend)
 			if err != nil {
-				return fmt.Errorf("failed to insert role %s: %v", role.RoleName, err)
+				return 0, fmt.Errorf("failed to insert role %s: %v", role.RoleName, err)
 			}
 		}
 	}
 
-	return nil
+	return driveID, nil
 }
 
 // --- Automated State Management ---

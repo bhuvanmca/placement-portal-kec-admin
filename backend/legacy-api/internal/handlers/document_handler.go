@@ -87,20 +87,18 @@ func GetDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	// Generate presigned URL (5-minute expiry)
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	// Generate browser-accessible URL
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"error":   "Failed to generate secure URL",
-			"details": err.Error(),
+			"error": "Failed to generate document URL",
 		})
 	}
 
-	// Return presigned URL
+	// Return public URL
 	return c.JSON(fiber.Map{
-		"url":        presignedURL,
-		"type":       documentType,
-		"expires_in": "5 minutes",
+		"url":  publicURL,
+		"type": documentType,
 	})
 }
 
@@ -193,20 +191,18 @@ func GetStudentDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	// Generate presigned URL (5-minute expiry)
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	// Generate browser-accessible URL
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"error":   "Failed to generate secure URL",
-			"details": err.Error(),
+			"error": "Failed to generate document URL",
 		})
 	}
 
-	// Return presigned URL
+	// Return public URL
 	return c.JSON(fiber.Map{
-		"url":        presignedURL,
+		"url":        publicURL,
 		"type":       documentType,
 		"student_id": studentID,
-		"expires_in": "5 minutes",
 	})
 }

@@ -48,7 +48,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
 
   Future<void> _loadProfile() async {
     try {
-      final profile = await StudentService().getProfile();
+      final profile = await ref.read(studentServiceProvider).getProfile();
       if (mounted) {
         setState(() {
           _departmentType = profile['department_type'] ?? 'UG';

@@ -99,11 +99,9 @@ class PaginatedDriveNotifier extends Notifier<PaginatedDriveState> {
 }
 
 final driveListProvider =
-    NotifierProvider.autoDispose<PaginatedDriveNotifier, PaginatedDriveState>(
-      () {
-        return PaginatedDriveNotifier();
-      },
-    );
+    NotifierProvider<PaginatedDriveNotifier, PaginatedDriveState>(() {
+      return PaginatedDriveNotifier();
+    });
 
 // --- Filter Logic ---
 
@@ -256,17 +254,21 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
 
       // 3a. Status Filter (Strict Open Logic)
       if (statusFilters.isNotEmpty) {
-        final deadline = DateTime.parse(drive['deadline_date']);
-        final isDeadlineFuture = deadline.isAfter(DateTime.now());
-        final backendStatus = drive['status'];
+        if (drive['deadline_date'] == null) {
+          matchesModalFilters = false;
+        } else {
+          final deadline = DateTime.parse(drive['deadline_date']).toLocal();
+          final isDeadlineFuture = deadline.isAfter(DateTime.now());
+          final backendStatus = drive['status'];
 
-        bool isOpen = (backendStatus == 'open' && isDeadlineFuture);
-        bool isClosed = !isOpen; // Simplification as requested
+          bool isOpen = (backendStatus == 'open' && isDeadlineFuture);
+          bool isClosed = !isOpen;
 
-        bool matches = false;
-        if (statusFilters.contains('Open') && isOpen) matches = true;
-        if (statusFilters.contains('Closed') && isClosed) matches = true;
-        if (!matches) matchesModalFilters = false;
+          bool matches = false;
+          if (statusFilters.contains('Open') && isOpen) matches = true;
+          if (statusFilters.contains('Closed') && isClosed) matches = true;
+          if (!matches) matchesModalFilters = false;
+        }
       }
 
       // 3b. Salary Filter (One of the roles must match)

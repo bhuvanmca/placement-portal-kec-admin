@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingState {
   // Contact
@@ -107,9 +109,50 @@ class OnboardingState {
 }
 
 class OnboardingNotifier extends Notifier<OnboardingState> {
+  static const _prefsKey = 'onboarding_draft';
+
   @override
   OnboardingState build() {
+    _loadFromPrefs();
     return OnboardingState();
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_prefsKey);
+    if (json != null) {
+      try {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        state = OnboardingState(
+          mobileNumber: map['mobile_number'] as String?,
+          dob: map['dob'] as String?,
+          gender: map['gender'] as String?,
+          placementWillingness:
+              map['placement_willingness'] as String? ?? 'Interested',
+          tenthMark: (map['tenth_mark'] as num?)?.toDouble(),
+          twelfthMark: (map['twelfth_mark'] as num?)?.toDouble(),
+          ugCgpa: (map['ug_cgpa'] as num?)?.toDouble(),
+          pgCgpa: (map['pg_cgpa'] as num?)?.toDouble(),
+          socialLinks: map['social_links'] != null
+              ? Map<String, String>.from(map['social_links'] as Map)
+              : null,
+          addressLine1: map['address_line_1'] as String?,
+          addressLine2: map['address_line_2'] as String?,
+          state: map['state'] as String?,
+          profilePhotoUrl: map['profile_photo_url'] as String?,
+          resumeUrl: map['resume_url'] as String?,
+          aadharNumber: map['aadhar_number'] as String?,
+          panNumber: map['pan_number'] as String?,
+        );
+      } catch (_) {
+        // Corrupted data, ignore
+      }
+    }
+  }
+
+  Future<void> _saveToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey, jsonEncode(state.toJson()));
   }
 
   void updateContact(String mobile, {String? linkedin, String? github}) {
@@ -118,6 +161,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       if (github != null && github.isNotEmpty) 'github': github,
     };
     state = state.copyWith(mobileNumber: mobile, socialLinks: socials);
+    _saveToPrefs();
   }
 
   void updateAcademic(double tenth, double twelfth, double ug, double? pg) {
@@ -127,6 +171,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       ugCgpa: ug,
       pgCgpa: pg,
     );
+    _saveToPrefs();
   }
 
   void updatePersonal(
@@ -143,10 +188,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       dob: dob,
       gender: gender,
     );
+    _saveToPrefs();
   }
 
   void updateProfilePhoto(String url) {
     state = state.copyWith(profilePhotoUrl: url);
+    _saveToPrefs();
   }
 
   void updateDocuments({
@@ -159,6 +206,13 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       aadharNumber: aadharNumber ?? state.aadharNumber,
       panNumber: panNumber ?? state.panNumber,
     );
+    _saveToPrefs();
+  }
+
+  Future<void> clearDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsKey);
+    state = OnboardingState();
   }
 }
 

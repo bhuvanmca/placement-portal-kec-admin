@@ -25,8 +25,8 @@ func Connect() (*pgxpool.Pool, error) {
 	}
 
 	// Performance tuning for production
-	config.MaxConns = 50
-	config.MinConns = 5
+	config.MaxConns = 10
+	config.MinConns = 2
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
 

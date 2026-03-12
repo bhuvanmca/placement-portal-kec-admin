@@ -11,10 +11,6 @@ const api = axios.create({
 // Add a request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Log the request for debugging
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
-    
-    // Add Authorization header if token exists
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
@@ -22,41 +18,69 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    // console.error('[API Request Error]', error);
     return Promise.reject(error);
   }
 );
 
 import { toast } from 'sonner';
 
-// ... (keep existing imports and request interceptor)
+// Server availability tracking — requires consecutive failures to avoid false positives
+let serverDownFired = false;
+let consecutiveFailures = 0;
+let lastFailureTime = 0;
+let lastServerDownEventTime = 0;
+
+const SERVER_DOWN_THRESHOLD = 3;       // consecutive failures before showing overlay
+const FAILURE_WINDOW_MS = 30_000;      // failures must occur within 30s to count
+const COOLDOWN_MS = 120_000;           // 2 min cooldown between server-down events
 
 // Add a response interceptor
 api.interceptors.response.use(
   (response) => {
-    console.log(`[API Response] ${response.status} ${response.config.url}`, response.data);
+    // Successful response — reset failure tracking and recover if needed
+    consecutiveFailures = 0;
+    if (serverDownFired) {
+      serverDownFired = false;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('server-availability-changed', {
+            detail: { available: true },
+          })
+        );
+      }
+    }
     return response;
   },
   (error) => {
-    // console.warn('[API Response Warning]', error.response?.status, error.response?.data);
-    
-    // Check for Server Connection Issues
     const isNetworkError = error.code === 'ERR_NETWORK';
     const isServerDown = error.response?.status >= 502 && error.response?.status <= 504;
-    const isConnectionRefused = error.response?.status === 0; // Sometimes happens with CORS/Network failure
+    const isConnectionRefused = error.response?.status === 0;
 
-    // Only trigger server down overlay if we are ONLINE (otherwise it's just no internet)
     if (typeof window !== 'undefined' && navigator.onLine) {
        if (isNetworkError || isServerDown || isConnectionRefused) {
-         // Dispatch event to show ServerErrorOverlay
-         window.dispatchEvent(
-           new CustomEvent('server-availability-changed', {
-             detail: { available: false },
-           })
-         );
-         
-         // Return rejected promise but handled
-         // We might not want to show a toast ON TOP of the overlay
+         const now = Date.now();
+
+         // Reset counter if failures are too spread apart
+         if (now - lastFailureTime > FAILURE_WINDOW_MS) {
+           consecutiveFailures = 0;
+         }
+         consecutiveFailures++;
+         lastFailureTime = now;
+
+         // Only fire event after threshold AND respecting cooldown
+         if (
+           consecutiveFailures >= SERVER_DOWN_THRESHOLD &&
+           !serverDownFired &&
+           now - lastServerDownEventTime > COOLDOWN_MS
+         ) {
+           serverDownFired = true;
+           lastServerDownEventTime = now;
+           window.dispatchEvent(
+             new CustomEvent('server-availability-changed', {
+               detail: { available: false },
+             })
+           );
+         }
          return Promise.reject({ handled: true, isServerDown: true, message: 'Server unavailable' });
        }
     }

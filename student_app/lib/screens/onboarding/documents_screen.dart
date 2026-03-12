@@ -25,7 +25,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
-  final StudentService _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
 
   @override
   void initState() {
@@ -195,7 +195,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   Text(
                     fileName,
                     style: TextStyle(
-                      color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                      color:
+                          (Theme.of(context).textTheme.bodyMedium?.color ??
+                          Colors.grey),
                       fontSize: 12,
                     ),
                     maxLines: 1,
@@ -244,14 +246,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 'Almost done!',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                  color:
+                      (Theme.of(context).textTheme.bodyLarge?.color ??
+                      Colors.black),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Please provide your identity numbers and upload essential documents.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                  color:
+                      (Theme.of(context).textTheme.bodyMedium?.color ??
+                      Colors.grey),
                 ),
               ),
               const SizedBox(height: 24),
@@ -268,7 +274,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                            color:
+                                (Theme.of(context).textTheme.bodyLarge?.color ??
+                                Colors.black),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -328,7 +336,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                            color:
+                                (Theme.of(context).textTheme.bodyLarge?.color ??
+                                Colors.black),
                           ),
                         ),
                         const SizedBox(height: 16),

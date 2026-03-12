@@ -25,14 +25,14 @@ func Connect() (*pgxpool.Pool, error) {
 	}
 
 	// Performance tuning for production
-	config.MaxConns = 50
-	config.MinConns = 5
+	config.MaxConns = 15
+	config.MinConns = 3
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
 
 	// persistence search_path for ALL connections in the pool
 	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		_, err := conn.Exec(ctx, "SET search_path TO admin, student, drive, public")
+		_, err := conn.Exec(ctx, "SET search_path TO admin, student, drive, auth, public")
 		return err
 	}
 

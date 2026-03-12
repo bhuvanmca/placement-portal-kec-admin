@@ -8,13 +8,35 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
 	"github.com/placement-portal-kec/admin-service/internal/services"
 	"github.com/placement-portal-kec/admin-service/internal/utils"
-	"github.com/gofiber/fiber/v2"
 )
+
+// GetDashboardStats returns aggregated counts in a single query
+func GetDashboardStats(c *fiber.Ctx) error {
+	var totalStudents, totalDrives, pendingRequests int64
+
+	err := database.DB.QueryRow(c.Context(), `
+		SELECT
+			(SELECT COUNT(*) FROM users WHERE role = 'student'),
+			(SELECT COUNT(*) FROM placement_drives),
+			(SELECT COUNT(*) FROM student_change_requests WHERE status = 'pending')
+	`).Scan(&totalStudents, &totalDrives, &pendingRequests)
+
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch dashboard stats"})
+	}
+
+	return c.JSON(fiber.Map{
+		"total_students":   totalStudents,
+		"total_drives":     totalDrives,
+		"pending_requests": pendingRequests,
+	})
+}
 
 // BulkUploadStudents
 // @Summary Bulk Upload Students

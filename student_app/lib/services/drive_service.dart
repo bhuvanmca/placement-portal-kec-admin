@@ -64,7 +64,7 @@ class DriveService {
   Future<void> withdrawFromDrive(int driveId, {String? reason}) async {
     final token = await _getToken();
     final response = await _apiClient.post(
-      Uri.parse('$baseUrl/v1/drives/$driveId/withdraw'),
+      Uri.parse('$baseUrl/v1/drives/$driveId/opt-out'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -78,20 +78,24 @@ class DriveService {
     }
   }
 
-  Future<void> requestToAttend(int driveId, {List<int>? roleIds}) async {
+  /// Get student's drive applications
+  Future<List<dynamic>> getApplications() async {
     final token = await _getToken();
-    final response = await _apiClient.post(
-      Uri.parse('$baseUrl/v1/drives/$driveId/request-attend'),
+    final response = await _apiClient.get(
+      Uri.parse('$baseUrl/v1/drives/applications'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: roleIds != null ? jsonEncode({'role_ids': roleIds}) : null,
     );
 
-    if (response.statusCode != 200) {
-      final body = jsonDecode(response.body);
-      throw Exception(body['message'] ?? 'Failed to submit request');
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) return decoded;
+      if (decoded is Map && decoded['data'] is List) return decoded['data'];
+      return [];
+    } else {
+      throw Exception('Failed to load applications');
     }
   }
 }

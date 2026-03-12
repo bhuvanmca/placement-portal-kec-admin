@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import '../services/student_service.dart';
+import '../services/admin_service.dart';
 
-class ChangePasswordScreen extends StatefulWidget {
+class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  ConsumerState<ChangePasswordScreen> createState() =>
+      _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
 
   bool _isLoading = false;
   bool _obscureOld = true;
@@ -35,11 +39,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _studentService.changePassword(
-        _oldPasswordController.text,
-        _newPasswordController.text,
-        _confirmPasswordController.text,
-      );
+      final authState = ref.read(authControllerProvider).value;
+      if (authState != null && authState.isAdmin) {
+        await ref
+            .read(adminServiceProvider)
+            .changePassword(
+              _oldPasswordController.text,
+              _newPasswordController.text,
+              _confirmPasswordController.text,
+            );
+      } else {
+        await _studentService.changePassword(
+          _oldPasswordController.text,
+          _newPasswordController.text,
+          _confirmPasswordController.text,
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

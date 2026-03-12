@@ -39,3 +39,8 @@ vendor/
 *.tar
 *.tar.gz
 firebase-service-account.json
+
+# Environment variables (never commit secrets)
+.env
+.env.local
+.env.*.local

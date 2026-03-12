@@ -3,13 +3,20 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConstants {
   // API Configuration
-  // API Configuration
-  // Use computer's local IP for mobile testing (host machine IP)
-  // static const String baseUrl = 'http://localhost:8080/api'; // Works for iOS Simulator only
+  // Production: uses Cloudflare Tunnel domain (works from any network)
+  // Development: override via .env file with local IP
   static String baseUrl =
-      dotenv.env['API_BASE_URL'] ?? 'http://172.20.10.6/api';
+      dotenv.env['API_BASE_URL'] ?? 'https://app.api-kecdrives.com/api';
   static String apiBaseUrl =
-      dotenv.env['API_BASE_URL'] ?? 'http://172.20.10.6/api';
+      dotenv.env['API_BASE_URL'] ?? 'https://app.api-kecdrives.com/api';
+
+  // WebSocket URL for chat (wss:// for production, ws:// for local dev)
+  static String wsBaseUrl =
+      dotenv.env['WS_BASE_URL'] ?? 'wss://app.api-kecdrives.com/ws';
+
+  // Storage URL for file downloads (Garage via Cloudflare)
+  static String storageBaseUrl =
+      dotenv.env['STORAGE_BASE_URL'] ?? 'https://app.api-kecdrives.com/storage';
 
   // Colors (Oxford Blue theme)
   static const Color primaryColor = Color(0xFF002147);
@@ -32,25 +39,31 @@ class AppConstants {
   static const String loginRoute = '/v1/auth/login';
   static const String profileRoute = '/v1/student/profile';
 
-  // Helper to fix locahost/minio URLs for mobile
+  // Helper to rewrite internal Docker/local URLs to public Cloudflare domain
   static String sanitizeUrl(String url) {
     if (url.isEmpty) return url;
-    // Replace localhost, minio, garage, 127.0.0.1 with machine IP
+
     String newUrl = url;
-    if (newUrl.contains('localhost')) {
-      newUrl = newUrl.replaceAll('localhost', '172.20.10.6');
+
+    // Rewrite internal service hostnames to public Cloudflare tunnel domain
+    // These URLs come from the backend which uses Docker-internal names
+    final internalHosts = ['localhost', '127.0.0.1', '172.20.10.6', '10.0.2.2'];
+
+    final publicHost = Uri.parse(apiBaseUrl).host; // e.g. app.api-kecdrives.com
+
+    for (final host in internalHosts) {
+      if (newUrl.contains(host)) {
+        newUrl = newUrl.replaceAll('http://$host', 'https://$publicHost');
+        newUrl = newUrl.replaceAll(host, publicHost);
+      }
     }
-    if (newUrl.contains('127.0.0.1')) {
-      newUrl = newUrl.replaceAll('127.0.0.1', '172.20.10.6');
+
+    // Rewrite Docker-internal service names (garage, minio) to public storage URL
+    if (newUrl.contains('://garage:')) {
+      newUrl = newUrl.replaceAll(RegExp(r'http://garage:\d+'), storageBaseUrl);
     }
-    if (newUrl.contains('garage')) {
-      newUrl = newUrl.replaceAll('garage', '172.20.10.6');
-    }
-    if (newUrl.contains('minio')) {
-      newUrl = newUrl.replaceAll('minio', '172.20.10.6');
-    }
-    if (newUrl.contains('10.0.2.2')) {
-      newUrl = newUrl.replaceAll('10.0.2.2', '172.20.10.6');
+    if (newUrl.contains('://minio:')) {
+      newUrl = newUrl.replaceAll(RegExp(r'http://minio:\d+'), storageBaseUrl);
     }
 
     // Remove 'v' query parameter securely using URI parsing
@@ -60,12 +73,9 @@ class AppConstants {
 
       if (queryParams.containsKey('v')) {
         queryParams.remove('v');
-        // Reconstruct URL without 'v'
-        // If no params left, queryParameters should be empty/null logic handles it
         newUrl = uri.replace(queryParameters: queryParams).toString();
       }
     } catch (e) {
-      // Fallback or ignore
       debugPrint("Error sanitizing URL params: $e");
     }
 

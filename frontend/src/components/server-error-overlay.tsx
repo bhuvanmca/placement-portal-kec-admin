@@ -1,20 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ServerCrash, RefreshCw } from "lucide-react";
-import api from "@/lib/api";
+import { APP_CONFIG } from "@/constants/config";
 
 /**
  * ServerErrorOverlay component
  * Shows a full-screen blocking overlay when the backend server is unreachable
  * Listens for 'server-availability-changed' event dispatched by api.ts
+ * Auto-retries every 2 minutes and auto-dismisses when server comes back.
+ * Uses a direct fetch to the Caddy gateway health endpoint to avoid
+ * triggering axios interceptors and adding load to backend services.
  */
 export function ServerErrorOverlay() {
   const [isServerDown, setIsServerDown] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const autoRetryRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const checkServer = async () => {
+    setIsRetrying(true);
+    try {
+      // Direct fetch to Caddy gateway — bypasses axios interceptor, no backend load
+      const res = await fetch(`${APP_CONFIG.API_BASE_URL}/health`, {
+        method: "GET",
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        setIsServerDown(false);
+        window.dispatchEvent(
+          new CustomEvent("server-availability-changed", {
+            detail: { available: true },
+          }),
+        );
+      }
+    } catch {
+      // Still down
+    } finally {
+      setIsRetrying(false);
+    }
+  };
 
   useEffect(() => {
-    // Handler for custom server availability event
     const handleServerStatus = (event: Event) => {
       const customEvent = event as CustomEvent<{ available: boolean }>;
       if (customEvent.detail && !customEvent.detail.available) {
@@ -24,46 +50,35 @@ export function ServerErrorOverlay() {
       }
     };
 
-    // Listen for the custom event
     window.addEventListener("server-availability-changed", handleServerStatus);
-
     return () => {
       window.removeEventListener(
         "server-availability-changed",
-        handleServerStatus
+        handleServerStatus,
       );
     };
   }, []);
 
-  const handleRetry = async () => {
-    setIsRetrying(true);
-    try {
-      // Attempt a simple health check or root request
-      // We use a direct fetch to avoid triggering the interceptor loop again immediately
-      // or we can use the api instance but handle the error specifically.
-      // Let's use api.get('/') - if it succeeds, the interceptor won't fire the error event (hopefully)
-      // Actually, we should manually emit 'available: true' if it succeeds.
-      
-      await api.get('/health'); // Assuming a health endpoint exists, or just root
-      
-      // If we reach here, server is back!
-      setIsServerDown(false);
-      
-      // Optional: Dispatch event to let other parts know? 
-      // Not strictly necessary as this component controls its own state,
-      // but good for consistency.
-      window.dispatchEvent(
-        new CustomEvent("server-availability-changed", {
-          detail: { available: true },
-        })
-      );
-    } catch (error) {
-      // Still down, keep showing overlay
-      // Artificial delay to show "checking..." state
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } finally {
-      setIsRetrying(false);
+  // Auto-retry every 2 minutes while overlay is visible
+  useEffect(() => {
+    if (isServerDown) {
+      autoRetryRef.current = setInterval(checkServer, 120_000);
+    } else {
+      if (autoRetryRef.current) {
+        clearInterval(autoRetryRef.current);
+        autoRetryRef.current = null;
+      }
     }
+    return () => {
+      if (autoRetryRef.current) {
+        clearInterval(autoRetryRef.current);
+        autoRetryRef.current = null;
+      }
+    };
+  }, [isServerDown]);
+
+  const handleRetry = () => {
+    checkServer();
   };
 
   // Don't render anything if server is up
@@ -85,7 +100,8 @@ export function ServerErrorOverlay() {
 
           {/* Message */}
           <p className="mb-8 text-gray-600 leading-relaxed">
-            We're having trouble connecting to the server. It might be down for maintenance or experiencing issues.
+            We're having trouble connecting to the server. It might be down for
+            maintenance or experiencing issues.
           </p>
 
           {/* Retry Button */}

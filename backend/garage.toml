@@ -14,3 +14,4 @@ root_domain = ".s3.garage.localhost"
 
 [admin]
 api_bind_addr = "[::]:3903"
+admin_token = "d558c705d838fddd24855e9d527b45e307294d0e2badeb0e8452febb4294d878"

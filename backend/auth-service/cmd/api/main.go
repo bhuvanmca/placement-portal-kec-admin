@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/placement-portal-kec/auth-service/internal/routes"
@@ -27,7 +28,7 @@ func main() {
 		log.Fatalf("Unable to parse database URL: %v", err)
 	}
 
-	config.MaxConns = 50
+	config.MaxConns = 20
 	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
@@ -70,6 +71,7 @@ func main() {
 	app.Use(prometheus.Middleware)
 
 	// 3. Middlewares
+	app.Use(recover.New())
 	app.Use(logger.New())
 
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")

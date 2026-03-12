@@ -19,4 +19,6 @@ func SetupRoutes(app *fiber.App, db *pgxpool.Pool) {
 	// Public Routes
 	api.Post("/register", authHandler.RegisterUser)
 	api.Post("/login", authHandler.Login)
+	api.Post("/forgot-password", authHandler.ForgotPassword)
+	api.Post("/reset-password", authHandler.ResetPassword)
 }

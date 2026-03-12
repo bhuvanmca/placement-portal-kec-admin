@@ -8,8 +8,6 @@ import 'package:open_filex/open_filex.dart';
 import '../utils/constants.dart';
 import '../utils/formatters.dart';
 import '../../providers/drive_provider.dart';
-import '../services/drive_service.dart';
-import '../services/api_client.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
@@ -58,8 +56,8 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     }
 
     try {
-      final driveService = DriveService(ref.read(apiClientProvider));
-      await driveService.requestToAttend(
+      final driveService = ref.read(driveServiceProvider);
+      await driveService.applyForDrive(
         widget.drive['id'],
         roleIds: _selectedRoleIds.isNotEmpty ? _selectedRoleIds : null,
       );
@@ -1167,7 +1165,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   }
 
   Widget _buildDetailRow(IconData icon, String label, String? value) {
-    if (value == null || value.isEmpty || value == '0' || value == '0.0') {
+    if (value == null || value.isEmpty) {
       return const SizedBox.shrink();
     }
     return Padding(

@@ -199,24 +199,24 @@ func CreateDrive(c *fiber.Ctx) error {
 	return c.Status(201).JSON(drive)
 }
 
-// Helper: Convert drive attachments to presigned URLs
+// Helper: Convert drive attachments to browser-accessible URLs
 func convertAttachmentsToPresigned(drives []models.PlacementDrive) []models.PlacementDrive {
 	for i := range drives {
 		for j := range drives[i].Attachments {
 			s3Key := drives[i].Attachments[j].URL
 
 			// Extract S3 key from stored URL
-			bucket, key := utils.ExtractBucketAndKeyFromURL(s3Key) // s3Key variable name is misleading, it holds URL here.
+			bucket, key := utils.ExtractBucketAndKeyFromURL(s3Key)
 
 			if bucket == "" {
 				bucket = utils.GetBucketName()
 			}
 
-			// Generate presigned URL (5-minute expiry)
+			// Generate browser-accessible URL
 			if key != "" {
-				presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+				publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 				if err == nil {
-					drives[i].Attachments[j].URL = presignedURL
+					drives[i].Attachments[j].URL = publicURL
 				}
 			}
 		}

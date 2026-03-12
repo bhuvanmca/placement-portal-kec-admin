@@ -68,6 +68,7 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 		if err := h.studentRepo.UpdateStudentProfile(c.Context(), userID, input); err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to create profile", "details": err.Error()})
 		}
+		services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", userID))
 		return c.JSON(fiber.Map{"message": "Profile created successfully"})
 	}
 
@@ -144,6 +145,165 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	}
 	if err := checkAndRevert("placement_willingness", input.PlacementWillingness, currentProfile.PlacementWillingness, func() { input.PlacementWillingness = "" }); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
+	}
+
+	// Merge input with current profile to preserve fields not in the request.
+	// The Flutter app sends only the section being edited (e.g., just mobile_number
+	// for "Contact Details"). Without merging, all other fields would be overwritten
+	// with zero values, causing data loss across unrelated sections.
+	if input.MobileNumber == "" {
+		input.MobileNumber = currentProfile.MobileNumber
+	}
+	if input.Dob == "" {
+		input.Dob = currentProfile.Dob
+	}
+	if input.Gender == "" {
+		input.Gender = currentProfile.Gender
+	}
+	if input.AddressLine1 == "" {
+		input.AddressLine1 = currentProfile.AddressLine1
+	}
+	if input.AddressLine2 == "" {
+		input.AddressLine2 = currentProfile.AddressLine2
+	}
+	if input.State == "" {
+		input.State = currentProfile.State
+	}
+	if input.PlacementWillingness == "" {
+		input.PlacementWillingness = currentProfile.PlacementWillingness
+	}
+	if input.SocialLinks == nil {
+		input.SocialLinks = currentProfile.SocialLinks
+	}
+	if input.LanguageSkills == nil {
+		input.LanguageSkills = currentProfile.LanguageSkills
+	}
+	if input.PanNumber == "" {
+		input.PanNumber = currentProfile.PanNumber
+	}
+	if input.AadharNumber == "" {
+		input.AadharNumber = currentProfile.AadharNumber
+	}
+	// Schooling
+	if input.TenthMark == 0 {
+		input.TenthMark = currentProfile.TenthMark
+	}
+	if input.TenthBoard == "" {
+		input.TenthBoard = currentProfile.TenthBoard
+	}
+	if input.TenthYearPass == 0 {
+		input.TenthYearPass = currentProfile.TenthYearPass
+	}
+	if input.TenthInstitution == "" {
+		input.TenthInstitution = currentProfile.TenthInstitution
+	}
+	if input.TwelfthMark == 0 {
+		input.TwelfthMark = currentProfile.TwelfthMark
+	}
+	if input.TwelfthBoard == "" {
+		input.TwelfthBoard = currentProfile.TwelfthBoard
+	}
+	if input.TwelfthYearPass == 0 {
+		input.TwelfthYearPass = currentProfile.TwelfthYearPass
+	}
+	if input.TwelfthInstitution == "" {
+		input.TwelfthInstitution = currentProfile.TwelfthInstitution
+	}
+	if input.DiplomaMark == 0 {
+		input.DiplomaMark = currentProfile.DiplomaMark
+	}
+	if input.DiplomaYearPass == 0 {
+		input.DiplomaYearPass = currentProfile.DiplomaYearPass
+	}
+	if input.DiplomaInstitution == "" {
+		input.DiplomaInstitution = currentProfile.DiplomaInstitution
+	}
+	if input.CurrentBacklogs == 0 {
+		input.CurrentBacklogs = currentProfile.CurrentBacklogs
+	}
+	if input.HistoryBacklogs == 0 {
+		input.HistoryBacklogs = currentProfile.HistoryBacklogs
+	}
+	if input.GapYears == 0 {
+		input.GapYears = currentProfile.GapYears
+	}
+	if input.GapReason == "" {
+		input.GapReason = currentProfile.GapReason
+	}
+	// Degrees
+	if input.UgCgpa == 0 {
+		input.UgCgpa = currentProfile.UgCgpa
+	}
+	if input.UgYearPass == 0 {
+		input.UgYearPass = currentProfile.UgYearPass
+	}
+	if input.UgInstitution == "" {
+		input.UgInstitution = currentProfile.UgInstitution
+	}
+	if input.PgCgpa == 0 {
+		input.PgCgpa = currentProfile.PgCgpa
+	}
+	if input.PgYearPass == 0 {
+		input.PgYearPass = currentProfile.PgYearPass
+	}
+	if input.PgInstitution == "" {
+		input.PgInstitution = currentProfile.PgInstitution
+	}
+	// UG Semester GPAs
+	if input.UgGpaS1 == 0 {
+		input.UgGpaS1 = currentProfile.UgGpaS1
+	}
+	if input.UgGpaS2 == 0 {
+		input.UgGpaS2 = currentProfile.UgGpaS2
+	}
+	if input.UgGpaS3 == 0 {
+		input.UgGpaS3 = currentProfile.UgGpaS3
+	}
+	if input.UgGpaS4 == 0 {
+		input.UgGpaS4 = currentProfile.UgGpaS4
+	}
+	if input.UgGpaS5 == 0 {
+		input.UgGpaS5 = currentProfile.UgGpaS5
+	}
+	if input.UgGpaS6 == 0 {
+		input.UgGpaS6 = currentProfile.UgGpaS6
+	}
+	if input.UgGpaS7 == 0 {
+		input.UgGpaS7 = currentProfile.UgGpaS7
+	}
+	if input.UgGpaS8 == 0 {
+		input.UgGpaS8 = currentProfile.UgGpaS8
+	}
+	if input.UgGpaS9 == 0 {
+		input.UgGpaS9 = currentProfile.UgGpaS9
+	}
+	if input.UgGpaS10 == 0 {
+		input.UgGpaS10 = currentProfile.UgGpaS10
+	}
+	// PG Semester GPAs
+	if input.PgGpaS1 == 0 {
+		input.PgGpaS1 = currentProfile.PgGpaS1
+	}
+	if input.PgGpaS2 == 0 {
+		input.PgGpaS2 = currentProfile.PgGpaS2
+	}
+	if input.PgGpaS3 == 0 {
+		input.PgGpaS3 = currentProfile.PgGpaS3
+	}
+	if input.PgGpaS4 == 0 {
+		input.PgGpaS4 = currentProfile.PgGpaS4
+	}
+	if input.PgGpaS5 == 0 {
+		input.PgGpaS5 = currentProfile.PgGpaS5
+	}
+	if input.PgGpaS6 == 0 {
+		input.PgGpaS6 = currentProfile.PgGpaS6
+	}
+	if input.PgGpaS7 == 0 {
+		input.PgGpaS7 = currentProfile.PgGpaS7
+	}
+	if input.PgGpaS8 == 0 {
+		input.PgGpaS8 = currentProfile.PgGpaS8
 	}
 
 	if err := h.studentRepo.UpdateStudentProfile(c.Context(), userID, input); err != nil {
@@ -256,7 +416,23 @@ func (h *StudentHandler) CreateStudent(c *fiber.Ctx) error {
 
 	user := models.User{Email: input.Email, PasswordHash: string(hashedPassword), Role: "student", IsActive: true}
 	if err := h.studentRepo.CreateStudent(c.Context(), &user, input); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create student.", "details": err.Error()})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "duplicate key") || strings.Contains(errMsg, "unique constraint") {
+			if strings.Contains(errMsg, "email") {
+				return c.Status(409).JSON(fiber.Map{"error": "A student with this email already exists."})
+			}
+			if strings.Contains(errMsg, "register_number") {
+				return c.Status(409).JSON(fiber.Map{"error": "A student with this register number already exists."})
+			}
+			return c.Status(409).JSON(fiber.Map{"error": "Student with this Email or Register Number already exists."})
+		}
+		if strings.Contains(errMsg, "foreign key") || strings.Contains(errMsg, "violates foreign key") {
+			if strings.Contains(errMsg, "department") {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid department code. Please select a valid department."})
+			}
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid reference data. Please check department and batch values."})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create student.", "details": errMsg})
 	}
 
 	otp := utils.GenerateOTP()
@@ -279,10 +455,9 @@ func (h *StudentHandler) CreateStudent(c *fiber.Ctx) error {
 
 func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 	userID := int64(c.Locals("user_id").(float64))
-	role := c.Locals("role").(string)
 	documentType := c.Params("type")
 
-	validTypes := map[string]string{"resume": "resume_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type"})
@@ -303,9 +478,6 @@ func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 	if documentURL == "" {
 		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
 	}
-	if role != "admin" && role != "student" {
-		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized access"})
-	}
 
 	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
 	if key == "" {
@@ -315,16 +487,16 @@ func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate secure URL"})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate document URL"})
 	}
-	return c.JSON(fiber.Map{"url": presignedURL, "type": documentType, "expires_in": "5 minutes"})
+	return c.JSON(fiber.Map{"url": publicURL, "type": documentType})
 }
 
 func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
-	if role != "admin" && role != "super_admin" {
+	if role != "admin" && role != "super_admin" && role != "coordinator" {
 		return c.Status(403).JSON(fiber.Map{"error": "Admin access required"})
 	}
 
@@ -334,7 +506,7 @@ func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 	}
 
 	documentType := c.Params("type")
-	validTypes := map[string]string{"resume": "resume_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type"})
@@ -367,11 +539,11 @@ func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate secure URL"})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate document URL"})
 	}
-	return c.JSON(fiber.Map{"url": presignedURL, "type": documentType, "student_id": studentID, "expires_in": "5 minutes"})
+	return c.JSON(fiber.Map{"url": publicURL, "type": documentType, "student_id": studentID})
 }
 
 // ---- Upload Handlers ----
@@ -414,7 +586,16 @@ func (h *StudentHandler) UploadDocument(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Database update failed"})
 	}
 
-	return c.JSON(fiber.Map{"message": "Upload successful", "register_number": registerNumber, "type": docType, "url": url})
+	// Invalidate cached profile so next fetch gets the new URL
+	services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", userID))
+
+	// For profile_pic, return a signed URL so the client can display it immediately
+	resultURL := url
+	if docType == "profile_pic" {
+		resultURL = utils.GenerateSignedProfileURL(url)
+	}
+
+	return c.JSON(fiber.Map{"message": "Upload successful", "register_number": registerNumber, "type": docType, "url": resultURL})
 }
 
 func (h *StudentHandler) UploadProfilePicture(c *fiber.Ctx) error {

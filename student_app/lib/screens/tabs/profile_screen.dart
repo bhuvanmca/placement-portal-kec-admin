@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For HapticFeedback
@@ -7,6 +8,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -29,12 +31,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final StudentService _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
   late PageController _pageController;
 
   // --- In-place Editing State ---
   String? _editingSection;
   bool _isSaving = false;
+  bool _isUploadingResume = false;
 
   // Controllers
   final _mobileController = TextEditingController();
@@ -220,10 +223,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return value.toString();
   }
 
+  String _formatDateTime(dynamic value) {
+    if (value == null) return '';
+    try {
+      final dt = DateTime.parse(value.toString());
+      return DateFormat('dd MMM yyyy, hh:mm a').format(dt.toLocal());
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
   Future<void> _saveSection(String section, Map<String, dynamic> data) async {
     setState(() => _isSaving = true);
     try {
-      final Map<String, dynamic> updateData = Map.from(data);
+      // Only send fields being edited, not the full profile
+      final Map<String, dynamic> updateData = {};
 
       if (section == 'Contact Details') {
         updateData['mobile_number'] = _mobileController.text;
@@ -309,11 +323,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       await _studentService.updateProfile(updateData);
       if (mounted) {
+        _editingSection = null;
+        await _refresh();
+      }
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Section updated successfully')),
         );
-        _editingSection = null;
-        _refresh();
       }
     } catch (e) {
       if (mounted) {
@@ -333,6 +349,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _languageSkills.add(text);
         _languageInputController.clear();
       });
+    }
+  }
+
+  Future<void> _uploadResume() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (result == null) return;
+
+      setState(() => _isUploadingResume = true);
+      final file = result.files.single;
+
+      await _studentService.uploadFile(file.path!, 'resume');
+      await _refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Resume uploaded successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Resume upload failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingResume = false);
     }
   }
 
@@ -553,24 +599,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           );
         }
 
-        final newUrl = await _studentService.uploadFile(
-          imageFile.path,
-          'profile_pic',
-        );
+        await _studentService.uploadFile(imageFile.path, 'profile_pic');
 
-        // Evict from cache ensuring we use the sanitized URL (same as UI)
+        // Evict the profile photo from disk cache using the stable path-based key
+        // (matching the cacheKey used by CachedNetworkImage in the profile header)
         try {
-          final sanitizedUrl = AppConstants.sanitizeUrl(newUrl);
-          await CachedNetworkImage.evictFromCache(sanitizedUrl);
+          final currentData = ref.read(profileProvider).value ?? {};
+          final oldUrl = currentData['profile_photo_url']?.toString() ?? '';
+          if (oldUrl.isNotEmpty) {
+            final stableCacheKey = Uri.parse(
+              AppConstants.sanitizeUrl(oldUrl),
+            ).path;
+            await CachedNetworkImage.evictFromCache(
+              oldUrl,
+              cacheKey: stableCacheKey,
+            );
+          }
         } catch (e) {
           debugPrint("Failed to evict cache: $e");
         }
+
+        // Clear the entire image cache to ensure the new photo is shown
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile photo updated successfully')),
           );
-          _refresh();
+          await _refresh();
         }
       }
     } catch (e) {
@@ -753,30 +810,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           data['profile_photo_url']
                                               .toString()
                                               .isNotEmpty
-                                      ? CachedNetworkImage(
-                                          key: ValueKey(
-                                            data['profile_photo_url'],
-                                          ),
-                                          imageUrl: AppConstants.sanitizeUrl(
-                                            data['profile_photo_url'],
-                                          ),
-                                          fit: BoxFit.cover,
-                                          memCacheHeight: 300,
-                                          placeholder: (context, url) => Center(
-                                            child: CircularProgressIndicator(
-                                              color: Theme.of(
-                                                context,
-                                              ).cardColor,
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                          errorWidget: (context, url, error) {
-                                            return Icon(
-                                              Icons.person,
-                                              size: 60,
-                                              color: Theme.of(
-                                                context,
-                                              ).cardColor,
+                                      ? Builder(
+                                          builder: (context) {
+                                            final photoUrl =
+                                                AppConstants.sanitizeUrl(
+                                                  data['profile_photo_url'],
+                                                );
+                                            // Use path-only as cache key so presigned URL changes don't cause re-downloads
+                                            final stableCacheKey = Uri.parse(
+                                              photoUrl,
+                                            ).path;
+                                            return CachedNetworkImage(
+                                              key: ValueKey(stableCacheKey),
+                                              imageUrl: photoUrl,
+                                              cacheKey: stableCacheKey,
+                                              fit: BoxFit.cover,
+                                              memCacheHeight: 300,
+                                              placeholder: (context, url) =>
+                                                  Center(
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).cardColor,
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  ),
+                                              errorWidget:
+                                                  (context, url, error) {
+                                                    return Icon(
+                                                      Icons.person,
+                                                      size: 60,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).cardColor,
+                                                    );
+                                                  },
                                             );
                                           },
                                         )
@@ -1251,10 +1320,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 .toList(),
                           ),
                         ),
-                      const Text(
-                        'Resume can be updated from the main profile view.',
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
+                      _isUploadingResume
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Uploading resume...',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : TextButton.icon(
+                              onPressed: _uploadResume,
+                              icon: const Icon(Icons.upload_file, size: 18),
+                              label: Text(
+                                data['resume_url'] != null &&
+                                        data['resume_url'].toString().isNotEmpty
+                                    ? 'Update Resume (PDF)'
+                                    : 'Upload Resume (PDF)',
+                              ),
+                            ),
                     ]
                   : [
                       if (languageSkills.isNotEmpty) ...[
@@ -1292,51 +1390,111 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const SizedBox(height: 16),
                       ],
                       if (data['resume_url'] != null &&
-                          data['resume_url'].toString().isNotEmpty)
-                        InkWell(
-                          onTap: () => _openDocument('resume'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).scaffoldBackgroundColor,
+                          data['resume_url'].toString().isNotEmpty) ...[
+                        Row(
+                          children: [
+                            InkWell(
+                              onTap: () => _openDocument('resume'),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Theme.of(context).dividerColor,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.description,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 20,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'View Resume',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        (Theme.of(
-                                          context,
-                                        ).textTheme.bodyLarge?.color ??
-                                        Colors.black),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).scaffoldBackgroundColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Theme.of(context).dividerColor,
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.description,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'View Resume',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            (Theme.of(
+                                              context,
+                                            ).textTheme.bodyLarge?.color ??
+                                            Colors.black),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _isUploadingResume
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : IconButton(
+                                    onPressed: _uploadResume,
+                                    icon: Icon(
+                                      Icons.upload_file,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                    tooltip: 'Update Resume',
+                                  ),
+                          ],
+                        ),
+                        if (data['resume_updated_at'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Last updated: ${_formatDateTime(data['resume_updated_at'])}',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        )
-                      else
-                        const Text(
-                          'No resume uploaded',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                        ),
+                      ] else ...[
+                        _isUploadingResume
+                            ? const Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Uploading resume...',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : TextButton.icon(
+                                onPressed: _uploadResume,
+                                icon: const Icon(Icons.upload_file, size: 18),
+                                label: const Text('Upload Resume (PDF)'),
+                              ),
+                      ],
                     ],
               onEdit: () => _startEditing('Skills & Documents', data),
               onSave: () => _saveSection('Skills & Documents', data),

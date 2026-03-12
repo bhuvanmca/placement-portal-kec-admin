@@ -21,7 +21,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
   bool _isLoading = false;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-  final StudentService _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -175,7 +175,9 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                 'Almost Done!',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                  color:
+                      (Theme.of(context).textTheme.bodyLarge?.color ??
+                      Colors.black),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -183,7 +185,9 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
               Text(
                 'Add a profile picture to personalize your account.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                  color:
+                      (Theme.of(context).textTheme.bodyMedium?.color ??
+                      Colors.grey),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -197,7 +201,9 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                       color: Theme.of(context).dividerColor,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.3),
                         width: 3,
                       ),
                       image: imageProvider != null
@@ -211,7 +217,11 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                         ? Icon(
                             Icons.person_rounded,
                             size: 80,
-                            color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                            color:
+                                (Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color ??
+                                Colors.grey),
                           )
                         : null,
                   ),
@@ -252,7 +262,11 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
                 onPressed: _isLoading ? null : _next,
                 child: Text(
                   'Skip for now',
-                  style: TextStyle(color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey)),
+                  style: TextStyle(
+                    color:
+                        (Theme.of(context).textTheme.bodyMedium?.color ??
+                        Colors.grey),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),

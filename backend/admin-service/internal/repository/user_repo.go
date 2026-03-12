@@ -22,7 +22,7 @@ func (r *UserRepository) BulkCreateStudents(ctx context.Context, students [][]st
 	count := 0
 
 	// 1. Insert User
-	stmtUser := `INSERT INTO users (email, password_hash, role, is_active) VALUES ($1, $2, 'student', true) RETURNING id`
+	stmtUser := `INSERT INTO users (email, password_hash, role, is_active, name) VALUES ($1, $2, 'student', true, $3) RETURNING id`
 
 	// 2. Insert Profile
 	// 2. Insert Profile
@@ -49,7 +49,7 @@ func (r *UserRepository) BulkCreateStudents(ctx context.Context, students [][]st
 		}
 
 		email := row[0]
-		// name := row[1] // Unused in stmtProfile
+		name := row[1]
 		regNo := row[2]
 		dept := row[3]
 		batchYear, err := strconv.Atoi(row[4])
@@ -61,7 +61,7 @@ func (r *UserRepository) BulkCreateStudents(ctx context.Context, students [][]st
 		hashedPass, _ := bcrypt.GenerateFromPassword([]byte(rawPass), bcrypt.DefaultCost)
 
 		var userID int64
-		err = tx.QueryRow(ctx, stmtUser, email, string(hashedPass)).Scan(&userID)
+		err = tx.QueryRow(ctx, stmtUser, email, string(hashedPass), name).Scan(&userID)
 		if err != nil {
 			return count, fmt.Errorf("failed to insert user %s: %w", email, err)
 		}
@@ -733,10 +733,32 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID int64, passw
 	return err
 }
 
-// UpdateUserProfile updates name and profile photo for any user
+// UpdateUserProfile updates name and/or profile photo for any user.
+// Empty strings are skipped — only non-empty values are updated.
 func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, name, photoURL string) error {
-	query := `UPDATE users SET name = $1, profile_photo_url = $2 WHERE id = $3`
-	_, err := r.DB.Exec(ctx, query, name, photoURL, userID)
+	setClauses := []string{}
+	args := []interface{}{}
+	argIdx := 1
+
+	if name != "" {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		args = append(args, name)
+		argIdx++
+	}
+	if photoURL != "" {
+		setClauses = append(setClauses, fmt.Sprintf("profile_photo_url = $%d", argIdx))
+		args = append(args, photoURL)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return nil // nothing to update
+	}
+
+	setClauses = append(setClauses, "updated_at = NOW()")
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(setClauses, ", "), argIdx)
+	args = append(args, userID)
+	_, err := r.DB.Exec(ctx, query, args...)
 	return err
 }
 

@@ -89,8 +89,10 @@ type CreateStudentInput struct {
 	RegisterNumber string `json:"register_number" validate:"required"`
 	BatchYear      int    `json:"batch_year" validate:"required"`
 	Department     string `json:"department" validate:"required"`
-	// MobileNumber removed as per request
-	Password string `json:"password"` // Optional, default will be used if empty
+	StudentType    string `json:"student_type"`
+	Gender         string `json:"gender"`
+	MobileNumber   string `json:"mobile_number"`
+	Password       string `json:"password"` // Optional, default will be used if empty
 }
 
 // StudentFullProfile represents the complete view for Admins

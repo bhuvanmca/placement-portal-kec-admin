@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	// Performance tuning for production
-	config.MaxConns = 50
+	config.MaxConns = 20
 	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
@@ -52,11 +53,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
-	defer dbPool.Close()
 
-	if err := dbPool.Ping(context.Background()); err != nil {
-		log.Fatalf("Database ping failed: %v", err)
+	// Retry loop for initial connection
+	for i := 0; i < 10; i++ {
+		if err = dbPool.Ping(context.Background()); err == nil {
+			break
+		}
+		log.Printf("Waiting for database... retry %d/10", i+1)
+		time.Sleep(2 * time.Second)
 	}
+
+	if err != nil {
+		log.Fatalf("Database ping failed after retries: %v", err)
+	}
+	defer dbPool.Close()
 
 	log.Println("Connected to Database for Chat Service (with persistent search_path)")
 
@@ -71,6 +81,7 @@ func main() {
 	app.Use(prometheus.Middleware)
 
 	// Middleware
+	app.Use(recover.New())
 	app.Use(logger.New())
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 	if allowedOrigins == "" {

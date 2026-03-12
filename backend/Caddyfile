@@ -9,34 +9,72 @@
     # 1. Auth Service (port 8081)
     # ──────────────────────────────────────────────
     handle /api/v1/auth/* {
-        reverse_proxy auth-service:8081
+        reverse_proxy auth-service:8081 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
     }
 
     # ──────────────────────────────────────────────
     # 2. Chat Service (port 8082)
     # ──────────────────────────────────────────────
     handle /api/chat/* {
-        reverse_proxy chat-service:8081
+        reverse_proxy chat-service:8081 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
     }
     handle /ws {
-        reverse_proxy chat-service:8081
+        reverse_proxy chat-service:8081 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
     }
 
     # ──────────────────────────────────────────────
     # 3. Drive Service (port 8083)
     # ──────────────────────────────────────────────
     handle /api/v1/drives* {
-        reverse_proxy drive-service:8083
+        reverse_proxy drive-service:8083 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
     }
     handle /api/v1/admin/drives* {
-        reverse_proxy drive-service:8083
+        reverse_proxy drive-service:8083 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
     }
 
     # ──────────────────────────────────────────────
     # 4. Student Service (port 8084)
     # ──────────────────────────────────────────────
+    handle /api/v1/student/requests/* {
+        reverse_proxy student-service:8084 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
+    }
+    handle /api/v1/student/documents/* {
+        reverse_proxy student-service:8084 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
+    }
     handle /api/v1/student/* {
-        reverse_proxy student-service:8084
+        reverse_proxy student-service:8084 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
     }
     handle /api/v1/admin/students/*/documents/* {
         reverse_proxy student-service:8084
@@ -47,10 +85,25 @@
     handle /api/v1/user/fcm-token {
         reverse_proxy student-service:8084
     }
+    handle /api/v1/chat/upload {
+        reverse_proxy student-service:8084
+    }
 
     # ──────────────────────────────────────────────
     # 5. Admin Service (port 8085)
     # ──────────────────────────────────────────────
+    # Admin auth (public - forgot/reset password)
+    handle /api/v1/admin/auth/* {
+        reverse_proxy admin-service:8085 {
+            lb_try_duration 5s
+            fail_duration 30s
+            unhealthy_status 502 503 504
+        }
+    }
+    # Dashboard stats
+    handle /api/v1/admin/dashboard/* {
+        reverse_proxy admin-service:8085
+    }
     # Config (public read)
     handle /api/v1/config/* {
         reverse_proxy admin-service:8085

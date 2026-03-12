@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS placement_drives (
     attachments JSONB DEFAULT '[]',
     drive_date DATE NOT NULL,
     deadline_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    status VARCHAR(20) DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+    status VARCHAR(20) DEFAULT 'open' CHECK (status IN ('open', 'closed', 'draft', 'completed', 'cancelled')),
     excluded_student_ids JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

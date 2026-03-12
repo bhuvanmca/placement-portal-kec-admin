@@ -3,10 +3,10 @@ package handlers
 import (
 	"strings"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
 	"github.com/placement-portal-kec/admin-service/internal/utils"
-	"github.com/gofiber/fiber/v2"
 )
 
 // GetDocumentURL returns the direct URL for secure document access
@@ -87,20 +87,18 @@ func GetDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	// Generate presigned URL (5-minute expiry)
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	// Generate browser-accessible URL through Caddy's /storage proxy
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"error":   "Failed to generate secure URL",
-			"details": err.Error(),
+			"error": "Failed to generate document URL",
 		})
 	}
 
-	// Return presigned URL
+	// Return public URL
 	return c.JSON(fiber.Map{
-		"url":        presignedURL,
-		"type":       documentType,
-		"expires_in": "5 minutes",
+		"url":  publicURL,
+		"type": documentType,
 	})
 }
 
@@ -121,7 +119,7 @@ func GetDocumentURL(c *fiber.Ctx) error {
 // @Router /v1/admin/students/{student_id}/documents/{type} [get]
 func GetStudentDocumentURL(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
-	if role != "admin" {
+	if role != "admin" && role != "super_admin" && role != "coordinator" {
 		return c.Status(403).JSON(fiber.Map{
 			"error": "Admin access required",
 		})
@@ -193,20 +191,18 @@ func GetStudentDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	// Generate presigned URL (5-minute expiry)
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	// Generate browser-accessible URL through Caddy's /storage proxy
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
-			"error":   "Failed to generate secure URL",
-			"details": err.Error(),
+			"error": "Failed to generate document URL",
 		})
 	}
 
-	// Return presigned URL
+	// Return public URL
 	return c.JSON(fiber.Map{
-		"url":        presignedURL,
+		"url":        publicURL,
 		"type":       documentType,
 		"student_id": studentID,
-		"expires_in": "5 minutes",
 	})
 }
