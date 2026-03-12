@@ -3,12 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/student-service/internal/database"
 	"github.com/placement-portal-kec/student-service/internal/models"
@@ -841,4 +844,53 @@ func (h *StudentHandler) ReviewRequest(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid action"})
 	}
 	return c.JSON(fiber.Map{"message": "Request reviewed successfully"})
+}
+
+// StreamMyProfilePhoto securely serves the authenticated user's profile photo.
+// Only the user who owns the photo can access it via this endpoint.
+func (h *StudentHandler) StreamMyProfilePhoto(c *fiber.Ctx) error {
+	userID := int64(c.Locals("user_id").(float64))
+
+	user, err := h.userRepo.GetUserByID(c.Context(), userID)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.ProfilePhotoURL == nil || *user.ProfilePhotoURL == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "No profile photo uploaded"})
+	}
+
+	bucket, key := utils.ExtractBucketAndKeyFromURL(*user.ProfilePhotoURL)
+	if bucket == "" || key == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Invalid photo path"})
+	}
+
+	// Clean query params from key
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	client := utils.GetS3Client()
+	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Profile photo not found in storage"})
+	}
+	defer result.Body.Close()
+
+	if result.ContentType != nil {
+		c.Set("Content-Type", *result.ContentType)
+	} else {
+		c.Set("Content-Type", "image/jpeg")
+	}
+	c.Set("Cache-Control", "private, max-age=3600")
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to read photo"})
+	}
+
+	return c.Send(body)
 }

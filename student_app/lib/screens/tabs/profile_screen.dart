@@ -601,20 +601,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
         await _studentService.uploadFile(imageFile.path, 'profile_pic');
 
-        // Evict the profile photo from disk cache using the stable path-based key
-        // (matching the cacheKey used by CachedNetworkImage in the profile header)
+        // Evict the profile photo from cache so the new photo is loaded
         try {
-          final currentData = ref.read(profileProvider).value ?? {};
-          final oldUrl = currentData['profile_photo_url']?.toString() ?? '';
-          if (oldUrl.isNotEmpty) {
-            final stableCacheKey = Uri.parse(
-              AppConstants.sanitizeUrl(oldUrl),
-            ).path;
-            await CachedNetworkImage.evictFromCache(
-              oldUrl,
-              cacheKey: stableCacheKey,
-            );
-          }
+          await CachedNetworkImage.evictFromCache(
+            '${AppConstants.apiBaseUrl}/v1/student/profile-photo',
+            cacheKey: 'my_profile_photo',
+          );
         } catch (e) {
           debugPrint("Failed to evict cache: $e");
         }
@@ -812,40 +804,57 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               .isNotEmpty
                                       ? Builder(
                                           builder: (context) {
+                                            // Use authenticated proxy endpoint for secure access
                                             final photoUrl =
-                                                AppConstants.sanitizeUrl(
-                                                  data['profile_photo_url'],
-                                                );
-                                            // Use path-only as cache key so presigned URL changes don't cause re-downloads
-                                            final stableCacheKey = Uri.parse(
-                                              photoUrl,
-                                            ).path;
-                                            return CachedNetworkImage(
-                                              key: ValueKey(stableCacheKey),
-                                              imageUrl: photoUrl,
-                                              cacheKey: stableCacheKey,
-                                              fit: BoxFit.cover,
-                                              memCacheHeight: 300,
-                                              placeholder: (context, url) =>
-                                                  Center(
-                                                    child:
-                                                        CircularProgressIndicator(
+                                                '${AppConstants.apiBaseUrl}/v1/student/profile-photo';
+                                            return FutureBuilder<String?>(
+                                              future: ref
+                                                  .read(authServiceProvider)
+                                                  .getToken(),
+                                              builder: (context, tokenSnapshot) {
+                                                final token =
+                                                    tokenSnapshot.data;
+                                                if (token == null ||
+                                                    token.isEmpty) {
+                                                  return Icon(
+                                                    Icons.person,
+                                                    size: 60,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).cardColor,
+                                                  );
+                                                }
+                                                return CachedNetworkImage(
+                                                  imageUrl: photoUrl,
+                                                  cacheKey: 'my_profile_photo',
+                                                  httpHeaders: {
+                                                    'Authorization':
+                                                        'Bearer $token',
+                                                  },
+                                                  fit: BoxFit.cover,
+                                                  memCacheHeight: 300,
+                                                  placeholder: (context, url) =>
+                                                      Center(
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              color: Theme.of(
+                                                                context,
+                                                              ).cardColor,
+                                                              strokeWidth: 2,
+                                                            ),
+                                                      ),
+                                                  errorWidget:
+                                                      (context, url, error) {
+                                                        return Icon(
+                                                          Icons.person,
+                                                          size: 60,
                                                           color: Theme.of(
                                                             context,
                                                           ).cardColor,
-                                                          strokeWidth: 2,
-                                                        ),
-                                                  ),
-                                              errorWidget:
-                                                  (context, url, error) {
-                                                    return Icon(
-                                                      Icons.person,
-                                                      size: 60,
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).cardColor,
-                                                    );
-                                                  },
+                                                        );
+                                                      },
+                                                );
+                                              },
                                             );
                                           },
                                         )

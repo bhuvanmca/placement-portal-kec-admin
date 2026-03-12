@@ -17,6 +17,7 @@ func SetupRoutes(app *fiber.App, h *handlers.StudentHandler) {
 	api.Get("/student/profile", h.GetMyProfile)
 	api.Put("/student/profile", h.UpdateProfile)
 	api.Put("/student/password", h.ChangePassword)
+	api.Get("/student/profile-photo", h.StreamMyProfilePhoto)
 
 	// Documents
 	api.Get("/student/documents/:type", h.GetDocumentURL)
