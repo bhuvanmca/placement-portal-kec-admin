@@ -63,7 +63,7 @@ const driveSchema = z.object({
     offer_type: z.enum(['Regular', 'Dream']).default('Regular'),
     allow_placed_candidates: z.boolean().default(false),
     spoc_id: z.coerce.number().min(1, "SPOC is required"),
-    status: z.enum(['open', 'ongoing', 'completed', 'closed', 'on_hold', 'cancelled', 'draft']).optional(),
+    status: z.enum(['open', 'closed', 'completed', 'cancelled', 'draft']).optional(),
 
     // Eligibility
     min_cgpa: z.coerce.number().min(0).max(10),
@@ -148,9 +148,10 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
         }
     };
 
-    useEffect(() => {
-        fetchSpocs();
-    }, []);
+    // SPOCs are fetched inside fetchDrive to avoid a race condition where the
+    // SPOC select is empty when form.reset() runs. The refresh button still
+    // calls fetchSpocs() directly if the user wants to reload the list.
+    // useEffect(() => { fetchSpocs(); }, []);  // removed - called in fetchDrive
 
     const form = useForm<DriveFormValues>({
         resolver: zodResolver(driveSchema) as Resolver<DriveFormValues>,
@@ -188,6 +189,9 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
         const fetchDrive = async () => {
             try {
                 const driveId = parseInt(id);
+                // Ensure SPOCs are loaded before resetting the form so the SPOC select
+                // can find the matching option immediately on first render.
+                await fetchSpocs();
                 const drive = await driveService.getDriveById(driveId);
                 if (!drive) {
                     toast.error("Drive not found");
@@ -196,7 +200,7 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                 }
                 setCurrentDrive(drive); // Store for status logic
 
-                // Date Formatting
+                // Date Formatting — keep the original ISO string
                 const driveDate = new Date(drive.drive_date).toISOString();
                 const deadlineDate = new Date(drive.deadline_date).toISOString();
 
@@ -207,31 +211,32 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                     logo_url: drive.logo_url,
                     drive_type: drive.drive_type,
                     company_category: drive.company_category,
-                    offer_type: (drive as any).offer_type || 'Regular',
-                    allow_placed_candidates: (drive as any).allow_placed_candidates || false,
+                    offer_type: drive.offer_type || 'Regular',
+                    allow_placed_candidates: drive.allow_placed_candidates ?? false,
                     spoc_id: drive.spoc_id,
 
                     roles: drive.roles && drive.roles.length > 0 ? drive.roles : [{ role_name: '', ctc: '', stipend: '' }],
                     location: drive.location,
                     location_type: (drive.location_type as any) || 'On-Site',
                     min_cgpa: drive.min_cgpa,
-                    tenth_percentage: (drive as any).tenth_percentage || 0,
-                    twelfth_percentage: (drive as any).twelfth_percentage || 0,
-                    ug_min_cgpa: (drive as any).ug_min_cgpa || 0,
-                    pg_min_cgpa: (drive as any).pg_min_cgpa || 0,
-                    use_aggregate: (drive as any).use_aggregate || false,
-                    aggregate_percentage: (drive as any).aggregate_percentage || 0,
+                    tenth_percentage: drive.tenth_percentage ?? 0,
+                    twelfth_percentage: drive.twelfth_percentage ?? 0,
+                    ug_min_cgpa: drive.ug_min_cgpa ?? 0,
+                    pg_min_cgpa: drive.pg_min_cgpa ?? 0,
+                    use_aggregate: drive.use_aggregate ?? false,
+                    aggregate_percentage: drive.aggregate_percentage ?? 0,
 
                     max_backlogs_allowed: drive.max_backlogs_allowed,
 
                     eligible_batches: drive.eligible_batches || [],
                     eligible_departments: drive.eligible_departments || [],
-                    eligible_gender: (drive as any).eligible_gender || 'All',
+                    eligible_gender: (drive.eligible_gender || 'All') as 'All' | 'Male' | 'Female',
 
                     drive_date: driveDate,
                     deadline_date: deadlineDate,
                     rounds: drive.rounds || [],
-                    status: drive.status as any
+                    // Clamp status to schema-allowed values; treat 'on_hold'/'ongoing' as 'open'
+                    status: (['open','closed','completed','cancelled','draft'].includes(drive.status) ? drive.status : 'open') as any
                 });
 
                 // Attachments
@@ -240,8 +245,8 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                 }
 
                 // Excluded Students
-                if ((drive as any).excluded_student_ids) {
-                    setExcludedStudentIds((drive as any).excluded_student_ids);
+                if (drive.excluded_student_ids) {
+                    setExcludedStudentIds(drive.excluded_student_ids);
                 }
 
             } catch (error) {
@@ -525,10 +530,8 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                                     <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="open">Open</SelectItem>
-                                                        <SelectItem value="ongoing">Ongoing</SelectItem>
-                                                        <SelectItem value="completed">Completed</SelectItem>
                                                         <SelectItem value="closed">Closed</SelectItem>
-                                                        <SelectItem value="on_hold">On Hold</SelectItem>
+                                                        <SelectItem value="completed">Completed</SelectItem>
                                                         <SelectItem value="cancelled">Cancelled</SelectItem>
                                                         <SelectItem value="draft">Draft</SelectItem>
                                                     </SelectContent>
@@ -627,6 +630,24 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                                 )}
                                             />
                                         </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Eligible Gender</Label>
+                                            <Controller
+                                                name="eligible_gender"
+                                                control={form.control}
+                                                render={({ field }) => (
+                                                    <Select onValueChange={field.onChange} value={field.value || 'All'}>
+                                                        <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="All">All</SelectItem>
+                                                            <SelectItem value="Male">Male Only</SelectItem>
+                                                            <SelectItem value="Female">Female Only</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+                                            />
+                                        </div>
                                     </div>
 
                                     <Separator />
@@ -711,7 +732,6 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                                     <DateTimePicker
                                                         date={field.value ? new Date(field.value) : undefined}
                                                         setDate={(date) => field.onChange(date ? date.toISOString() : '')}
-                                                        disablePastDates
                                                     />
                                                 )}
                                             />
@@ -727,7 +747,6 @@ export default function EditDrivePage({ params }: { params: Promise<{ id: string
                                                     <DateTimePicker
                                                         date={field.value ? new Date(field.value) : undefined}
                                                         setDate={(date) => field.onChange(date ? date.toISOString() : '')}
-                                                        disablePastDates
                                                         minDate={form.watch("deadline_date") ? new Date(form.watch("deadline_date")) : undefined}
                                                     />
                                                 )}

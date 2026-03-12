@@ -575,6 +575,9 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 	if len(input.EligibleDepartments) > 0 {
 		drive.EligibleDepartments = input.EligibleDepartments
 	}
+	if input.EligibleGender != "" {
+		drive.EligibleGender = input.EligibleGender
+	}
 	if len(input.Rounds) > 0 {
 		drive.Rounds = input.Rounds
 	}
