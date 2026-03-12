@@ -76,6 +76,9 @@
             unhealthy_status 502 503 504
         }
     }
+    handle /api/v1/admin/students/*/documents/*/stream {
+        reverse_proxy student-service:8084
+    }
     handle /api/v1/admin/students/*/documents/* {
         reverse_proxy student-service:8084
     }

@@ -38,6 +38,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String? _editingSection;
   bool _isSaving = false;
   bool _isUploadingResume = false;
+  int _photoVersion = 0;
 
   // Controllers
   final _mobileController = TextEditingController();
@@ -605,7 +606,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         try {
           await CachedNetworkImage.evictFromCache(
             '${AppConstants.apiBaseUrl}/v1/student/profile-photo',
-            cacheKey: 'my_profile_photo',
+            cacheKey: 'my_profile_photo_$_photoVersion',
           );
         } catch (e) {
           debugPrint("Failed to evict cache: $e");
@@ -619,7 +620,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile photo updated successfully')),
           );
-          await _refresh();
+          setState(() {
+            _photoVersion++;
+          });
         }
       }
     } catch (e) {
@@ -826,7 +829,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                 }
                                                 return CachedNetworkImage(
                                                   imageUrl: photoUrl,
-                                                  cacheKey: 'my_profile_photo',
+                                                  cacheKey: 'my_profile_photo_$_photoVersion',
                                                   httpHeaders: {
                                                     'Authorization':
                                                         'Bearer $token',

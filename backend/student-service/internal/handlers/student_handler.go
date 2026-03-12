@@ -894,3 +894,77 @@ func (h *StudentHandler) StreamMyProfilePhoto(c *fiber.Ctx) error {
 
 	return c.Send(body)
 }
+
+// StreamStudentDocument streams a student's document (profile_photo or resume) for admin/coordinator/super_admin.
+func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	if role != "admin" && role != "super_admin" && role != "coordinator" {
+		return c.Status(403).JSON(fiber.Map{"error": "Admin access required"})
+	}
+
+	studentID, err := c.ParamsInt("student_id")
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid student ID"})
+	}
+
+	documentType := c.Params("type")
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
+	dbField, valid := validTypes[documentType]
+	if !valid {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume' or 'profile_photo'"})
+	}
+
+	profile, err := h.studentRepo.GetStudentFullProfile(c.Context(), int64(studentID))
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return c.Status(404).JSON(fiber.Map{"error": "Student not found"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch student profile"})
+	}
+
+	var documentURL string
+	switch dbField {
+	case "resume_url":
+		documentURL = profile.ResumeURL
+	case "profile_photo_url":
+		documentURL = profile.ProfilePhotoURL
+	}
+	if documentURL == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
+	}
+
+	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
+	if bucket == "" || key == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Invalid document path"})
+	}
+
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	client := utils.GetS3Client()
+	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not found in storage"})
+	}
+	defer result.Body.Close()
+
+	if result.ContentType != nil {
+		c.Set("Content-Type", *result.ContentType)
+	} else if documentType == "resume" {
+		c.Set("Content-Type", "application/pdf")
+	} else {
+		c.Set("Content-Type", "image/jpeg")
+	}
+	c.Set("Cache-Control", "private, max-age=3600")
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to read document"})
+	}
+
+	return c.Send(body)
+}

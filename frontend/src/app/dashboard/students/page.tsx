@@ -360,12 +360,25 @@ export default function StudentsPage() {
   const handleViewResume = async (studentId: number, url?: string) => {
     if (!url) return;
     try {
-      const data = await studentService.getStudentDocumentUrl(studentId, 'resume');
-      if (data && data.url) {
-        window.open(data.url, '_blank');
-      } else {
-        toast.error("Could not generate document link");
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
       }
+
+      const proxyUrl = `/api/proxy/storage?studentId=${studentId}&type=resume`;
+      const response = await fetch(proxyUrl, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        toast.error("Could not access resume");
+        return;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
     } catch (error) {
       toast.error("Failed to access document");
     }

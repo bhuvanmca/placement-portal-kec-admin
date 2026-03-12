@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Mail, Phone, MapPin, Download, Ban, Trash2, Calendar, BookOpen, Building2, FileText, Briefcase, Award, GraduationCap, Check, Users, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthImage } from '@/hooks/use-auth-image';
 import { formatDateTime } from '@/lib/utils';
 
 export default function StudentProfilePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ highlight?: string }> }) {
@@ -18,6 +19,7 @@ export default function StudentProfilePage({ params, searchParams }: { params: P
   const router = useRouter();
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const profilePhotoUrl = useAuthImage(student?.id, 'profile_photo');
 
   // Pending Requests state
   const [requests, setRequests] = useState<import('@/services/settings.service').StudentChangeRequest[]>([]);
@@ -91,12 +93,25 @@ export default function StudentProfilePage({ params, searchParams }: { params: P
     if (!url) return;
 
     try {
-      const data = await studentService.getStudentDocumentUrl(student.id, docType);
-      if (data && data.url) {
-        window.open(data.url, '_blank');
-      } else {
-        toast.error("Could not generate document link");
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
       }
+
+      const proxyUrl = `/api/proxy/storage?studentId=${student.id}&type=${docType}`;
+      const response = await fetch(proxyUrl, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        toast.error("Could not access document");
+        return;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
     } catch (error) {
       toast.error("Failed to access document");
     }
@@ -202,7 +217,7 @@ export default function StudentProfilePage({ params, searchParams }: { params: P
           <div className="space-y-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center text-center">
               <Avatar className="h-32 w-32 mb-4 ring-4 ring-gray-50">
-                <AvatarImage src={student.profile_photo_url || ""} />
+                <AvatarImage src={profilePhotoUrl || ""} />
                 <AvatarFallback className="text-4xl bg-[#002147] text-white font-bold">
                   {student.full_name ? student.full_name.charAt(0).toUpperCase() : '?'}
                 </AvatarFallback>

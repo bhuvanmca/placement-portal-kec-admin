@@ -37,6 +37,7 @@ func SetupRoutes(app *fiber.App, h *handlers.StudentHandler) {
 	admin := api.Group("/admin", middleware.AdminOnly)
 	admin.Post("/students", h.CreateStudent)
 	admin.Get("/students/:student_id/documents/:type", h.GetStudentDocumentURL)
+	admin.Get("/students/:student_id/documents/:type/stream", h.StreamStudentDocument)
 
 	// Admin: Request Management
 	admin.Get("/requests", h.GetPendingRequests)
