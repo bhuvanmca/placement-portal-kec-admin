@@ -40,10 +40,17 @@ export async function GET(request: NextRequest) {
         }
 
         const headers = new Headers();
-        const contentType = response.headers.get('Content-Type');
+        let contentType = response.headers.get('Content-Type');
+        // Force correct content type for known document types
+        if (type === 'resume' && (!contentType || contentType === 'application/octet-stream')) {
+            contentType = 'application/pdf';
+        } else if (type === 'profile_photo' && (!contentType || contentType === 'application/octet-stream')) {
+            contentType = 'image/jpeg';
+        }
         if (contentType) {
             headers.set('Content-Type', contentType);
         }
+        headers.set('Content-Disposition', type === 'resume' ? 'inline' : 'inline');
         headers.set('Cache-Control', 'private, max-age=3600');
 
         return new NextResponse(response.body, {

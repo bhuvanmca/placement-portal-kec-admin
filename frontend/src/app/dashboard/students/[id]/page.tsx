@@ -149,8 +149,10 @@ export default function StudentProfilePage({
         return;
       }
 
+      const contentType = response.headers.get('Content-Type') || (docType === 'resume' ? 'application/pdf' : 'image/jpeg');
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const typedBlob = new Blob([blob], { type: contentType });
+      const blobUrl = URL.createObjectURL(typedBlob);
       window.open(blobUrl, "_blank");
     } catch (error) {
       toast.error("Failed to access document");

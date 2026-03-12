@@ -952,13 +952,15 @@ func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
 	}
 	defer result.Body.Close()
 
-	if result.ContentType != nil {
-		c.Set("Content-Type", *result.ContentType)
-	} else if documentType == "resume" {
+	// Force correct content type for known document types
+	if documentType == "resume" {
 		c.Set("Content-Type", "application/pdf")
+	} else if result.ContentType != nil && *result.ContentType != "application/octet-stream" {
+		c.Set("Content-Type", *result.ContentType)
 	} else {
 		c.Set("Content-Type", "image/jpeg")
 	}
+	c.Set("Content-Disposition", "inline")
 	c.Set("Cache-Control", "private, max-age=3600")
 
 	body, err := io.ReadAll(result.Body)
