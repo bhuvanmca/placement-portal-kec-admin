@@ -27,7 +27,9 @@ class DriveService {
       url += '&search=${Uri.encodeComponent(search)}';
     }
 
-    debugPrint('[DriveService] GET $url (token=${token != null ? "present" : "MISSING"})');
+    debugPrint(
+      '[DriveService] GET $url (token=${token != null ? "present" : "MISSING"})',
+    );
 
     final response = await _apiClient.get(
       Uri.parse(url),
@@ -37,12 +39,16 @@ class DriveService {
       },
     );
 
-    debugPrint('[DriveService] Response: ${response.statusCode} body=${response.body.length > 200 ? response.body.substring(0, 200) : response.body}');
+    debugPrint(
+      '[DriveService] Response: ${response.statusCode} body=${response.body.length > 200 ? response.body.substring(0, 200) : response.body}',
+    );
 
     if (response.statusCode == 200) {
       final dynamic decoded = jsonDecode(response.body);
       final data = decoded as Map<String, dynamic>;
-      debugPrint('[DriveService] Drives count: ${(data['drives'] as List?)?.length ?? 0}, total: ${data['total']}');
+      debugPrint(
+        '[DriveService] Drives count: ${(data['drives'] as List?)?.length ?? 0}, total: ${data['total']}',
+      );
       return data;
     } else {
       throw Exception(

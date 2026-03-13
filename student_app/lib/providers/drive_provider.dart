@@ -60,7 +60,13 @@ class PaginatedDriveNotifier extends Notifier<PaginatedDriveState> {
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(isLoading: true, page: 1, drives: [], hasMore: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      page: 1,
+      drives: [],
+      hasMore: true,
+      clearError: true,
+    );
     await _fetchPage(1);
   }
 
