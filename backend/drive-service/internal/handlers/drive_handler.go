@@ -499,16 +499,14 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 		}
 	}
 
-	// Update Fields
+	// Update Fields — Frontend sends full object, so apply all fields unconditionally.
+	// This ensures fields can be cleared (e.g. job_description set to "") and
+	// zero-values (e.g. min_cgpa = 0) are properly saved.
 	if input.CompanyName != "" {
 		drive.CompanyName = input.CompanyName
 	}
-	if input.JobDescription != "" {
-		drive.JobDescription = input.JobDescription
-	}
-	if input.Website != "" {
-		drive.Website = input.Website
-	}
+	drive.JobDescription = input.JobDescription
+	drive.Website = input.Website
 	if input.LogoURL != "" {
 		drive.LogoURL = input.LogoURL
 	}
@@ -530,23 +528,16 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 	if input.OfferType != "" {
 		drive.OfferType = input.OfferType
 	}
-	// For booleans in Update, standard procedure assumes input represents the final desired state
 	drive.AllowPlacedCandidates = input.AllowPlacedCandidates
 
 	if len(input.Roles) > 0 {
 		drive.Roles = input.Roles
 	}
 
-	if input.MinCgpa != 0 {
-		drive.MinCgpa = input.MinCgpa
-	}
-	// MaxBacklogsAllowed can be 0, so if input is provided (assuming full update), we take it?
-	// But CreateDriveInput makes it indistinguishable.
-	// For "Update", we'll assume unconditional for now, OR rely on pointer if I changed it (I didn't).
-	// Risk: Partial update wipes it. But standard Frontend sends all.
+	drive.MinCgpa = input.MinCgpa
 	drive.MaxBacklogsAllowed = input.MaxBacklogsAllowed
 
-	// [FIX] Missing Eligibility Fields
+	// Pointer fields: update if provided (nil means "don't change")
 	if input.TenthPercentage != nil {
 		drive.TenthPercentage = input.TenthPercentage
 	}
@@ -560,9 +551,6 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 		drive.PGMinCGPA = input.PGMinCGPA
 	}
 
-	// UseAggregate is boolean. If we want to allow disabling it, false is valid.
-	// But unconditional assignment wipes it if missing (false).
-	// We'll trust the frontend sends the full object for boolean.
 	drive.UseAggregate = input.UseAggregate
 
 	if input.AggregatePercentage != nil {
@@ -581,6 +569,9 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 	if len(input.Rounds) > 0 {
 		drive.Rounds = input.Rounds
 	}
+
+	// Update excluded student IDs
+	drive.ExcludedStudentIDs = input.ExcludedStudentIDs
 
 	// Attachments Logic:
 	// If input.Attachments is provided (from JSON part), it contains the list of *kept* existing attachments.
