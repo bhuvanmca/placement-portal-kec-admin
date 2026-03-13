@@ -1314,7 +1314,11 @@ func (h *DriveHandler) GetDriveByID(c *fiber.Ctx) error {
 
 	drive, err := h.repo.GetDriveByID(c.Context(), id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Drive not found"})
+		if err.Error() == "no rows in result set" {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Drive not found"})
+		}
+		fmt.Printf("GetDriveByID error for id %d: %v\n", id, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch drive"})
 	}
 
 	if drive.LogoURL != "" {

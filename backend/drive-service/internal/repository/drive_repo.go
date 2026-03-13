@@ -317,7 +317,7 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 			) as is_eligible
         FROM placement_drives pd
 		LEFT JOIN drive_applications da ON pd.id = da.drive_id AND da.student_id = $1
-		LEFT JOIN spocs s ON pd.spoc_id = s.id
+		LEFT JOIN admin.spocs s ON pd.spoc_id = s.id
         WHERE pd.status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold')
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id AND department_code = $7::text))
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id AND batch_year = $8::int))
@@ -594,11 +594,11 @@ func (r *DriveRepository) GetDriveByID(ctx context.Context, id int64) (*models.P
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb),
             COALESCE(pd.rounds, '[]'::jsonb), COALESCE(pd.attachments, '[]'::jsonb),
-            pd.drive_date, pd.deadline_date, pd.website, pd.logo_url, pd.location, pd.location_type, pd.status, pd.created_at, pd.excluded_student_ids,
+            pd.drive_date, pd.deadline_date, pd.website, pd.logo_url, pd.location, pd.location_type, pd.status, pd.created_at, COALESCE(pd.excluded_student_ids, '[]'::jsonb),
 			COALESCE(s.name, '') as spoc_name, COALESCE(s.designation, '') as spoc_designation,
 			COALESCE((SELECT jsonb_agg(jr) FROM job_roles jr WHERE jr.drive_id = pd.id), '[]'::jsonb) as roles
         FROM placement_drives pd
-		LEFT JOIN spocs s ON pd.spoc_id = s.id
+		LEFT JOIN admin.spocs s ON pd.spoc_id = s.id
         WHERE pd.id = $1
     `
 	var d models.PlacementDrive
