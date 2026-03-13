@@ -136,16 +136,16 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
 	// Improved Query: Includes Applicant Count Subquery & Roles
 	query := `
         SELECT 
-            pd.id, pd.posted_by, pd.company_name, pd.job_description,
-            pd.drive_type, pd.company_category, pd.spoc_id,
-            pd.offer_type, pd.allow_placed_candidates,
-            pd.min_cgpa, pd.max_backlogs_allowed, 
+            pd.id, pd.posted_by, pd.company_name, COALESCE(pd.job_description, ''),
+            COALESCE(pd.drive_type, ''), COALESCE(pd.company_category, ''), COALESCE(pd.spoc_id, 0),
+            COALESCE(pd.offer_type, 'Regular'), COALESCE(pd.allow_placed_candidates, FALSE),
+            COALESCE(pd.min_cgpa, 0), COALESCE(pd.max_backlogs_allowed, 0), 
             pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
-            pd.use_aggregate, pd.aggregate_percentage,
+            COALESCE(pd.use_aggregate, FALSE), pd.aggregate_percentage,
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb) as eligible_batches, 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb) as eligible_departments,
             COALESCE(pd.rounds, '[]'::jsonb), COALESCE(pd.attachments, '[]'::jsonb),
-            pd.drive_date, pd.deadline_date, pd.website, pd.logo_url, pd.location, pd.location_type, pd.status, pd.created_at,
+            pd.drive_date, pd.deadline_date, COALESCE(pd.website, ''), COALESCE(pd.logo_url, ''), COALESCE(pd.location, ''), COALESCE(pd.location_type, 'On-Site'), pd.status, pd.created_at,
 			(SELECT COUNT(*) FROM drive_applications da WHERE da.drive_id = pd.id) as applicant_count,
 			COALESCE((SELECT jsonb_agg(jr) FROM job_roles jr WHERE jr.drive_id = pd.id), '[]'::jsonb) as roles
         FROM placement_drives pd
@@ -290,16 +290,16 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 	// Eligibility (CGPA, backlogs, academic scores) is computed in SELECT, not filtered.
 	queryDrives := `
         SELECT 
-            pd.id, pd.posted_by, pd.company_name, pd.job_description,
-            pd.drive_type, pd.company_category, pd.spoc_id,
-            pd.offer_type, pd.allow_placed_candidates,
-            pd.min_cgpa, pd.max_backlogs_allowed, 
+            pd.id, pd.posted_by, pd.company_name, COALESCE(pd.job_description, ''),
+            COALESCE(pd.drive_type, ''), COALESCE(pd.company_category, ''), COALESCE(pd.spoc_id, 0),
+            COALESCE(pd.offer_type, 'Regular'), COALESCE(pd.allow_placed_candidates, FALSE),
+            COALESCE(pd.min_cgpa, 0), COALESCE(pd.max_backlogs_allowed, 0), 
             pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
-            pd.use_aggregate, pd.aggregate_percentage,
+            COALESCE(pd.use_aggregate, FALSE), pd.aggregate_percentage,
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb),
             COALESCE(pd.rounds, '[]'::jsonb), COALESCE(pd.attachments, '[]'::jsonb),
-            pd.drive_date, pd.deadline_date, pd.website, pd.logo_url, pd.location, pd.location_type, pd.status, pd.created_at,
+            pd.drive_date, pd.deadline_date, COALESCE(pd.website, ''), COALESCE(pd.logo_url, ''), COALESCE(pd.location, ''), COALESCE(pd.location_type, 'On-Site'), pd.status, pd.created_at,
 			COALESCE(da.status, '') as user_status,
 			COALESCE(da.remarks, '') as user_remarks,
 			COALESCE(s.name, '') as spoc_name, COALESCE(s.designation, '') as spoc_designation,
@@ -321,8 +321,8 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
         WHERE pd.status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold')
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id AND department_code = $7::text))
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id AND batch_year = $8::int))
-		AND (pd.allow_placed_candidates = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da2 WHERE da2.student_id = $1 AND da2.status = 'placed'))
-		AND NOT pd.excluded_student_ids @> to_jsonb($1::bigint)
+		AND (COALESCE(pd.allow_placed_candidates, FALSE) = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da2 WHERE da2.student_id = $1 AND da2.status = 'placed'))
+		AND NOT COALESCE(pd.excluded_student_ids, '[]'::jsonb) @> to_jsonb($1::bigint)
     `
 
 	args := []interface{}{studentID, ugCgpa, backlogs, tenthMark, twelfthMark, pgCgpa, dept, batch, deptType}
@@ -415,8 +415,8 @@ func (r *DriveRepository) GetEligibleDrivesCount(ctx context.Context, studentID 
         WHERE pd.status IN ('open', 'closed', 'completed', 'cancelled', 'on_hold')
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_departments WHERE drive_id = pd.id AND department_code = $1))
         AND (NOT EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id) OR EXISTS (SELECT 1 FROM drive_eligible_batches WHERE drive_id = pd.id AND batch_year = $2))
-		AND (pd.allow_placed_candidates = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da2 WHERE da2.student_id = $3 AND da2.status = 'placed'))
-		AND NOT pd.excluded_student_ids @> to_jsonb($3::bigint)
+		AND (COALESCE(pd.allow_placed_candidates, FALSE) = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da2 WHERE da2.student_id = $3 AND da2.status = 'placed'))
+		AND NOT COALESCE(pd.excluded_student_ids, '[]'::jsonb) @> to_jsonb($3::bigint)
     `
 	args := []interface{}{dept, batch, studentID}
 	argCounter := 4
@@ -584,17 +584,17 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 func (r *DriveRepository) GetDriveByID(ctx context.Context, id int64) (*models.PlacementDrive, error) {
 	query := `
         SELECT
-            pd.id, pd.posted_by, pd.company_name, pd.job_description,
-            pd.drive_type, pd.company_category, pd.spoc_id,
-            pd.offer_type, pd.allow_placed_candidates,
-            pd.min_cgpa, 
+            pd.id, pd.posted_by, pd.company_name, COALESCE(pd.job_description, ''),
+            COALESCE(pd.drive_type, ''), COALESCE(pd.company_category, ''), COALESCE(pd.spoc_id, 0),
+            COALESCE(pd.offer_type, 'Regular'), COALESCE(pd.allow_placed_candidates, FALSE),
+            COALESCE(pd.min_cgpa, 0), 
             pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
-            pd.use_aggregate, pd.aggregate_percentage, pd.eligible_gender,
-            pd.max_backlogs_allowed,
+            COALESCE(pd.use_aggregate, FALSE), pd.aggregate_percentage, COALESCE(pd.eligible_gender, 'All'),
+            COALESCE(pd.max_backlogs_allowed, 0),
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb),
             COALESCE(pd.rounds, '[]'::jsonb), COALESCE(pd.attachments, '[]'::jsonb),
-            pd.drive_date, pd.deadline_date, pd.website, pd.logo_url, pd.location, pd.location_type, pd.status, pd.created_at, COALESCE(pd.excluded_student_ids, '[]'::jsonb),
+            pd.drive_date, pd.deadline_date, COALESCE(pd.website, ''), COALESCE(pd.logo_url, ''), COALESCE(pd.location, ''), COALESCE(pd.location_type, 'On-Site'), pd.status, pd.created_at, COALESCE(pd.excluded_student_ids, '[]'::jsonb),
 			COALESCE(s.name, '') as spoc_name, COALESCE(s.designation, '') as spoc_designation,
 			COALESCE((SELECT jsonb_agg(jr) FROM job_roles jr WHERE jr.drive_id = pd.id), '[]'::jsonb) as roles
         FROM placement_drives pd
@@ -701,14 +701,14 @@ func (r *DriveRepository) GetDrivesCount(ctx context.Context, filters map[string
 func (r *DriveRepository) GetDrivesByIDs(ctx context.Context, ids []int64) ([]models.PlacementDrive, error) {
 	query := `
         SELECT 
-            id, posted_by, company_name, job_description,
-            drive_type, company_category, spoc_id,
-            offer_type, allow_placed_candidates,
-            min_cgpa, max_backlogs_allowed, 
+            id, posted_by, company_name, COALESCE(job_description, ''),
+            COALESCE(drive_type, ''), COALESCE(company_category, ''), COALESCE(spoc_id, 0),
+            COALESCE(offer_type, 'Regular'), COALESCE(allow_placed_candidates, FALSE),
+            COALESCE(min_cgpa, 0), COALESCE(max_backlogs_allowed, 0), 
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = placement_drives.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = placement_drives.id), '[]'::jsonb),
             COALESCE(rounds, '[]'::jsonb), COALESCE(attachments, '[]'::jsonb),
-            drive_date, deadline_date, website, logo_url, location, location_type, status, created_at
+            drive_date, deadline_date, COALESCE(website, ''), COALESCE(logo_url, ''), COALESCE(location, ''), COALESCE(location_type, 'On-Site'), status, created_at
         FROM placement_drives 
         WHERE id = ANY($1)
     `
@@ -814,8 +814,8 @@ func (r *DriveRepository) AutoCloseExpiredDrives(ctx context.Context) (int64, er
 func (r *DriveRepository) GetHomePageDrives(ctx context.Context) (map[string][]models.PlacementDrive, error) {
 	// Fetch non-cancelled drives
 	query := `
-        SELECT id, company_name, job_description, drive_type, 
-               drive_date, deadline_date, status, company_category, logo_url
+        SELECT id, company_name, COALESCE(job_description, ''), COALESCE(drive_type, ''), 
+               drive_date, deadline_date, status, COALESCE(company_category, ''), COALESCE(logo_url, '')
         FROM placement_drives 
         WHERE status != 'cancelled'
         ORDER BY created_at DESC

@@ -292,8 +292,8 @@ func (h *DriveHandler) GetDrivesForStudent(c *fiber.Ctx) error {
 	// Get drives and total count
 	drives, err := repo.GetEligibleDrives(c.Context(), userID, filters)
 	if err != nil {
-		fmt.Printf("Error fetching eligible drives: %v\n", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch drives"})
+		fmt.Printf("Error fetching eligible drives for user %d: %v\n", userID, err)
+		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch drives", "details": err.Error()})
 	}
 
 	total, err := repo.GetEligibleDrivesCount(c.Context(), userID, filters)
