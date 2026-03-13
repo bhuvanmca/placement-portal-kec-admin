@@ -13,6 +13,7 @@ class PaginatedDriveState {
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
+  final String? error;
 
   PaginatedDriveState({
     this.drives = const [],
@@ -21,6 +22,7 @@ class PaginatedDriveState {
     this.isLoading = false,
     this.isLoadingMore = false,
     this.hasMore = true,
+    this.error,
   });
 
   PaginatedDriveState copyWith({
@@ -30,6 +32,8 @@ class PaginatedDriveState {
     bool? isLoading,
     bool? isLoadingMore,
     bool? hasMore,
+    String? error,
+    bool clearError = false,
   }) {
     return PaginatedDriveState(
       drives: drives ?? this.drives,
@@ -38,6 +42,7 @@ class PaginatedDriveState {
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -55,7 +60,7 @@ class PaginatedDriveNotifier extends Notifier<PaginatedDriveState> {
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(isLoading: true, page: 1, drives: [], hasMore: true);
+    state = state.copyWith(isLoading: true, page: 1, drives: [], hasMore: true, clearError: true);
     await _fetchPage(1);
   }
 
@@ -93,7 +98,11 @@ class PaginatedDriveNotifier extends Notifier<PaginatedDriveState> {
         hasMore: updatedDrives.length < total,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, isLoadingMore: false);
+      state = state.copyWith(
+        isLoading: false,
+        isLoadingMore: false,
+        error: e.toString(),
+      );
     }
   }
 }
@@ -197,6 +206,10 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
 
   if (paginatedState.isLoading && paginatedState.drives.isEmpty) {
     return const AsyncValue.loading();
+  }
+
+  if (paginatedState.error != null && paginatedState.drives.isEmpty) {
+    return AsyncValue.error(paginatedState.error!, StackTrace.current);
   }
 
   final drives = paginatedState.drives;

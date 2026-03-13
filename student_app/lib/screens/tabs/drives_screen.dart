@@ -612,6 +612,8 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                 ),
               ),
               data: (filteredDrives) {
+                final paginatedState = ref.watch(driveListProvider);
+                final totalFromBackend = paginatedState.total;
                 return HapticRefreshIndicator(
                   onRefresh: _refresh,
                   child: filteredDrives.isEmpty
@@ -629,7 +631,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'No drives found',
+                                  totalFromBackend == 0
+                                      ? 'No eligible drives'
+                                      : 'No drives in this tab',
                                   style: GoogleFonts.geist(
                                     color: Colors.grey[600],
                                     fontSize: 17,
@@ -638,12 +642,23 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Try adjusting your filters or check back later',
+                                  totalFromBackend == 0
+                                      ? 'Drives matching your department & batch will appear here.\nMake sure your profile is complete.'
+                                      : 'Try switching tabs or adjusting your filters',
+                                  textAlign: TextAlign.center,
                                   style: GoogleFonts.geist(
                                     color: Colors.grey[400],
                                     fontSize: 13,
                                   ),
                                 ),
+                                if (totalFromBackend == 0) ...[
+                                  const SizedBox(height: 16),
+                                  TextButton.icon(
+                                    onPressed: _refresh,
+                                    icon: const Icon(Icons.refresh, size: 18),
+                                    label: const Text('Refresh'),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

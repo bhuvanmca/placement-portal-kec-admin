@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'api_client.dart';
 import '../utils/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +27,8 @@ class DriveService {
       url += '&search=${Uri.encodeComponent(search)}';
     }
 
+    debugPrint('[DriveService] GET $url (token=${token != null ? "present" : "MISSING"})');
+
     final response = await _apiClient.get(
       Uri.parse(url),
       headers: {
@@ -34,9 +37,13 @@ class DriveService {
       },
     );
 
+    debugPrint('[DriveService] Response: ${response.statusCode} body=${response.body.length > 200 ? response.body.substring(0, 200) : response.body}');
+
     if (response.statusCode == 200) {
       final dynamic decoded = jsonDecode(response.body);
-      return decoded as Map<String, dynamic>;
+      final data = decoded as Map<String, dynamic>;
+      debugPrint('[DriveService] Drives count: ${(data['drives'] as List?)?.length ?? 0}, total: ${data['total']}');
+      return data;
     } else {
       throw Exception(
         'Failed to load drives: ${response.statusCode} - ${response.body}',
