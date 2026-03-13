@@ -82,11 +82,16 @@ export default function DriveListPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this drive?")) return;
+  const handleDelete = (id: number) => {
+    setDriveToDelete(id);
+  };
+
+  const confirmSingleDelete = async () => {
+    if (!driveToDelete) return;
     try {
-      await driveService.deleteDrive(id);
+      await driveService.deleteDrive(driveToDelete);
       toast.success("Drive deleted");
+      setDriveToDelete(null);
       fetchDrives();
     } catch (error) {
       toast.error("Failed to delete drive");
@@ -148,25 +153,38 @@ export default function DriveListPage() {
   };
 
   // ... inside component ...
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [driveToDelete, setDriveToDelete] = useState<number | null>(null);
 
   // ... (fetchDrives, etc.)
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] space-y-4 p-8 pt-6">
       {/* Dialog */}
+      {/* Bulk Delete Dialog */}
       <DeleteConfirmationDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
+        isOpen={isBulkDeleteDialogOpen}
+        onClose={() => setIsBulkDeleteDialogOpen(false)}
         onConfirm={async () => {
           await driveService.bulkDeleteDrives(selectedDrives);
           toast.success("Drives deleted successfully");
           setSelectedDrives([]);
+          setIsBulkDeleteDialogOpen(false);
           fetchDrives();
         }}
         title="Delete Drives"
         description="This action cannot be undone. This will permanently delete the selected drives and all associated applicant data."
         itemCount={selectedDrives.length}
+      />
+
+      {/* Single Delete Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={driveToDelete !== null}
+        onClose={() => setDriveToDelete(null)}
+        onConfirm={confirmSingleDelete}
+        title="Delete Drive"
+        description="Are you sure you want to delete this drive? This will permanently delete the drive and all associated applicant data."
+        itemCount={1}
       />
 
       <div className="flex items-center justify-between">
@@ -182,7 +200,7 @@ export default function DriveListPage() {
           {selectedDrives.length > 0 && user?.role !== "coordinator" && (
             <Button
               variant="destructive"
-              onClick={() => setIsDeleteDialogOpen(true)}
+              onClick={() => setIsBulkDeleteDialogOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" /> Delete (
               {selectedDrives.length})

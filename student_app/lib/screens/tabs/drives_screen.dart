@@ -357,6 +357,11 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
             : Colors.black,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
+            onPressed: _refresh,
+          ),
+          IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
               Navigator.push(
