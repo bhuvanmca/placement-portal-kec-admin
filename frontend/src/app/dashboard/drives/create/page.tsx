@@ -652,6 +652,9 @@ export default function CreateDrivePage() {
                             value={companyQuery}
                             onChange={(e) => {
                               setCompanyQuery(e.target.value);
+                              form.setValue("company_name", e.target.value, {
+                                shouldValidate: true,
+                              });
                               setOpenCompanySearch(true);
                             }}
                             onFocus={() => setOpenCompanySearch(true)}
