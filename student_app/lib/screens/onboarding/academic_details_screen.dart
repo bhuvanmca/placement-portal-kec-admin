@@ -19,11 +19,18 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _tenthMarkController = TextEditingController();
   final _twelfthMarkController = TextEditingController();
+  final _diplomaMarkController = TextEditingController();
   final _ugController = TextEditingController();
   final _pgController = TextEditingController();
+  final _tenthYearController = TextEditingController();
+  final _twelfthYearController = TextEditingController();
+  final _diplomaYearController = TextEditingController();
+  final _ugYearController = TextEditingController();
+  final _pgYearController = TextEditingController();
 
   bool _isLoading = true;
   String _departmentType = 'UG';
+  bool _isDiplomaStudent = false;
 
   @override
   void initState() {
@@ -36,11 +43,30 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
     if (state.twelfthMark != null) {
       _twelfthMarkController.text = state.twelfthMark.toString();
     }
+    if (state.diplomaMark != null && state.diplomaMark! > 0) {
+      _diplomaMarkController.text = state.diplomaMark.toString();
+    }
+    _isDiplomaStudent = state.isDiplomaStudent;
     if (state.ugCgpa != null) {
       _ugController.text = state.ugCgpa.toString();
     }
     if (state.pgCgpa != null && state.pgCgpa! > 0) {
       _pgController.text = state.pgCgpa.toString();
+    }
+    if (state.tenthYearPass != null && state.tenthYearPass! > 0) {
+      _tenthYearController.text = state.tenthYearPass.toString();
+    }
+    if (state.twelfthYearPass != null && state.twelfthYearPass! > 0) {
+      _twelfthYearController.text = state.twelfthYearPass.toString();
+    }
+    if (state.diplomaYearPass != null && state.diplomaYearPass! > 0) {
+      _diplomaYearController.text = state.diplomaYearPass.toString();
+    }
+    if (state.ugYearPass != null && state.ugYearPass! > 0) {
+      _ugYearController.text = state.ugYearPass.toString();
+    }
+    if (state.pgYearPass != null && state.pgYearPass! > 0) {
+      _pgYearController.text = state.pgYearPass.toString();
     }
 
     _loadProfile();
@@ -68,8 +94,14 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   void dispose() {
     _tenthMarkController.dispose();
     _twelfthMarkController.dispose();
+    _diplomaMarkController.dispose();
     _ugController.dispose();
     _pgController.dispose();
+    _tenthYearController.dispose();
+    _twelfthYearController.dispose();
+    _diplomaYearController.dispose();
+    _ugYearController.dispose();
+    _pgYearController.dispose();
     super.dispose();
   }
 
@@ -79,25 +111,59 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
       FocusScope.of(context).unfocus();
 
       final tenth = double.tryParse(_tenthMarkController.text) ?? 0.0;
-      final twelfth = double.tryParse(_twelfthMarkController.text) ?? 0.0;
+      final twelfth = _isDiplomaStudent
+          ? 0.0
+          : (double.tryParse(_twelfthMarkController.text) ?? 0.0);
+      final diploma = _isDiplomaStudent
+          ? (double.tryParse(_diplomaMarkController.text) ?? 0.0)
+          : 0.0;
       final ug = double.tryParse(_ugController.text) ?? 0.0;
       final pg = _departmentType == 'PG'
           ? double.tryParse(_pgController.text)
           : null;
 
+      final tenthYear = int.tryParse(_tenthYearController.text);
+      final twelfthYear = _isDiplomaStudent
+          ? null
+          : int.tryParse(_twelfthYearController.text);
+      final diplomaYear = _isDiplomaStudent
+          ? int.tryParse(_diplomaYearController.text)
+          : null;
+      final ugYear = int.tryParse(_ugYearController.text);
+      final pgYear = _departmentType == 'PG'
+          ? int.tryParse(_pgYearController.text)
+          : null;
+
       ref
           .read(onboardingProvider.notifier)
-          .updateAcademic(tenth, twelfth, ug, pg);
+          .updateAcademic(
+            tenth,
+            twelfth,
+            ug,
+            pg,
+            diploma: diploma,
+            isDiploma: _isDiplomaStudent,
+            tenthYearPass: tenthYear,
+            twelfthYearPass: twelfthYear,
+            diplomaYearPass: diplomaYear,
+            ugYearPass: ugYear,
+            pgYearPass: pgYear,
+          );
       context.go('/onboarding/address');
     }
   }
 
-  InputDecoration _inputDecoration(String label, String hint, IconData icon) {
+  InputDecoration _inputDecoration(
+    String label,
+    String hint,
+    IconData icon, {
+    String? suffixText,
+  }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
       prefixIcon: Icon(icon),
-      suffixText: '%',
+      suffixText: suffixText ?? '%',
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
       ),
@@ -112,6 +178,31 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
           width: 2,
         ),
       ),
+    );
+  }
+
+  Widget _yearField(TextEditingController controller, String label) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(4),
+      ],
+      decoration: _inputDecoration(
+        label,
+        '2024',
+        Icons.calendar_today_outlined,
+        suffixText: '',
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) return null; // optional
+        final year = int.tryParse(value);
+        if (year == null || year < 1990 || year > 2040) {
+          return 'Enter valid year';
+        }
+        return null;
+      },
     );
   }
 
@@ -189,32 +280,97 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 12),
+                      _yearField(_tenthYearController, '10th Year of Passing'),
                       const SizedBox(height: 16),
-                      // 12th
-                      TextFormField(
-                        controller: _twelfthMarkController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d*\.?\d{0,2}'),
+                      // 12th / Diploma Toggle
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'I have a Diploma (instead of 12th)',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                          Switch(
+                            value: _isDiplomaStudent,
+                            onChanged: (val) {
+                              setState(() {
+                                _isDiplomaStudent = val;
+                              });
+                            },
                           ),
                         ],
-                        decoration: _inputDecoration(
-                          '12th Percentage',
-                          '90.00',
-                          Icons.school_outlined,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) return 'Required';
-                          final num = double.tryParse(value);
-                          if (num == null || num < 0 || num > 100) {
-                            return 'Enter valid percentage';
-                          }
-                          return null;
-                        },
                       ),
+                      const SizedBox(height: 8),
+                      if (!_isDiplomaStudent) ...[
+                        // 12th
+                        TextFormField(
+                          controller: _twelfthMarkController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d{0,2}'),
+                            ),
+                          ],
+                          decoration: _inputDecoration(
+                            '12th Percentage',
+                            '90.00',
+                            Icons.school_outlined,
+                          ),
+                          validator: (value) {
+                            if (_isDiplomaStudent) return null;
+                            if (value == null || value.isEmpty)
+                              return 'Required';
+                            final num = double.tryParse(value);
+                            if (num == null || num < 0 || num > 100) {
+                              return 'Enter valid percentage';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _yearField(
+                          _twelfthYearController,
+                          '12th Year of Passing',
+                        ),
+                      ] else ...[
+                        // Diploma
+                        TextFormField(
+                          controller: _diplomaMarkController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d{0,2}'),
+                            ),
+                          ],
+                          decoration: _inputDecoration(
+                            'Diploma Percentage',
+                            '85.00',
+                            Icons.engineering_outlined,
+                          ),
+                          validator: (value) {
+                            if (!_isDiplomaStudent) return null;
+                            if (value == null || value.isEmpty)
+                              return 'Required';
+                            final num = double.tryParse(value);
+                            if (num == null || num < 0 || num > 100) {
+                              return 'Enter valid percentage';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _yearField(
+                          _diplomaYearController,
+                          'Diploma Year of Passing',
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       Text(
                         'UG Degree CGPA',
@@ -255,6 +411,8 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                           Icons.school_outlined,
                         ).copyWith(suffixText: 'CGPA'),
                       ),
+                      const SizedBox(height: 12),
+                      _yearField(_ugYearController, 'UG Year of Passing'),
                       const SizedBox(height: 24),
 
                       if (_departmentType == 'PG') ...[
@@ -297,6 +455,8 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                             Icons.school,
                           ).copyWith(suffixText: 'CGPA'),
                         ),
+                        const SizedBox(height: 12),
+                        _yearField(_pgYearController, 'PG Year of Passing'),
                         const SizedBox(height: 24),
                       ],
 

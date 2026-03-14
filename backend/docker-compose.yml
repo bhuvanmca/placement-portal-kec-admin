@@ -69,7 +69,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
-      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev,https://75843b47.kec-drives-frontend.pages.dev
+      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev
     env_file:
       - .env
     depends_on:
@@ -101,7 +101,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
-      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev,https://75843b47.kec-drives-frontend.pages.dev
+      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
       - GARAGE_PUBLIC_URL=${GARAGE_PUBLIC_URL}
       - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY}
@@ -141,7 +141,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
-      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev,https://75843b47.kec-drives-frontend.pages.dev
+      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
       - GARAGE_PUBLIC_URL=${GARAGE_PUBLIC_URL}
       - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY}
@@ -183,7 +183,7 @@ services:
       - PORT=8086
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
-      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev,https://75843b47.kec-drives-frontend.pages.dev
+      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev
     depends_on:
       postgres:
         condition: service_healthy
@@ -209,7 +209,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/kecdrives-db?sslmode=disable
       - JWT_SECRET=bhuvankumarVharikrishnanNbalajihariharanNSjayalakshmiSjegadeepPsuryaN
       - REDIS_ADDR=redis:6379
-      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev,https://75843b47.kec-drives-frontend.pages.dev
+      - ALLOWED_ORIGINS=http://localhost:3000,https://kec-drives-frontend.pages.dev
       - GARAGE_ENDPOINT=${GARAGE_ENDPOINT}
       - GARAGE_PUBLIC_URL=${GARAGE_PUBLIC_URL}
       - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY}
@@ -218,9 +218,6 @@ services:
       - GARAGE_CHAT_BUCKET=${GARAGE_CHAT_BUCKET}
       - GARAGE_REGION=${GARAGE_REGION}
       - GARAGE_USE_SSL=${GARAGE_USE_SSL}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_WHATSAPP_FROM=${TWILIO_WHATSAPP_FROM}
     env_file:
       - .env
     depends_on:

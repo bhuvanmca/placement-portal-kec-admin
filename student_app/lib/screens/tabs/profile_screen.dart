@@ -56,18 +56,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _tenthMarkController = TextEditingController();
   final _tenthBoardController = TextEditingController();
   final _tenthInstitutionController = TextEditingController();
+  final _tenthYearPassController = TextEditingController();
   final _twelfthMarkController = TextEditingController();
   final _twelfthBoardController = TextEditingController();
   final _twelfthInstitutionController = TextEditingController();
+  final _twelfthYearPassController = TextEditingController();
   final _diplomaMarkController = TextEditingController();
   final _diplomaInstitutionController = TextEditingController();
+  final _diplomaYearPassController = TextEditingController();
 
   final _ugCgpaController = TextEditingController();
+  final _ugYearPassController = TextEditingController();
   final List<TextEditingController> _ugSemControllers = List.generate(
     10,
     (_) => TextEditingController(),
   );
   final _pgCgpaController = TextEditingController();
+  final _pgYearPassController = TextEditingController();
   final List<TextEditingController> _pgSemControllers = List.generate(
     8,
     (_) => TextEditingController(),
@@ -111,16 +116,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _tenthMarkController.dispose();
     _tenthBoardController.dispose();
     _tenthInstitutionController.dispose();
+    _tenthYearPassController.dispose();
     _twelfthMarkController.dispose();
     _twelfthBoardController.dispose();
     _twelfthInstitutionController.dispose();
+    _twelfthYearPassController.dispose();
     _diplomaMarkController.dispose();
     _diplomaInstitutionController.dispose();
+    _diplomaYearPassController.dispose();
     _ugCgpaController.dispose();
+    _ugYearPassController.dispose();
     for (var c in _ugSemControllers) {
       c.dispose();
     }
     _pgCgpaController.dispose();
+    _pgYearPassController.dispose();
     for (var c in _pgSemControllers) {
       c.dispose();
     }
@@ -175,19 +185,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _tenthInstitutionController.text = _formatValueRaw(
         data['tenth_institution'],
       );
+      _tenthYearPassController.text = _formatValueRaw(data['tenth_year_pass']);
     } else if (section == '12th Standard') {
       _twelfthMarkController.text = _formatValueRaw(data['twelfth_mark']);
       _twelfthBoardController.text = _formatValueRaw(data['twelfth_board']);
       _twelfthInstitutionController.text = _formatValueRaw(
         data['twelfth_institution'],
       );
-    } else if (section == 'Diploma (If applicable)') {
+      _twelfthYearPassController.text = _formatValueRaw(
+        data['twelfth_year_pass'],
+      );
+    } else if (section == 'Diploma') {
       _diplomaMarkController.text = _formatValueRaw(data['diploma_mark']);
       _diplomaInstitutionController.text = _formatValueRaw(
         data['diploma_institution'],
       );
+      _diplomaYearPassController.text = _formatValueRaw(
+        data['diploma_year_pass'],
+      );
     } else if (section == 'Undergraduate (UG)') {
       _ugCgpaController.text = _formatValueRaw(data['ug_cgpa']);
+      _ugYearPassController.text = _formatValueRaw(data['ug_year_pass']);
       _ugSemControllers[0].text = _formatValueRaw(data['ug_gpa_s1']);
       _ugSemControllers[1].text = _formatValueRaw(data['ug_gpa_s2']);
       _ugSemControllers[2].text = _formatValueRaw(data['ug_gpa_s3']);
@@ -200,6 +218,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _ugSemControllers[9].text = _formatValueRaw(data['ug_gpa_s10']);
     } else if (section == 'Postgraduate (PG)') {
       _pgCgpaController.text = _formatValueRaw(data['pg_cgpa']);
+      _pgYearPassController.text = _formatValueRaw(data['pg_year_pass']);
       _pgSemControllers[0].text = _formatValueRaw(data['pg_gpa_s1']);
       _pgSemControllers[1].text = _formatValueRaw(data['pg_gpa_s2']);
       _pgSemControllers[2].text = _formatValueRaw(data['pg_gpa_s3']);
@@ -235,6 +254,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  bool _hasDiplomaData(Map<String, dynamic> data) {
+    final diplomaMark = data['diploma_mark'];
+    return diplomaMark != null && diplomaMark is num && diplomaMark > 0;
+  }
+
   Future<void> _saveSection(String section, Map<String, dynamic> data) async {
     setState(() => _isSaving = true);
     try {
@@ -265,17 +289,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             double.tryParse(_tenthMarkController.text) ?? 0.0;
         updateData['tenth_board'] = _tenthBoardController.text;
         updateData['tenth_institution'] = _tenthInstitutionController.text;
+        updateData['tenth_year_pass'] =
+            int.tryParse(_tenthYearPassController.text) ?? 0;
       } else if (section == '12th Standard') {
         updateData['twelfth_mark'] =
             double.tryParse(_twelfthMarkController.text) ?? 0.0;
         updateData['twelfth_board'] = _twelfthBoardController.text;
         updateData['twelfth_institution'] = _twelfthInstitutionController.text;
-      } else if (section == 'Diploma (If applicable)') {
+        updateData['twelfth_year_pass'] =
+            int.tryParse(_twelfthYearPassController.text) ?? 0;
+      } else if (section == 'Diploma') {
         updateData['diploma_mark'] =
             double.tryParse(_diplomaMarkController.text) ?? 0.0;
         updateData['diploma_institution'] = _diplomaInstitutionController.text;
+        updateData['diploma_year_pass'] =
+            int.tryParse(_diplomaYearPassController.text) ?? 0;
       } else if (section == 'Undergraduate (UG)') {
         updateData['ug_cgpa'] = double.tryParse(_ugCgpaController.text) ?? 0.0;
+        updateData['ug_year_pass'] =
+            int.tryParse(_ugYearPassController.text) ?? 0;
         updateData['ug_gpa_s1'] =
             double.tryParse(_ugSemControllers[0].text) ?? 0.0;
         updateData['ug_gpa_s2'] =
@@ -298,6 +330,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             double.tryParse(_ugSemControllers[9].text) ?? 0.0;
       } else if (section == 'Postgraduate (PG)') {
         updateData['pg_cgpa'] = double.tryParse(_pgCgpaController.text) ?? 0.0;
+        updateData['pg_year_pass'] =
+            int.tryParse(_pgYearPassController.text) ?? 0;
         updateData['pg_gpa_s1'] =
             double.tryParse(_pgSemControllers[0].text) ?? 0.0;
         updateData['pg_gpa_s2'] =
@@ -493,60 +527,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _openDocument(String documentType) async {
+  Future<void> _openDocument(String documentType, String url) async {
     try {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Opening document...'),
-            duration: Duration(seconds: 2),
+            content: Text('Downloading document...'),
+            duration: Duration(seconds: 3),
           ),
         );
       }
 
-      final token = await ref.read(authServiceProvider).getToken();
-      if (token == null || token.isEmpty) {
-        throw Exception('Not authenticated');
+      // Use the public URL directly — bucket has public read policy
+      var downloadUrl = AppConstants.sanitizeUrl(url);
+      if (!downloadUrl.startsWith('http://') &&
+          !downloadUrl.startsWith('https://')) {
+        downloadUrl = 'https://$downloadUrl';
       }
 
-      // Use the streaming endpoint directly — no intermediate URL required
-      final streamUrl =
-          '${AppConstants.apiBaseUrl}/v1/student/documents/$documentType/stream';
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', Uri.parse(downloadUrl));
 
-      final response = await http.get(
-        Uri.parse(streamUrl),
-        headers: {'Authorization': 'Bearer $token'},
-      );
+        final streamedResponse = await client.send(request);
 
-      if (response.statusCode != 200) {
-        final msg =
-            _tryParseErrorBody(response.body) ??
-            'Status: ${response.statusCode}';
-        throw Exception(msg);
-      }
-
-      String extension = 'pdf';
-      final contentType = response.headers['content-type']?.toLowerCase();
-      if (contentType != null) {
-        if (contentType.contains('image/jpeg') ||
-            contentType.contains('image/jpg')) {
-          extension = 'jpg';
-        } else if (contentType.contains('image/png')) {
-          extension = 'png';
-        } else if (contentType.contains('application/pdf')) {
-          extension = 'pdf';
+        if (streamedResponse.statusCode != 200) {
+          final body = await streamedResponse.stream.bytesToString();
+          final msg =
+              _tryParseErrorBody(body) ??
+              'Status: ${streamedResponse.statusCode}';
+          throw Exception(msg);
         }
-      }
 
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/${documentType}_document.$extension');
-      await file.writeAsBytes(response.bodyBytes);
+        String extension = 'pdf';
+        final contentType = streamedResponse.headers['content-type']
+            ?.toLowerCase();
+        if (contentType != null) {
+          if (contentType.contains('image/jpeg') ||
+              contentType.contains('image/jpg')) {
+            extension = 'jpg';
+          } else if (contentType.contains('image/png')) {
+            extension = 'png';
+          } else if (contentType.contains('application/pdf')) {
+            extension = 'pdf';
+          }
+        }
 
-      final result = await OpenFilex.open(file.path);
+        final tempDir = await getTemporaryDirectory();
+        final file = File(
+          '${tempDir.path}/${documentType}_document.$extension',
+        );
 
-      if (result.type != ResultType.done) {
-        throw Exception(result.message);
+        // Stream bytes directly to file to avoid memory/encoding issues
+        final sink = file.openWrite();
+        await streamedResponse.stream.pipe(sink);
+        await sink.close();
+
+        final result = await OpenFilex.open(file.path);
+
+        if (result.type != ResultType.done) {
+          throw Exception(result.message);
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
       if (mounted) {
@@ -822,60 +866,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           data['profile_photo_url']
                                               .toString()
                                               .isNotEmpty
-                                      ? Builder(
-                                          builder: (context) {
-                                            // Use authenticated proxy endpoint for secure access
-                                            final photoUrl =
-                                                '${AppConstants.apiBaseUrl}/v1/student/profile-photo';
-                                            return FutureBuilder<String?>(
-                                              future: ref
-                                                  .read(authServiceProvider)
-                                                  .getToken(),
-                                              builder: (context, tokenSnapshot) {
-                                                final token =
-                                                    tokenSnapshot.data;
-                                                if (token == null ||
-                                                    token.isEmpty) {
-                                                  return Icon(
-                                                    Icons.person,
-                                                    size: 60,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).cardColor,
-                                                  );
-                                                }
-                                                return CachedNetworkImage(
-                                                  imageUrl: photoUrl,
-                                                  cacheKey:
-                                                      'my_profile_photo_$_photoVersion',
-                                                  httpHeaders: {
-                                                    'Authorization':
-                                                        'Bearer $token',
-                                                  },
-                                                  fit: BoxFit.cover,
-                                                  memCacheHeight: 300,
-                                                  placeholder: (context, url) =>
-                                                      Center(
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                              color: Theme.of(
-                                                                context,
-                                                              ).cardColor,
-                                                              strokeWidth: 2,
-                                                            ),
-                                                      ),
-                                                  errorWidget:
-                                                      (context, url, error) {
-                                                        return Icon(
-                                                          Icons.person,
-                                                          size: 60,
-                                                          color: Theme.of(
-                                                            context,
-                                                          ).cardColor,
-                                                        );
-                                                      },
-                                                );
-                                              },
+                                      ? CachedNetworkImage(
+                                          imageUrl: AppConstants.sanitizeUrl(
+                                            data['profile_photo_url'],
+                                          ),
+                                          cacheKey:
+                                              'my_profile_photo_$_photoVersion',
+                                          fit: BoxFit.cover,
+                                          memCacheHeight: 300,
+                                          placeholder: (context, url) => Center(
+                                            child: CircularProgressIndicator(
+                                              color: Theme.of(
+                                                context,
+                                              ).cardColor,
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) {
+                                            return Icon(
+                                              Icons.person,
+                                              size: 60,
+                                              color: Theme.of(
+                                                context,
+                                              ).cardColor,
                                             );
                                           },
                                         )
@@ -1424,7 +1437,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Row(
                           children: [
                             InkWell(
-                              onTap: () => _openDocument('resume'),
+                              onTap: () =>
+                                  _openDocument('resume', data['resume_url']),
                               borderRadius: BorderRadius.circular(8),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -1707,6 +1721,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         controller: _tenthInstitutionController,
                         label: 'Institution',
                       ),
+                      _buildEditTextField(
+                        controller: _tenthYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
+                      ),
                     ]
                   : [
                       _buildDetailItem(
@@ -1729,82 +1748,100 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
 
             // 12th
-            _buildSectionCard(
-              '12th Standard',
-              _editingSection == '12th Standard'
-                  ? [
-                      _buildEditTextField(
-                        controller: _twelfthMarkController,
-                        label: 'Percentage',
-                        type: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                      ),
-                      _buildEditTextField(
-                        controller: _twelfthBoardController,
-                        label: 'Board',
-                      ),
-                      _buildEditTextField(
-                        controller: _twelfthInstitutionController,
-                        label: 'Institution',
-                      ),
-                    ]
-                  : [
-                      _buildDetailItem(
-                        'Mark',
-                        '${_formatValue(data['twelfth_mark'])}%',
-                      ),
-                      _buildDetailItem('Board', data['twelfth_board']),
-                      _buildDetailItem(
-                        'Institution',
-                        data['twelfth_institution'],
-                      ),
-                      _buildDetailItem(
-                        'Year of Passing',
-                        data['twelfth_year_pass'],
-                      ),
-                    ],
-              onEdit: () => _startEditing('12th Standard', data),
-              onSave: () => _saveSection('12th Standard', data),
-              onCancel: _cancelEditing,
-            ),
-
-            // Diploma
-            if (data['diploma_mark'] != null && data['diploma_mark'] > 0)
+            if (!_hasDiplomaData(data))
               _buildSectionCard(
-                'Diploma (If applicable)',
-                _editingSection == 'Diploma (If applicable)'
+                '12th Standard',
+                _editingSection == '12th Standard'
                     ? [
                         _buildEditTextField(
-                          controller: _diplomaMarkController,
+                          controller: _twelfthMarkController,
                           label: 'Percentage',
                           type: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
                         ),
                         _buildEditTextField(
-                          controller: _diplomaInstitutionController,
+                          controller: _twelfthBoardController,
+                          label: 'Board',
+                        ),
+                        _buildEditTextField(
+                          controller: _twelfthInstitutionController,
                           label: 'Institution',
+                        ),
+                        _buildEditTextField(
+                          controller: _twelfthYearPassController,
+                          label: 'Year of Passing',
+                          type: TextInputType.number,
                         ),
                       ]
                     : [
                         _buildDetailItem(
                           'Mark',
-                          '${_formatValue(data['diploma_mark'])}%',
+                          '${_formatValue(data['twelfth_mark'])}%',
                         ),
+                        _buildDetailItem('Board', data['twelfth_board']),
                         _buildDetailItem(
                           'Institution',
-                          data['diploma_institution'],
+                          data['twelfth_institution'],
                         ),
                         _buildDetailItem(
                           'Year of Passing',
-                          data['diploma_year_pass'],
+                          data['twelfth_year_pass'],
                         ),
                       ],
-                onEdit: () => _startEditing('Diploma (If applicable)', data),
-                onSave: () => _saveSection('Diploma (If applicable)', data),
+                onEdit: () => _startEditing('12th Standard', data),
+                onSave: () => _saveSection('12th Standard', data),
                 onCancel: _cancelEditing,
               ),
+
+            // Show 12th as NA if diploma student
+            if (_hasDiplomaData(data))
+              _buildSectionCard('12th Standard', [
+                _buildDetailItem('Status', 'N/A (Diploma Student)'),
+              ]),
+
+            // Diploma - always visible
+            _buildSectionCard(
+              'Diploma',
+              _editingSection == 'Diploma'
+                  ? [
+                      _buildEditTextField(
+                        controller: _diplomaMarkController,
+                        label: 'Percentage',
+                        type: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      _buildEditTextField(
+                        controller: _diplomaInstitutionController,
+                        label: 'Institution',
+                      ),
+                      _buildEditTextField(
+                        controller: _diplomaYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
+                      ),
+                    ]
+                  : _hasDiplomaData(data)
+                  ? [
+                      _buildDetailItem(
+                        'Mark',
+                        '${_formatValue(data['diploma_mark'])}%',
+                      ),
+                      _buildDetailItem(
+                        'Institution',
+                        data['diploma_institution'],
+                      ),
+                      _buildDetailItem(
+                        'Year of Passing',
+                        data['diploma_year_pass'],
+                      ),
+                    ]
+                  : [_buildDetailItem('Status', 'N/A')],
+              onEdit: () => _startEditing('Diploma', data),
+              onSave: () => _saveSection('Diploma', data),
+              onCancel: _cancelEditing,
+            ),
 
             // UG
             _buildSectionCard(
@@ -1817,6 +1854,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         type: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
+                      ),
+                      _buildEditTextField(
+                        controller: _ugYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
                       ),
                       const Padding(
                         padding: EdgeInsets.only(bottom: 8),
@@ -1847,6 +1889,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ]
                   : [
                       _buildDetailItem('CGPA', data['ug_cgpa']),
+                      _buildDetailItem('Year of Passing', data['ug_year_pass']),
                       const SizedBox(height: 12),
                       Text(
                         'Semester GPAs',
@@ -1893,6 +1936,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             decimal: true,
                           ),
                         ),
+                        _buildEditTextField(
+                          controller: _pgYearPassController,
+                          label: 'Year of Passing',
+                          type: TextInputType.number,
+                        ),
                         const Padding(
                           padding: EdgeInsets.only(bottom: 8),
                           child: Text(
@@ -1922,6 +1970,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ]
                     : [
                         _buildDetailItem('CGPA', data['pg_cgpa']),
+                        _buildDetailItem(
+                          'Year of Passing',
+                          data['pg_year_pass'],
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           'Semester GPAs',

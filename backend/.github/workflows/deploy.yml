@@ -23,8 +23,8 @@ jobs:
         # 1. Stop old containers and remove orphans
         docker compose down --remove-orphans || true
 
-        # 2. Force remove containers with fixed names to prevent conflicts
-        docker rm -f local_storage local_db redis_cache caddy auth_service drive_service student_service admin_service analytics_service chat_service garage_init || true
+        # 2. Force remove ALL named containers to prevent conflicts
+        docker rm -f local_storage local_db redis_cache caddy auth_service drive_service student_service admin_service analytics_service chat_service garage_init db_migrations node_exporter cadvisor prometheus grafana pgadmin postgres_exporter redis_exporter logs || true
 
         # 3. Rebuild all service images
         docker compose build --no-cache

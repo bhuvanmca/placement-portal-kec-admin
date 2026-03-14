@@ -12,8 +12,15 @@ class OnboardingState {
   // Academic
   final double? tenthMark;
   final double? twelfthMark;
+  final double? diplomaMark;
   final double? ugCgpa;
   final double? pgCgpa;
+  final bool isDiplomaStudent;
+  final int? tenthYearPass;
+  final int? twelfthYearPass;
+  final int? diplomaYearPass;
+  final int? ugYearPass;
+  final int? pgYearPass;
 
   // Address
   final String? addressLine1;
@@ -36,8 +43,15 @@ class OnboardingState {
     this.placementWillingness = 'Interested',
     this.tenthMark,
     this.twelfthMark,
+    this.diplomaMark,
     this.ugCgpa,
     this.pgCgpa,
+    this.isDiplomaStudent = false,
+    this.tenthYearPass,
+    this.twelfthYearPass,
+    this.diplomaYearPass,
+    this.ugYearPass,
+    this.pgYearPass,
     this.socialLinks,
     this.addressLine1,
     this.addressLine2,
@@ -55,8 +69,15 @@ class OnboardingState {
     String? placementWillingness,
     double? tenthMark,
     double? twelfthMark,
+    double? diplomaMark,
     double? ugCgpa,
     double? pgCgpa,
+    bool? isDiplomaStudent,
+    int? tenthYearPass,
+    int? twelfthYearPass,
+    int? diplomaYearPass,
+    int? ugYearPass,
+    int? pgYearPass,
     Map<String, String>? socialLinks,
     String? addressLine1,
     String? addressLine2,
@@ -73,8 +94,15 @@ class OnboardingState {
       placementWillingness: placementWillingness ?? this.placementWillingness,
       tenthMark: tenthMark ?? this.tenthMark,
       twelfthMark: twelfthMark ?? this.twelfthMark,
+      diplomaMark: diplomaMark ?? this.diplomaMark,
       ugCgpa: ugCgpa ?? this.ugCgpa,
       pgCgpa: pgCgpa ?? this.pgCgpa,
+      isDiplomaStudent: isDiplomaStudent ?? this.isDiplomaStudent,
+      tenthYearPass: tenthYearPass ?? this.tenthYearPass,
+      twelfthYearPass: twelfthYearPass ?? this.twelfthYearPass,
+      diplomaYearPass: diplomaYearPass ?? this.diplomaYearPass,
+      ugYearPass: ugYearPass ?? this.ugYearPass,
+      pgYearPass: pgYearPass ?? this.pgYearPass,
       socialLinks: socialLinks ?? this.socialLinks,
       addressLine1: addressLine1 ?? this.addressLine1,
       addressLine2: addressLine2 ?? this.addressLine2,
@@ -94,8 +122,15 @@ class OnboardingState {
       'placement_willingness': placementWillingness ?? 'Interested',
       'tenth_mark': tenthMark,
       'twelfth_mark': twelfthMark,
+      'diploma_mark': diplomaMark ?? 0.0,
       'ug_cgpa': ugCgpa,
       'pg_cgpa': pgCgpa ?? 0.0,
+      'is_diploma_student': isDiplomaStudent,
+      'tenth_year_pass': tenthYearPass ?? 0,
+      'twelfth_year_pass': twelfthYearPass ?? 0,
+      'diploma_year_pass': diplomaYearPass ?? 0,
+      'ug_year_pass': ugYearPass ?? 0,
+      'pg_year_pass': pgYearPass ?? 0,
       'social_links': socialLinks ?? {},
       'address_line_1': addressLine1,
       'address_line_2': addressLine2,
@@ -131,8 +166,15 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
               map['placement_willingness'] as String? ?? 'Interested',
           tenthMark: (map['tenth_mark'] as num?)?.toDouble(),
           twelfthMark: (map['twelfth_mark'] as num?)?.toDouble(),
+          diplomaMark: (map['diploma_mark'] as num?)?.toDouble(),
           ugCgpa: (map['ug_cgpa'] as num?)?.toDouble(),
           pgCgpa: (map['pg_cgpa'] as num?)?.toDouble(),
+          isDiplomaStudent: map['is_diploma_student'] as bool? ?? false,
+          tenthYearPass: (map['tenth_year_pass'] as num?)?.toInt(),
+          twelfthYearPass: (map['twelfth_year_pass'] as num?)?.toInt(),
+          diplomaYearPass: (map['diploma_year_pass'] as num?)?.toInt(),
+          ugYearPass: (map['ug_year_pass'] as num?)?.toInt(),
+          pgYearPass: (map['pg_year_pass'] as num?)?.toInt(),
           socialLinks: map['social_links'] != null
               ? Map<String, String>.from(map['social_links'] as Map)
               : null,
@@ -164,12 +206,31 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     _saveToPrefs();
   }
 
-  void updateAcademic(double tenth, double twelfth, double ug, double? pg) {
+  void updateAcademic(
+    double tenth,
+    double twelfth,
+    double ug,
+    double? pg, {
+    double? diploma,
+    bool? isDiploma,
+    int? tenthYearPass,
+    int? twelfthYearPass,
+    int? diplomaYearPass,
+    int? ugYearPass,
+    int? pgYearPass,
+  }) {
     state = state.copyWith(
       tenthMark: tenth,
       twelfthMark: twelfth,
+      diplomaMark: diploma,
       ugCgpa: ug,
       pgCgpa: pg,
+      isDiplomaStudent: isDiploma,
+      tenthYearPass: tenthYearPass,
+      twelfthYearPass: twelfthYearPass,
+      diplomaYearPass: diplomaYearPass,
+      ugYearPass: ugYearPass,
+      pgYearPass: pgYearPass,
     );
     _saveToPrefs();
   }

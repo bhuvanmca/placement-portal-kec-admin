@@ -1,27 +1,13 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'package:flutter/material.dart'; // [NEW] Required for ValueNotifier
+import 'dart:math' hide log;
+import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
-import 'notification_storage_service.dart'; // [NEW]
-
-// CRITICAL: Top-level function for background message handling
-// This runs when app is completely terminated
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Must initialize Firebase again in background isolate
-  // await Firebase.initializeApp(); // Uncomment if needed
-
-  log('Handling background message: ${message.messageId}');
-  log('Title: ${message.notification?.title}');
-  log('Body: ${message.notification?.body}');
-
-  // Notification will be shown automatically by FCM on Android
-  // No need to manually show it here
-}
+import 'notification_storage_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
@@ -29,6 +15,9 @@ class NotificationService {
 
   // Notifier to trigger UI refresh
   static final ValueNotifier<bool> refreshTrigger = ValueNotifier(false);
+
+  // Random for unique notification IDs
+  static final Random _random = Random();
 
   // Initialize Notification Service
   static Future<void> initialize() async {
@@ -43,24 +32,42 @@ class NotificationService {
       return;
     }
 
-    // 2. Initialize Local Notifications (for foreground display)
+    // 2. Create Android notification channel
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'placement_channel',
+      'Placement Updates',
+      description: 'Notifications for new placement drives',
+      importance: Importance.max,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(channel);
+
+    // 3. Initialize Local Notifications (for foreground display)
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // Note: iOS setup requires more config in AppDelegate, skipping for minimal implementation
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings();
+
     const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
 
     await _localNotifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (details) {
-        // Handle notification tap
         log('Notification clicked: ${details.payload}');
-        // You can use a router/navigator key to navigate here
+        _handleNotificationTap(details.payload);
       },
     );
 
-    // 3. Handle Foreground Messages
+    // 4. Handle Foreground Messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       log('Received foreground message: ${message.notification?.title}');
 
@@ -72,26 +79,88 @@ class NotificationService {
       _showLocalNotification(message);
     });
 
-    // 5. Listen for token refreshes
+    // 5. Handle notification tap when app is in background (not terminated)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      log(
+        'Notification opened app from background: ${message.notification?.title}',
+      );
+
+      // Save to storage in case it wasn't saved by background handler
+      NotificationStorageService.saveNotification(message);
+
+      refreshTrigger.value = !refreshTrigger.value;
+    });
+
+    // 6. Check if app was opened from a terminated state via notification
+    RemoteMessage? initialMessage = await FirebaseMessaging.instance
+        .getInitialMessage();
+    if (initialMessage != null) {
+      log(
+        'App opened from terminated state via notification: ${initialMessage.notification?.title}',
+      );
+
+      // Save to storage
+      NotificationStorageService.saveNotification(initialMessage);
+
+      refreshTrigger.value = !refreshTrigger.value;
+    }
+
+    // 7. Listen for token refreshes
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
       _sendTokenToBackend(newToken);
     });
   }
 
+  // Handle notification tap navigation
+  static void _handleNotificationTap(String? payload) {
+    if (payload == null) return;
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final type = data['type'];
+      if (type == 'new_drive') {
+        // Trigger a refresh so drives screen updates
+        refreshTrigger.value = !refreshTrigger.value;
+      }
+    } catch (e) {
+      log('Error parsing notification payload: $e');
+    }
+  }
+
   // Show Local Notification
   static Future<void> _showLocalNotification(RemoteMessage message) async {
     RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
 
-    if (notification != null && android != null) {
-      await showNotification(notification.title ?? '', notification.body ?? '');
+    if (notification != null) {
+      // Pass data as payload for tap handling
+      String? payload;
+      if (message.data.isNotEmpty) {
+        payload = jsonEncode(message.data);
+      }
+
+      await _localNotifications.show(
+        _random.nextInt(100000), // Unique ID to avoid collisions
+        notification.title ?? '',
+        notification.body ?? '',
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'placement_channel',
+            'Placement Updates',
+            channelDescription: 'Notifications for new placement drives',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        payload: payload,
+      );
     }
   }
 
   // Public method to show notification
   static Future<void> showNotification(String title, String body) async {
     await _localNotifications.show(
-      DateTime.now().millisecond, // Unique ID
+      _random.nextInt(100000),
       title,
       body,
       const NotificationDetails(
@@ -103,6 +172,7 @@ class NotificationService {
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
         ),
+        iOS: DarwinNotificationDetails(),
       ),
     );
   }

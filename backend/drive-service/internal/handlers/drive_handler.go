@@ -208,6 +208,30 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 		}
 	}(drive)
 
+	// F. Send Email Notification to Eligible Students (Async)
+	go func(d models.PlacementDrive) {
+		emails, err := repo.GetEligibleStudentEmails(context.Background(), d)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to fetch eligible emails: %v\n", err)
+			return
+		}
+
+		if len(emails) == 0 {
+			fmt.Println("Email: No eligible students with emails found.")
+			return
+		}
+
+		driveDate := d.DriveDate.Format("02 Jan 2006")
+		deadline := d.DeadlineDate.Format("02 Jan 2006, 3:04 PM")
+
+		err = utils.SendDriveNotificationEmails(emails, d.CompanyName, d.JobDescription, driveDate, deadline)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to send emails: %v\n", err)
+		} else {
+			fmt.Printf("Email Sent: Drive notification sent to %d eligible students.\n", len(emails))
+		}
+	}(drive)
+
 	// F. Send WhatsApp Broadcast (Async) - DISABLED (Unimplemented/Token errors)
 	/*
 		go func(d models.PlacementDrive) {
@@ -1225,13 +1249,21 @@ func (h *DriveHandler) ApplyForDrive(c *fiber.Ctx) error {
 	success, message, err := repo.ApplyForDrive(c.Context(), studentID, driveID, input.RoleIDs, false)
 
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Internal Server Error: " + err.Error()})
+		errMsg := "Failed to process application"
+		if message != "" {
+			errMsg = message
+		}
+		fmt.Printf("ApplyForDrive Error for student %d, drive %d: %s: %v\n", studentID, driveID, errMsg, err)
+		return c.Status(500).JSON(fiber.Map{"error": errMsg, "message": errMsg})
 	}
 
 	if !success {
 		// Return 400 Bad Request if logic failed (e.g., Low CGPA, Deadline passed)
 		return c.Status(400).JSON(fiber.Map{"success": false, "message": message})
 	}
+
+	// Invalidate cached drive listings so the student sees updated application_status
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
 
 	return c.JSON(fiber.Map{"success": true, "message": message})
 }
@@ -1263,8 +1295,13 @@ func (h *DriveHandler) OptOutDrive(c *fiber.Ctx) error {
 
 	repo := h.repo
 	if err := repo.WithdrawApplication(c.Context(), studentID, driveID, input.Reason); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to withdraw: " + err.Error()})
+		errMsg := err.Error()
+		fmt.Printf("OptOutDrive Error for student %d, drive %d: %v\n", studentID, driveID, err)
+		return c.Status(500).JSON(fiber.Map{"error": errMsg, "message": errMsg})
 	}
+
+	// Invalidate cached drive listings so the student sees updated application_status
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
 
 	return c.JSON(fiber.Map{"success": true, "message": "Successfully withdrawn from drive"})
 }

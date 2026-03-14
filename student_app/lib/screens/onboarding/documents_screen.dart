@@ -128,6 +128,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'twelfth_mark': state.twelfthMark ?? 0.0,
         'ug_cgpa': state.ugCgpa ?? 0.0,
         'pg_cgpa': state.pgCgpa ?? 0.0,
+        'tenth_year_pass': state.tenthYearPass ?? 0,
+        'twelfth_year_pass': state.twelfthYearPass ?? 0,
+        'diploma_year_pass': state.diplomaYearPass ?? 0,
+        'ug_year_pass': state.ugYearPass ?? 0,
+        'pg_year_pass': state.pgYearPass ?? 0,
         'social_links': state.socialLinks ?? {},
         'placement_willingness': state.placementWillingness ?? 'Interested',
         // Documents & Identity

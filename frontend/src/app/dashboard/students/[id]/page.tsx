@@ -440,7 +440,7 @@ export default function StudentProfilePage({
                       Schooling
                     </h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                       <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
                         Secondary (10th)
@@ -486,7 +486,7 @@ export default function StudentProfilePage({
 
                     <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                       <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
-                        Higher Secondary / Diploma
+                        Higher Secondary (12th)
                       </h4>
                       <div className="space-y-4">
                         {student.twelfth_mark > 0 ? (
@@ -507,8 +507,45 @@ export default function StudentProfilePage({
                                 {student.twelfth_board}
                               </span>
                             </div>
+                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                              <span className="text-sm text-gray-500 font-medium">
+                                Institution
+                              </span>
+                              <span
+                                className="text-sm font-semibold text-gray-700 truncate max-w-50"
+                                title={student.twelfth_institution}
+                              >
+                                {student.twelfth_institution || "-"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-500 font-medium">
+                                Year of Passing
+                              </span>
+                              <span className="text-sm font-semibold text-gray-700">
+                                {student.twelfth_year_pass}
+                              </span>
+                            </div>
                           </>
                         ) : (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500 font-medium">
+                              Status
+                            </span>
+                            <span className="text-sm font-semibold text-amber-600">
+                              N/A (Diploma Student)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
+                        Diploma
+                      </h4>
+                      <div className="space-y-4">
+                        {student.diploma_mark > 0 ? (
                           <>
                             <div className="flex justify-between items-center border-b border-gray-50 pb-2">
                               <span className="text-sm text-gray-500 font-medium">
@@ -522,21 +559,32 @@ export default function StudentProfilePage({
                               <span className="text-sm text-gray-500 font-medium">
                                 Institution
                               </span>
-                              <span className="text-sm font-semibold text-gray-700 truncate max-w-[150px]">
-                                {student.diploma_institution}
+                              <span
+                                className="text-sm font-semibold text-gray-700 truncate max-w-50"
+                                title={student.diploma_institution}
+                              >
+                                {student.diploma_institution || "-"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-500 font-medium">
+                                Year of Passing
+                              </span>
+                              <span className="text-sm font-semibold text-gray-700">
+                                {student.diploma_year_pass}
                               </span>
                             </div>
                           </>
+                        ) : (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500 font-medium">
+                              Status
+                            </span>
+                            <span className="text-sm font-semibold text-gray-400">
+                              N/A
+                            </span>
+                          </div>
                         )}
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-500 font-medium">
-                            Year of Passing
-                          </span>
-                          <span className="text-sm font-semibold text-gray-700">
-                            {student.twelfth_year_pass ||
-                              student.diploma_year_pass}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>

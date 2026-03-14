@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/placement-portal-kec/drive-service/internal/models"
 )
@@ -998,6 +1000,44 @@ func (r *DriveRepository) GetEligibleStudentTokens(ctx context.Context, drive mo
 	return tokens, nil
 }
 
+// GetEligibleStudentEmails fetches email addresses of students matching drive's batch + department
+func (r *DriveRepository) GetEligibleStudentEmails(ctx context.Context, drive models.PlacementDrive) ([]string, error) {
+	query := `
+		SELECT u.email 
+		FROM public.users u
+		JOIN student.student_personal sp ON u.id = sp.user_id
+		WHERE u.role = 'student' 
+		AND u.is_active = true 
+		AND u.email IS NOT NULL 
+		AND u.email != ''
+		AND (sp.placement_willingness IS NULL OR sp.placement_willingness = 'Interested')
+		AND ($1::text[] IS NULL OR cardinality($1::text[]) = 0 OR sp.department = ANY($1::text[]))
+		AND ($2::int[] IS NULL OR cardinality($2::int[]) = 0 OR sp.batch_year = ANY($2::int[]))
+		AND ($3::boolean = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da WHERE da.student_id = u.id AND da.status = 'placed'))
+		AND NOT u.id = ANY($4::bigint[])
+	`
+
+	rows, err := r.DB.Query(ctx, query,
+		drive.EligibleDepartments,
+		drive.EligibleBatches,
+		drive.AllowPlacedCandidates,
+		drive.ExcludedStudentIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var emails []string
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err == nil {
+			emails = append(emails, email)
+		}
+	}
+	return emails, nil
+}
+
 // GetEligibleStudentPhoneNumbers fetches mobile numbers of students matching drive's batch + department
 func (r *DriveRepository) GetEligibleStudentPhoneNumbers(ctx context.Context, drive models.PlacementDrive) ([]string, error) {
 	query := `
@@ -1418,6 +1458,8 @@ func (r *DriveRepository) GetDriveRequests(ctx context.Context) ([]models.DriveA
 
 // ApplyForDrive
 func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID int64, roleIDs []int64, forceRegister bool) (bool, string, error) {
+	const maxStatusChanges = 3
+
 	// First, check basic eligibility or if it's force register
 	if !forceRegister {
 		// Example Logic - Skip for brevity
@@ -1434,26 +1476,69 @@ func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID 
 	}
 	defer tx.Rollback(ctx)
 
-	// Check if already applied
-	var exists bool
-	err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM drive_applications WHERE student_id = $1 AND drive_id = $2)", studentID, driveID).Scan(&exists)
-	if err != nil {
-		return false, "", err
+	// Check if application already exists
+	var existingStatus string
+	var changeCount int
+	err = tx.QueryRow(ctx,
+		"SELECT status, COALESCE(status_change_count, 0) FROM drive_applications WHERE student_id = $1 AND drive_id = $2",
+		studentID, driveID).Scan(&existingStatus, &changeCount)
+
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		// Real SQL error (e.g., missing column) — abort immediately
+		return false, "Failed to check application status", err
 	}
 
-	if exists {
-		// Already applied, maybe they are just updating roles? If force register, skip.
+	if err == nil {
+		// Application exists
 		if forceRegister {
 			return true, "Student already registered for this drive", nil
 		}
-		return false, "You have already applied or opted out of this drive.", nil
+
+		if existingStatus == "opted_in" {
+			return false, "You have already applied for this drive.", nil
+		}
+
+		if existingStatus == "opted_out" {
+			// Allow re-opt-in if under the toggle limit
+			if changeCount >= maxStatusChanges {
+				return false, fmt.Sprintf("You have reached the maximum number of status changes (%d) for this drive.", maxStatusChanges), nil
+			}
+
+			// Re-opt-in: update status and increment change count
+			_, err = tx.Exec(ctx, `
+				UPDATE drive_applications
+				SET status = 'opted_in', opt_out_reason = '', remarks = '', status_change_count = status_change_count + 1, updated_at = CURRENT_TIMESTAMP
+				WHERE student_id = $1 AND drive_id = $2`, studentID, driveID)
+			if err != nil {
+				return false, "Failed to re-apply", err
+			}
+
+			// Clear old role selections and insert new ones
+			_, _ = tx.Exec(ctx, "DELETE FROM drive_application_roles WHERE drive_id = $1 AND student_id = $2", driveID, studentID)
+			if len(roleIDs) > 0 {
+				for _, roleID := range roleIDs {
+					_, err = tx.Exec(ctx, "INSERT INTO drive_application_roles (drive_id, student_id, role_id) VALUES ($1, $2, $3)", driveID, studentID, roleID)
+					if err != nil {
+						return false, "Failed to record application roles", err
+					}
+				}
+			}
+
+			if err := tx.Commit(ctx); err != nil {
+				return false, "Transaction failed", err
+			}
+			remaining := maxStatusChanges - changeCount - 1
+			return true, fmt.Sprintf("Successfully re-applied for drive. You have %d status change(s) remaining.", remaining), nil
+		}
+
+		// Other statuses (shortlisted, placed, rejected) - cannot re-apply
+		return false, "Cannot re-apply with current status: " + existingStatus, nil
 	}
 
-	// Insert Application
-	var appID int64
-	err = tx.QueryRow(ctx, `
-		INSERT INTO drive_applications (student_id, drive_id, status)
-		VALUES ($1, $2, 'opted_in') RETURNING student_id`, studentID, driveID).Scan(&appID)
+	// No existing application - insert new one
+	_, err = tx.Exec(ctx, `
+		INSERT INTO drive_applications (student_id, drive_id, status, status_change_count)
+		VALUES ($1, $2, 'opted_in', 0)`, studentID, driveID)
 
 	if err != nil {
 		return false, "Failed to record application", err
@@ -1478,16 +1563,31 @@ func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID 
 
 // WithdrawApplication
 func (r *DriveRepository) WithdrawApplication(ctx context.Context, studentID, driveID int64, reason string) error {
+	const maxStatusChanges = 3
+
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
+	// Check toggle limit before allowing opt-out
+	var changeCount int
+	err = tx.QueryRow(ctx,
+		"SELECT COALESCE(status_change_count, 0) FROM drive_applications WHERE student_id = $1 AND drive_id = $2",
+		studentID, driveID).Scan(&changeCount)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		// Real SQL error — abort immediately
+		return fmt.Errorf("failed to check application status: %w", err)
+	}
+	if err == nil && changeCount >= maxStatusChanges {
+		return fmt.Errorf("you have reached the maximum number of status changes (%d) for this drive", maxStatusChanges)
+	}
+
 	// Update Application
 	tag, err := tx.Exec(ctx, `
 		UPDATE drive_applications
-		SET status = 'opted_out', remarks = $1, opt_out_reason = $1, updated_at = CURRENT_TIMESTAMP
+		SET status = 'opted_out', remarks = $1, opt_out_reason = $1, status_change_count = COALESCE(status_change_count, 0) + 1, updated_at = CURRENT_TIMESTAMP
 		WHERE student_id = $2 AND drive_id = $3`, reason, studentID, driveID)
 
 	if err != nil {

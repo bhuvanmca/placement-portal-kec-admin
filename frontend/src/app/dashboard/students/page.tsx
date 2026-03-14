@@ -176,6 +176,9 @@ export default function StudentsPage() {
       twelfthBoard: false,
       twelfthYear: false,
       diploma: false,
+      diplomaMark: false,
+      diplomaInstitution: false,
+      diplomaYear: false,
       ugYear: false,
       dob: true,
       address: false,
@@ -516,6 +519,21 @@ export default function StudentsPage() {
         key: "twelfthYear",
         header: "12th Year",
         getValue: (s) => s.twelfth_year_pass || 0,
+      },
+      {
+        key: "diplomaMark",
+        header: "Diploma %",
+        getValue: (s) => s.diploma_mark || 0,
+      },
+      {
+        key: "diplomaInstitution",
+        header: "Diploma Institution",
+        getValue: (s) => s.diploma_institution || "N/A",
+      },
+      {
+        key: "diplomaYear",
+        header: "Diploma Year",
+        getValue: (s) => s.diploma_year_pass || 0,
       },
       {
         key: "ugYear",
@@ -1024,6 +1042,58 @@ export default function StudentsPage() {
                 }
               >
                 12th Year
+              </DropdownMenuCheckboxItem>
+
+              <DropdownMenuCheckboxItem
+                onSelect={(e) => e.preventDefault()}
+                checked={visibleColumns.diploma}
+                onCheckedChange={(c: boolean) =>
+                  setVisibleColumns((prev: typeof visibleColumns) => ({
+                    ...prev,
+                    diploma: c,
+                    diplomaMark: c,
+                    diplomaInstitution: c,
+                    diplomaYear: c,
+                  }))
+                }
+              >
+                Diploma (All)
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                onSelect={(e) => e.preventDefault()}
+                checked={visibleColumns.diplomaMark}
+                onCheckedChange={(c: boolean) =>
+                  setVisibleColumns((prev: typeof visibleColumns) => ({
+                    ...prev,
+                    diplomaMark: c,
+                  }))
+                }
+              >
+                Diploma %
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                onSelect={(e) => e.preventDefault()}
+                checked={visibleColumns.diplomaInstitution}
+                onCheckedChange={(c: boolean) =>
+                  setVisibleColumns((prev: typeof visibleColumns) => ({
+                    ...prev,
+                    diplomaInstitution: c,
+                  }))
+                }
+              >
+                Diploma Institution
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                onSelect={(e) => e.preventDefault()}
+                checked={visibleColumns.diplomaYear}
+                onCheckedChange={(c: boolean) =>
+                  setVisibleColumns((prev: typeof visibleColumns) => ({
+                    ...prev,
+                    diplomaYear: c,
+                  }))
+                }
+              >
+                Diploma Year
               </DropdownMenuCheckboxItem>
 
               <DropdownMenuCheckboxItem

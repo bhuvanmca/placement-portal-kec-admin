@@ -68,9 +68,13 @@ class DriveService {
       body: roleIds != null ? jsonEncode({'role_ids': roleIds}) : null,
     );
 
+    debugPrint(
+      '[DriveService] Apply response: ${response.statusCode} ${response.body}',
+    );
+
     if (response.statusCode != 200 && response.statusCode != 201) {
       final body = jsonDecode(response.body);
-      throw Exception(body['message'] ?? 'Failed to apply');
+      throw Exception(body['message'] ?? body['error'] ?? 'Failed to apply');
     }
   }
 
@@ -85,9 +89,13 @@ class DriveService {
       body: reason != null ? jsonEncode({'reason': reason}) : null,
     );
 
+    debugPrint(
+      '[DriveService] OptOut response: ${response.statusCode} ${response.body}',
+    );
+
     if (response.statusCode != 200) {
       final body = jsonDecode(response.body);
-      throw Exception(body['message'] ?? 'Failed to withdraw');
+      throw Exception(body['message'] ?? body['error'] ?? 'Failed to withdraw');
     }
   }
 

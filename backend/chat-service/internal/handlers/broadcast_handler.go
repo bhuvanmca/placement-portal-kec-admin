@@ -26,13 +26,11 @@ func BroadcastMessage(c *fiber.Ctx) error {
 			for _, channel := range req.Channels {
 				switch channel {
 				case "email":
-					// Assuming recipient is an email address
 					if err := utils.SendEmail(recipient, req.Subject, req.Message); err != nil {
 						log.Printf("Failed to send email to %s: %v", recipient, err)
 					}
 				case "whatsapp":
-					// Assuming recipient includes country code or we standardize it
-					// e.g., recipient = "+919876543210"
+					// recipient should include country code, e.g. "919876543210"
 					if err := utils.SendWhatsAppMessage(recipient, req.Message); err != nil {
 						log.Printf("Failed to send whatsapp to %s: %v", recipient, err)
 					}
