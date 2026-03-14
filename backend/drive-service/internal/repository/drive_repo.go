@@ -1487,7 +1487,7 @@ func (r *DriveRepository) WithdrawApplication(ctx context.Context, studentID, dr
 	// Update Application
 	tag, err := tx.Exec(ctx, `
 		UPDATE drive_applications
-		SET status = 'opted_out', remarks = $1, updated_at = CURRENT_TIMESTAMP
+		SET status = 'opted_out', remarks = $1, opt_out_reason = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE student_id = $2 AND drive_id = $3`, reason, studentID, driveID)
 
 	if err != nil {
@@ -1497,8 +1497,8 @@ func (r *DriveRepository) WithdrawApplication(ctx context.Context, studentID, dr
 	if tag.RowsAffected() == 0 {
 		// If application not found, insert as opted out directly
 		_, err = tx.Exec(ctx, `
-			INSERT INTO drive_applications (student_id, drive_id, status, remarks)
-			VALUES ($1, $2, 'opted_out', $3)`, studentID, driveID, reason)
+			INSERT INTO drive_applications (student_id, drive_id, status, remarks, opt_out_reason)
+			VALUES ($1, $2, 'opted_out', $3, $3)`, studentID, driveID, reason)
 		if err != nil {
 			return err
 		}

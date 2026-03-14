@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS drive_applications (
     actioned_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
     actioned_at TIMESTAMP WITH TIME ZONE,
     remarks TEXT,
+    opt_out_reason TEXT DEFAULT '',
     applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (drive_id, student_id)
