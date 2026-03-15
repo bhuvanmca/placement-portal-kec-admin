@@ -1,19 +1,48 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
-import { spocService, Spoc, CreateSpocInput } from '@/services/spoc.service';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Loader2, Search, Users, UserCheck, UserX } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
+import { spocService, Spoc, CreateSpocInput } from "@/services/spoc.service";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  Search,
+  Users,
+  UserCheck,
+  UserX,
+} from "lucide-react";
+import { toast } from "sonner";
 
 export default function SpocDashboardPage() {
   const router = useRouter();
@@ -21,22 +50,22 @@ export default function SpocDashboardPage() {
 
   const [spocs, setSpocs] = useState<Spoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingSpoc, setEditingSpoc] = useState<Spoc | null>(null);
   const [formData, setFormData] = useState<CreateSpocInput>({
-    name: '',
-    designation: '',
-    mobile_number: '',
-    email: '',
+    name: "",
+    designation: "",
+    mobile_number: "",
+    email: "",
   });
 
   useEffect(() => {
-    if (user?.role !== 'super_admin') {
-      router.push('/dashboard');
+    if (user?.role !== "super_admin") {
+      router.push("/dashboard");
       return;
     }
     loadSpocs();
@@ -48,7 +77,7 @@ export default function SpocDashboardPage() {
       const data = await spocService.getAllSpocs();
       setSpocs(data);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to load SPOCs');
+      toast.error(error.response?.data?.error || "Failed to load SPOCs");
     } finally {
       setLoading(false);
     }
@@ -62,7 +91,7 @@ export default function SpocDashboardPage() {
         s.name.toLowerCase().includes(q) ||
         s.designation.toLowerCase().includes(q) ||
         s.email.toLowerCase().includes(q) ||
-        s.mobile_number.includes(q)
+        s.mobile_number.includes(q),
     );
   }, [spocs, searchQuery]);
 
@@ -74,7 +103,7 @@ export default function SpocDashboardPage() {
   }, [spocs]);
 
   const resetForm = () => {
-    setFormData({ name: '', designation: '', mobile_number: '', email: '' });
+    setFormData({ name: "", designation: "", mobile_number: "", email: "" });
   };
 
   const handleAdd = () => {
@@ -95,19 +124,19 @@ export default function SpocDashboardPage() {
 
   const handleSave = async () => {
     if (!formData.name.trim() || !formData.mobile_number.trim()) {
-      toast.error('Name and mobile number are required');
+      toast.error("Name and mobile number are required");
       return;
     }
 
     try {
       setIsSaving(true);
       await spocService.createSpoc(formData);
-      toast.success('SPOC created successfully');
+      toast.success("SPOC created successfully");
       setIsAddDialogOpen(false);
       resetForm();
       loadSpocs();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to create SPOC');
+      toast.error(error.response?.data?.error || "Failed to create SPOC");
     } finally {
       setIsSaving(false);
     }
@@ -116,20 +145,20 @@ export default function SpocDashboardPage() {
   const handleUpdate = async () => {
     if (!editingSpoc) return;
     if (!formData.name.trim() || !formData.mobile_number.trim()) {
-      toast.error('Name and mobile number are required');
+      toast.error("Name and mobile number are required");
       return;
     }
 
     try {
       setIsSaving(true);
       await spocService.updateSpoc(editingSpoc.id, formData);
-      toast.success('SPOC updated successfully');
+      toast.success("SPOC updated successfully");
       setIsEditDialogOpen(false);
       setEditingSpoc(null);
       resetForm();
       loadSpocs();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update SPOC');
+      toast.error(error.response?.data?.error || "Failed to update SPOC");
     } finally {
       setIsSaving(false);
     }
@@ -141,10 +170,10 @@ export default function SpocDashboardPage() {
     try {
       setIsDeleting(true);
       await spocService.deleteSpoc(id);
-      toast.success('SPOC deleted successfully');
+      toast.success("SPOC deleted successfully");
       loadSpocs();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to delete SPOC');
+      toast.error(error.response?.data?.error || "Failed to delete SPOC");
     } finally {
       setIsDeleting(false);
     }
@@ -153,21 +182,23 @@ export default function SpocDashboardPage() {
   const handleToggleStatus = async (spoc: Spoc) => {
     try {
       await spocService.toggleSpocStatus(spoc.id, !spoc.is_active);
-      toast.success(`SPOC ${!spoc.is_active ? 'activated' : 'deactivated'}`);
+      toast.success(`SPOC ${!spoc.is_active ? "activated" : "deactivated"}`);
       loadSpocs();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update status');
+      toast.error(error.response?.data?.error || "Failed to update status");
     }
   };
 
-  if (user?.role !== 'super_admin') return null;
+  if (user?.role !== "super_admin") return null;
 
   return (
     <div className="w-full p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#002147]">SPOC Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-[#002147]">
+            SPOC Dashboard
+          </h1>
           <p className="text-muted-foreground">
             Create and manage Single Points of Contact for placement drives
           </p>
@@ -186,7 +217,9 @@ export default function SpocDashboardPage() {
               <Users className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total SPOCs</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total SPOCs
+              </p>
               <p className="text-2xl font-bold text-[#002147]">{stats.total}</p>
             </div>
           </CardContent>
@@ -197,8 +230,12 @@ export default function SpocDashboardPage() {
               <UserCheck className="h-6 w-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Active</p>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Active
+              </p>
+              <p className="text-2xl font-bold text-green-600">
+                {stats.active}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -208,8 +245,12 @@ export default function SpocDashboardPage() {
               <UserX className="h-6 w-6 text-red-500" />
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Inactive</p>
-              <p className="text-2xl font-bold text-red-500">{stats.inactive}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Inactive
+              </p>
+              <p className="text-2xl font-bold text-red-500">
+                {stats.inactive}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -221,7 +262,9 @@ export default function SpocDashboardPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle>All SPOCs</CardTitle>
-              <CardDescription>View and manage all points of contact</CardDescription>
+              <CardDescription>
+                View and manage all points of contact
+              </CardDescription>
             </div>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -242,8 +285,8 @@ export default function SpocDashboardPage() {
           ) : filteredSpocs.length === 0 ? (
             <div className="text-center p-8 text-muted-foreground">
               {searchQuery
-                ? 'No SPOCs match your search.'
-                : 'No SPOCs found. Create your first SPOC to get started.'}
+                ? "No SPOCs match your search."
+                : "No SPOCs found. Create your first SPOC to get started."}
             </div>
           ) : (
             <div className="rounded-md border">
@@ -262,23 +305,29 @@ export default function SpocDashboardPage() {
                   {filteredSpocs.map((spoc) => (
                     <TableRow key={spoc.id}>
                       <TableCell className="font-medium">{spoc.name}</TableCell>
-                      <TableCell>{spoc.designation || '—'}</TableCell>
+                      <TableCell>{spoc.designation || "—"}</TableCell>
                       <TableCell>{spoc.mobile_number}</TableCell>
-                      <TableCell>{spoc.email || '—'}</TableCell>
+                      <TableCell>{spoc.email || "—"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={spoc.is_active}
                             onCheckedChange={() => handleToggleStatus(spoc)}
                           />
-                          <Badge variant={spoc.is_active ? 'default' : 'secondary'}>
-                            {spoc.is_active ? 'Active' : 'Inactive'}
+                          <Badge
+                            variant={spoc.is_active ? "default" : "secondary"}
+                          >
+                            {spoc.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(spoc)}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(spoc)}
+                          >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
@@ -305,14 +354,18 @@ export default function SpocDashboardPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New SPOC</DialogTitle>
-            <DialogDescription>Enter contact details for the new Single Point of Contact</DialogDescription>
+            <DialogDescription>
+              Enter contact details for the new Single Point of Contact
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Name *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Full Name"
               />
             </div>
@@ -320,7 +373,9 @@ export default function SpocDashboardPage() {
               <Label>Designation</Label>
               <Input
                 value={formData.designation}
-                onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, designation: e.target.value })
+                }
                 placeholder="e.g. Placement Officer"
               />
             </div>
@@ -328,7 +383,9 @@ export default function SpocDashboardPage() {
               <Label>Mobile Number *</Label>
               <Input
                 value={formData.mobile_number}
-                onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, mobile_number: e.target.value })
+                }
                 placeholder="+91..."
               />
             </div>
@@ -337,7 +394,9 @@ export default function SpocDashboardPage() {
               <Input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
                 placeholder="email@example.com"
               />
             </div>
@@ -353,7 +412,7 @@ export default function SpocDashboardPage() {
                   Creating...
                 </>
               ) : (
-                'Create SPOC'
+                "Create SPOC"
               )}
             </Button>
           </DialogFooter>
@@ -372,7 +431,9 @@ export default function SpocDashboardPage() {
               <Label>Name *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Full Name"
               />
             </div>
@@ -380,7 +441,9 @@ export default function SpocDashboardPage() {
               <Label>Designation</Label>
               <Input
                 value={formData.designation}
-                onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, designation: e.target.value })
+                }
                 placeholder="e.g. Placement Officer"
               />
             </div>
@@ -388,7 +451,9 @@ export default function SpocDashboardPage() {
               <Label>Mobile Number *</Label>
               <Input
                 value={formData.mobile_number}
-                onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, mobile_number: e.target.value })
+                }
                 placeholder="+91..."
               />
             </div>
@@ -397,13 +462,18 @@ export default function SpocDashboardPage() {
               <Input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
                 placeholder="email@example.com"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleUpdate} disabled={isSaving}>
@@ -413,7 +483,7 @@ export default function SpocDashboardPage() {
                   Updating...
                 </>
               ) : (
-                'Update SPOC'
+                "Update SPOC"
               )}
             </Button>
           </DialogFooter>
