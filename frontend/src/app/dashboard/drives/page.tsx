@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -64,13 +64,20 @@ export default function DriveListPage() {
     }
   };
 
-  // Handle pagination change
+  const isInitialMount = useRef(true);
+
+  // Initial load + pagination change
   useEffect(() => {
     fetchDrives(currentPage, searchTerm);
   }, [currentPage]);
 
-  // Handle search with debounce
+  // Handle search with debounce (skip initial mount to avoid double fetch)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     const delayDebounceFn = setTimeout(() => {
       if (currentPage === 1) {
         fetchDrives(1, searchTerm);

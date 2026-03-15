@@ -1458,7 +1458,7 @@ func (r *DriveRepository) GetDriveRequests(ctx context.Context) ([]models.DriveA
 
 // ApplyForDrive
 func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID int64, roleIDs []int64, forceRegister bool) (bool, string, error) {
-	const maxStatusChanges = 3
+	const maxStatusChanges = 10
 
 	// First, check basic eligibility or if it's force register
 	if !forceRegister {
@@ -1563,7 +1563,7 @@ func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID 
 
 // WithdrawApplication
 func (r *DriveRepository) WithdrawApplication(ctx context.Context, studentID, driveID int64, reason string) error {
-	const maxStatusChanges = 3
+	const maxStatusChanges = 10
 
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {

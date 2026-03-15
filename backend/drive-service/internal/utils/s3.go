@@ -477,10 +477,43 @@ func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, e
 	return presignResult.URL, nil
 }
 
+// isInternalStorageURL checks whether a URL belongs to our Garage storage.
+// External URLs (e.g. Logo.dev, third-party CDNs) are returned false.
+func isInternalStorageURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" || u.Scheme == "" {
+		return true // relative path or unparseable — treat as internal
+	}
+	host := u.Host
+	for _, endpoint := range []string{
+		os.Getenv("PUBLIC_DOMAIN"),
+		os.Getenv("GARAGE_PUBLIC_URL"),
+	} {
+		if endpoint == "" {
+			continue
+		}
+		if parsed, err := url.Parse(endpoint); err == nil && parsed.Host == host {
+			return true
+		}
+	}
+	if ge := os.Getenv("GARAGE_ENDPOINT"); ge != "" && host == ge {
+		return true
+	}
+	if strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "127.0.0.1") || strings.HasPrefix(host, "garage") {
+		return true
+	}
+	return false
+}
+
 // GenerateSignedProfileURL takes a stored DB URL and returns a browser-accessible URL
 func GenerateSignedProfileURL(originalURL string) string {
 	if originalURL == "" {
 		return ""
+	}
+
+	// External URLs (e.g. Logo.dev) should not be transformed
+	if !isInternalStorageURL(originalURL) {
+		return originalURL
 	}
 
 	bucket, key := ExtractBucketAndKeyFromURL(originalURL)

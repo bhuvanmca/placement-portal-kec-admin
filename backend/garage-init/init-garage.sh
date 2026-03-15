@@ -62,5 +62,41 @@ echo "Enforcing read/write permissions..."
 garage -h "$REMOTE_ID" bucket allow "$GARAGE_BUCKET" --read --write --key "$GARAGE_ACCESS_KEY" || echo "Permissions already set."
 garage -h "$REMOTE_ID" bucket allow "$GARAGE_CHAT_BUCKET" --read --write --key "$GARAGE_ACCESS_KEY" || echo "Permissions already set."
 
+# Step 8: Set Public Read Policy on Main Bucket (for resumes, drive attachments, logos)
+# Chat bucket remains private (requires presigned URLs)
+echo "Setting public read policy on main bucket..."
+PUBLIC_POLICY=$(cat <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::${GARAGE_BUCKET}/*"]
+    }
+  ]
+}
+EOF
+)
+
+# Use the Garage admin API to set the bucket website/policy
+# Garage supports anonymous access via bucket policies
+wget -q -O /dev/null --method PUT \
+  --header "Authorization: Bearer $GARAGE_ADMIN_TOKEN" \
+  --header "Content-Type: application/json" \
+  --body-data "{\"websiteAccess\":{\"enabled\":true,\"indexDocument\":\"index.html\",\"errorDocument\":\"\"}}" \
+  "http://garage:3903/v1/bucket?id=$(wget -qO- --header "Authorization: Bearer $GARAGE_ADMIN_TOKEN" "http://garage:3903/v1/bucket?globalAlias=$GARAGE_BUCKET" | grep -oE '"id":"[^"]+' | cut -d'"' -f4)" \
+  || echo "Website config skipped."
+
+# Apply the public read bucket policy using S3 API
+# We use the access key to authenticate this API call
+export AWS_ACCESS_KEY_ID="$GARAGE_ACCESS_KEY"
+export AWS_SECRET_ACCESS_KEY="$GARAGE_SECRET_KEY"
+
+# Use wget with S3-style auth to set bucket policy
+# Simpler approach: use garage CLI to allow anonymous read
+garage -h "$REMOTE_ID" bucket website "$GARAGE_BUCKET" --allow || echo "Website access already enabled."
+
 echo "Garage setup finalized. System ready."
 exit 0
