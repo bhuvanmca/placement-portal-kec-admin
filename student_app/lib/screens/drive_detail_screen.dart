@@ -303,11 +303,16 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
 
       final client = http.Client();
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('token');
         final request = http.Request('GET', Uri.parse(downloadUrl));
-        if (token != null && token.isNotEmpty) {
-          request.headers['Authorization'] = 'Bearer $token';
+        // Only add auth header for API endpoints, NOT for storage URLs.
+        // Garage S3 API rejects non-S3 Authorization headers with 400.
+        final isStorageUrl = downloadUrl.contains('/storage/');
+        if (!isStorageUrl) {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('token');
+          if (token != null && token.isNotEmpty) {
+            request.headers['Authorization'] = 'Bearer $token';
+          }
         }
 
         final streamedResponse = await client.send(request);

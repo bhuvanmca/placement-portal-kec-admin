@@ -43,8 +43,11 @@ export const settingsService = {
   },
 
   // Handle request (approve/reject)
-  handleRequest: async (id: number, action: 'approve' | 'reject') => {
-    const response = await api.post(`${API_ROUTES.SETTINGS.REQUESTS}/${id}?action=${action}`);
+  handleRequest: async (id: number, action: 'approve' | 'reject', rejectionReason?: string) => {
+    const response = await api.put(`${API_ROUTES.SETTINGS.REQUESTS}/${id}`, {
+      action,
+      rejection_reason: rejectionReason
+    });
     return response.data;
   }
 };

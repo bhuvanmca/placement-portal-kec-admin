@@ -733,6 +733,34 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 		}
 	}(*drive)
 
+	// G. Send Email Notification to Eligible Students on Update (Async)
+	go func(d models.PlacementDrive) {
+		emails, err := repo.GetEligibleStudentEmails(context.Background(), d)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to fetch eligible emails for update: %v\n", err)
+			return
+		}
+		if len(emails) == 0 {
+			return
+		}
+
+		driveDate := ""
+		if !d.DriveDate.IsZero() {
+			driveDate = d.DriveDate.Format("02 Jan 2006")
+		}
+		deadline := ""
+		if !d.DeadlineDate.IsZero() {
+			deadline = d.DeadlineDate.Format("02 Jan 2006, 3:04 PM")
+		}
+
+		summary := fmt.Sprintf("The drive by %s has been updated. Please check the app for the latest details.", d.CompanyName)
+		if err := utils.SendDriveUpdateEmails(emails, d.CompanyName, summary, driveDate, deadline); err != nil {
+			fmt.Printf("Email Error: Failed to send update emails: %v\n", err)
+		} else {
+			fmt.Printf("Email Sent: Drive update notification sent to %d eligible students.\n", len(emails))
+		}
+	}(*drive)
+
 	// Invalidate Cache
 	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
 	services.InvalidateCacheByPrefix(c.Context(), "api:admin:drives:")

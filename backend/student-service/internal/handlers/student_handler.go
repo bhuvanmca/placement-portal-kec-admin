@@ -316,6 +316,22 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	// Invalidate cached profile
 	services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", userID))
 
+	// Send profile update confirmation email (async)
+	go func() {
+		user, err := h.userRepo.GetUserByID(c.Context(), userID)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to fetch user %d for profile update email: %v\n", userID, err)
+			return
+		}
+		name := ""
+		if user.Name != nil {
+			name = *user.Name
+		}
+		if err := utils.SendProfileUpdateEmail(user.Email, name); err != nil {
+			fmt.Printf("Email Error: Failed to send profile update email to %s: %v\n", user.Email, err)
+		}
+	}()
+
 	return c.JSON(fiber.Map{"message": "Profile updated successfully. Some changes may require approval."})
 }
 
