@@ -78,6 +78,11 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
             dob = NULLIF($8, '')::date,
             pan_number = $9, aadhar_number = $10,
             gender = COALESCE(NULLIF($11, ''), student_personal.gender),
+            first_name = COALESCE(NULLIF($13, ''), student_personal.first_name),
+            middle_name = COALESCE(NULLIF($14, ''), student_personal.middle_name),
+            last_name = COALESCE(NULLIF($15, ''), student_personal.last_name),
+            father_name = COALESCE(NULLIF($16, ''), student_personal.father_name),
+            mother_name = COALESCE(NULLIF($17, ''), student_personal.mother_name),
             updated_at = NOW()
         WHERE user_id = $12
     `
@@ -88,7 +93,9 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 		input.Dob,
 		input.PanNumber, input.AadharNumber,
 		input.Gender,
-		userID); err != nil {
+		userID,
+		input.FirstName, input.MiddleName, input.LastName,
+		input.FatherName, input.MotherName); err != nil {
 		return fmt.Errorf("failed to update personal info: %w", err)
 	}
 
@@ -216,12 +223,14 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 
 	// Update Resume in student_documents
 	queryDocs := `
-		INSERT INTO student_documents (user_id, resume_url)
-		VALUES ($1, $2)
+		INSERT INTO student_documents (user_id, resume_url, aadhar_card_url, pan_card_url)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (user_id) DO UPDATE SET
-			resume_url = COALESCE(NULLIF(EXCLUDED.resume_url, ''), student_documents.resume_url)
+			resume_url = COALESCE(NULLIF(EXCLUDED.resume_url, ''), student_documents.resume_url),
+			aadhar_card_url = COALESCE(NULLIF(EXCLUDED.aadhar_card_url, ''), student_documents.aadhar_card_url),
+			pan_card_url = COALESCE(NULLIF(EXCLUDED.pan_card_url, ''), student_documents.pan_card_url)
 	`
-	if _, err := tx.Exec(ctx, queryDocs, userID, input.ResumeURL); err != nil {
+	if _, err := tx.Exec(ctx, queryDocs, userID, input.ResumeURL, input.AadharCardURL, input.PanCardURL); err != nil {
 		return fmt.Errorf("failed to update documents: %w", err)
 	}
 
@@ -249,6 +258,8 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
             COALESCE(sp.address_line_1, ''), COALESCE(sp.address_line_2, ''), COALESCE(sp.state, ''),
             COALESCE(sp.pan_number, ''), COALESCE(sp.aadhar_number, ''),
             COALESCE(sp.social_links, '{}'::jsonb), COALESCE(sp.language_skills, '[]'::jsonb),
+            COALESCE(sp.first_name, ''), COALESCE(sp.middle_name, ''), COALESCE(sp.last_name, ''),
+            COALESCE(sp.father_name, ''), COALESCE(sp.mother_name, ''),
 
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
@@ -266,6 +277,7 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
             COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.institution, ''), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb),
 
             COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
+            COALESCE(sd.aadhar_card_url, ''), COALESCE(sd.pan_card_url, ''),
             sd.resume_updated_at
         FROM users u
         LEFT JOIN student_personal sp ON u.id = sp.user_id
@@ -291,6 +303,8 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 		&s.AddressLine1, &s.AddressLine2, &s.State,
 		&s.PanNumber, &s.AadharNumber,
 		&socialLinksBytes, &languageSkillsBytes,
+		&s.FirstName, &s.MiddleName, &s.LastName,
+		&s.FatherName, &s.MotherName,
 
 		&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 		&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
@@ -303,6 +317,7 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 		&s.PgYearPass, &s.PgInstitution, &s.PgCgpa, &pgSemesterGpasBytes,
 
 		&s.ResumeURL, &s.ProfilePhotoURL,
+		&s.AadharCardURL, &s.PanCardURL,
 		&s.ResumeUpdatedAt,
 	)
 	if err != nil {

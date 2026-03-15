@@ -3,6 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingState {
+  // Basic Information
+  final String? firstName;
+  final String? middleName;
+  final String? lastName;
+  final String? fatherName;
+  final String? motherName;
+
   // Contact
   final String? mobileNumber;
   final String? dob;
@@ -35,8 +42,15 @@ class OnboardingState {
   final String? resumeUrl;
   final String? aadharNumber;
   final String? panNumber;
+  final String? aadharDocUrl;
+  final String? panDocUrl;
 
   OnboardingState({
+    this.firstName,
+    this.middleName,
+    this.lastName,
+    this.fatherName,
+    this.motherName,
     this.mobileNumber,
     this.dob,
     this.gender,
@@ -60,9 +74,16 @@ class OnboardingState {
     this.resumeUrl,
     this.aadharNumber,
     this.panNumber,
+    this.aadharDocUrl,
+    this.panDocUrl,
   });
 
   OnboardingState copyWith({
+    String? firstName,
+    String? middleName,
+    String? lastName,
+    String? fatherName,
+    String? motherName,
     String? mobileNumber,
     String? dob,
     String? gender,
@@ -86,8 +107,15 @@ class OnboardingState {
     String? resumeUrl,
     String? aadharNumber,
     String? panNumber,
+    String? aadharDocUrl,
+    String? panDocUrl,
   }) {
     return OnboardingState(
+      firstName: firstName ?? this.firstName,
+      middleName: middleName ?? this.middleName,
+      lastName: lastName ?? this.lastName,
+      fatherName: fatherName ?? this.fatherName,
+      motherName: motherName ?? this.motherName,
       mobileNumber: mobileNumber ?? this.mobileNumber,
       dob: dob ?? this.dob,
       gender: gender ?? this.gender,
@@ -111,11 +139,18 @@ class OnboardingState {
       resumeUrl: resumeUrl ?? this.resumeUrl,
       aadharNumber: aadharNumber ?? this.aadharNumber,
       panNumber: panNumber ?? this.panNumber,
+      aadharDocUrl: aadharDocUrl ?? this.aadharDocUrl,
+      panDocUrl: panDocUrl ?? this.panDocUrl,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'first_name': firstName,
+      'middle_name': middleName,
+      'last_name': lastName,
+      'father_name': fatherName,
+      'mother_name': motherName,
       'mobile_number': mobileNumber,
       'dob': dob,
       'gender': gender,
@@ -139,6 +174,8 @@ class OnboardingState {
       'resume_url': resumeUrl,
       'aadhar_number': aadharNumber,
       'pan_number': panNumber,
+      'aadhar_doc_url': aadharDocUrl,
+      'pan_doc_url': panDocUrl,
     };
   }
 }
@@ -159,6 +196,11 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       try {
         final map = jsonDecode(json) as Map<String, dynamic>;
         state = OnboardingState(
+          firstName: map['first_name'] as String?,
+          middleName: map['middle_name'] as String?,
+          lastName: map['last_name'] as String?,
+          fatherName: map['father_name'] as String?,
+          motherName: map['mother_name'] as String?,
           mobileNumber: map['mobile_number'] as String?,
           dob: map['dob'] as String?,
           gender: map['gender'] as String?,
@@ -185,6 +227,8 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
           resumeUrl: map['resume_url'] as String?,
           aadharNumber: map['aadhar_number'] as String?,
           panNumber: map['pan_number'] as String?,
+          aadharDocUrl: map['aadhar_doc_url'] as String?,
+          panDocUrl: map['pan_doc_url'] as String?,
         );
       } catch (_) {
         // Corrupted data, ignore
@@ -195,6 +239,23 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
   Future<void> _saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, jsonEncode(state.toJson()));
+  }
+
+  void updateBasicInfo({
+    required String firstName,
+    String? middleName,
+    required String lastName,
+    required String fatherName,
+    required String motherName,
+  }) {
+    state = state.copyWith(
+      firstName: firstName,
+      middleName: middleName,
+      lastName: lastName,
+      fatherName: fatherName,
+      motherName: motherName,
+    );
+    _saveToPrefs();
   }
 
   void updateContact(String mobile, {String? linkedin, String? github}) {
@@ -261,11 +322,15 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     String? resume,
     String? aadharNumber,
     String? panNumber,
+    String? aadharDocUrl,
+    String? panDocUrl,
   }) {
     state = state.copyWith(
       resumeUrl: resume ?? state.resumeUrl,
       aadharNumber: aadharNumber ?? state.aadharNumber,
       panNumber: panNumber ?? state.panNumber,
+      aadharDocUrl: aadharDocUrl ?? state.aadharDocUrl,
+      panDocUrl: panDocUrl ?? state.panDocUrl,
     );
     _saveToPrefs();
   }

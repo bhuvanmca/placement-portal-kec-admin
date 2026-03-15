@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../utils/formatters.dart';
 import '../../providers/drive_provider.dart';
@@ -300,10 +301,14 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         downloadUrl = 'https://$downloadUrl';
       }
 
-      // Download from public URL — no auth needed, bucket has public read policy
       final client = http.Client();
       try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('token');
         final request = http.Request('GET', Uri.parse(downloadUrl));
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
 
         final streamedResponse = await client.send(request);
 

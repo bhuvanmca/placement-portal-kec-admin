@@ -183,6 +183,8 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
             coalesce(sp.address_line_1, ''), coalesce(sp.address_line_2, ''), coalesce(sp.state, ''),
             coalesce(sp.pan_number, ''), coalesce(sp.aadhar_number, ''),
             coalesce(sp.social_links, '{}'::jsonb), coalesce(sp.language_skills, '[]'::jsonb),
+            coalesce(sp.first_name, ''), coalesce(sp.middle_name, ''), coalesce(sp.last_name, ''),
+            coalesce(sp.father_name, ''), coalesce(sp.mother_name, ''),
             
             -- Schooling
             coalesce(sch.tenth_mark,0), coalesce(sch.tenth_board,''), coalesce(sch.tenth_year_pass,0), coalesce(sch.tenth_institution,''),
@@ -200,6 +202,7 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
             coalesce(d_pg.year_pass, 0), coalesce(d_pg.cgpa, 0), coalesce(d_pg.semester_gpas, '{}'::jsonb),
 
             coalesce(sd.resume_url, ''), coalesce(u.profile_photo_url, ''),
+            coalesce(sd.aadhar_card_url, ''), coalesce(sd.pan_card_url, ''),
             sd.resume_updated_at
         FROM users u
         JOIN student_personal sp ON u.id = sp.user_id
@@ -252,6 +255,8 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
 		&s.AddressLine1, &s.AddressLine2, &s.State,
 		&s.PanNumber, &s.AadharNumber,
 		&socialLinksBytes, &languageSkillsBytes,
+		&s.FirstName, &s.MiddleName, &s.LastName,
+		&s.FatherName, &s.MotherName,
 
 		&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 		&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
@@ -267,6 +272,7 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
 		&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes,
 
 		&s.ResumeURL, &s.ProfilePhotoURL,
+		&s.AadharCardURL, &s.PanCardURL,
 		&s.ResumeUpdatedAt,
 	)
 	if err != nil {
@@ -559,6 +565,8 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
             COALESCE(sp.address_line_1, ''), COALESCE(sp.address_line_2, ''), COALESCE(sp.state, ''),
             COALESCE(sp.pan_number, ''), COALESCE(sp.aadhar_number, ''),
             COALESCE(sp.social_links, '{}'::jsonb), COALESCE(sp.language_skills, '{}'::jsonb),
+            COALESCE(sp.first_name, ''), COALESCE(sp.middle_name, ''), COALESCE(sp.last_name, ''),
+            COALESCE(sp.father_name, ''), COALESCE(sp.mother_name, ''),
 
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
@@ -576,6 +584,7 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
             COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb), COALESCE(d_pg.institution, ''),
 
             COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
+            COALESCE(sd.aadhar_card_url, ''), COALESCE(sd.pan_card_url, ''),
             sd.resume_updated_at
         FROM users u
         JOIN student_personal sp ON u.id = sp.user_id
@@ -615,6 +624,8 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
 			&s.AddressLine1, &s.AddressLine2, &s.State,
 			&s.PanNumber, &s.AadharNumber,
 			&socialLinksBytes, &languageSkillsBytes,
+			&s.FirstName, &s.MiddleName, &s.LastName,
+			&s.FatherName, &s.MotherName,
 
 			&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 			&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
@@ -627,6 +638,7 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
 			&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes, &s.PgInstitution,
 
 			&s.ResumeURL, &s.ProfilePhotoURL,
+			&s.AadharCardURL, &s.PanCardURL,
 			&s.ResumeUpdatedAt,
 		)
 

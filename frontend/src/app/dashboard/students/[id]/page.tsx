@@ -127,7 +127,7 @@ export default function StudentProfilePage({
   };
 
   const handleViewDocument = async (
-    docType: "resume" | "profile_photo",
+    docType: "resume" | "profile_photo" | "aadhar" | "pan",
     url?: string,
   ) => {
     if (!url) return;
@@ -377,6 +377,56 @@ export default function StudentProfilePage({
                   </span>
                 </div>
               </div>
+
+              {/* Name Details */}
+              {(student.first_name ||
+                student.last_name ||
+                student.father_name ||
+                student.mother_name) && (
+                <div className="w-full space-y-3 text-left border-t border-gray-100 pt-4">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    Name Details
+                  </h4>
+                  {(student.first_name ||
+                    student.middle_name ||
+                    student.last_name) && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500 font-medium">
+                        Full Name
+                      </span>
+                      <span className="font-semibold text-gray-700">
+                        {[
+                          student.first_name,
+                          student.middle_name,
+                          student.last_name,
+                        ]
+                          .filter(Boolean)
+                          .join(" ") || "N/A"}
+                      </span>
+                    </div>
+                  )}
+                  {student.father_name && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500 font-medium">
+                        Father&apos;s Name
+                      </span>
+                      <span className="font-semibold text-gray-700">
+                        {student.father_name}
+                      </span>
+                    </div>
+                  )}
+                  {student.mother_name && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500 font-medium">
+                        Mother&apos;s Name
+                      </span>
+                      <span className="font-semibold text-gray-700">
+                        {student.mother_name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <Button
                 className="w-full mt-8 bg-[#002147] hover:bg-[#003366] text-white shadow-sm"
@@ -889,6 +939,7 @@ export default function StudentProfilePage({
                       {
                         name: "Resume",
                         url: student.resume_url,
+                        type: "resume" as const,
                         icon: FileText,
                         color: "text-blue-600",
                         bg: "group-hover:bg-blue-600",
@@ -896,9 +947,26 @@ export default function StudentProfilePage({
                       {
                         name: "Profile Photo",
                         url: student.profile_photo_url,
+                        type: "profile_photo" as const,
                         icon: Users,
                         color: "text-purple-600",
                         bg: "group-hover:bg-purple-600",
+                      },
+                      {
+                        name: "Aadhar Card",
+                        url: student.aadhar_card_url,
+                        type: "aadhar" as const,
+                        icon: FileText,
+                        color: "text-orange-600",
+                        bg: "group-hover:bg-orange-600",
+                      },
+                      {
+                        name: "PAN Card",
+                        url: student.pan_card_url,
+                        type: "pan" as const,
+                        icon: FileText,
+                        color: "text-green-600",
+                        bg: "group-hover:bg-green-600",
                       },
                     ].map((doc, i) => (
                       <div
@@ -922,12 +990,7 @@ export default function StudentProfilePage({
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                              handleViewDocument(
-                                doc.name === "Resume"
-                                  ? "resume"
-                                  : "profile_photo",
-                                doc.url,
-                              )
+                              handleViewDocument(doc.type, doc.url)
                             }
                             className="rounded-full px-4 border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-100"
                           >

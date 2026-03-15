@@ -8,6 +8,7 @@ import '../screens/tabs/drives_screen.dart';
 import '../screens/tabs/placed_screen.dart';
 import '../screens/tabs/profile_screen.dart';
 import '../screens/onboarding/welcome_screen.dart';
+import '../screens/onboarding/basic_info_screen.dart';
 import '../screens/onboarding/contact_details_screen.dart';
 import '../screens/onboarding/academic_details_screen.dart';
 import '../screens/onboarding/address_screen.dart';
@@ -107,6 +108,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/basic-info',
+        builder: (context, state) => const BasicInfoScreen(),
       ),
       GoRoute(
         path: '/onboarding/contact',

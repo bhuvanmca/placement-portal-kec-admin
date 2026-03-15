@@ -1,18 +1,25 @@
-'use client';
-import { useState } from 'react';
-import { useAuth } from '@/context/auth-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Mail, Lock, Loader2, ShieldCheck } from 'lucide-react';
+"use client";
+import { useState } from "react";
+import { useAuth } from "@/context/auth-context";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Mail, Lock, Loader2, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const formSchema = z.object({
@@ -32,16 +39,16 @@ export default function LoginPage() {
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       // Explicitly call with 'admin' type to use admin auth endpoint
-      const success = await login(data, 'admin');
+      const success = await login(data, "admin");
       if (success) {
-        console.log('[LoginPage] Admin Login successful');
+        console.log("[LoginPage] Admin Login successful");
       }
     } catch (err: any) {
       // console.error('[LoginPage] Unexpected login error', err);
-      setError('An unexpected error occurred.');
+      setError(err?.message || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -52,9 +59,9 @@ export default function LoginPage() {
       className="flex items-center justify-center min-h-screen w-full p-4 relative bg-[#f0f4f8]"
       style={{
         backgroundImage: `url('/campus-bg.png')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
       <Card className="w-full max-w-[420px] bg-white border-0 relative z-10 animate-in fade-in zoom-in duration-500 rounded-xl overflow-hidden">
@@ -68,16 +75,22 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-center gap-2">
-              <CardTitle className="text-[#002147] text-3xl font-bold tracking-tight">Admin Portal</CardTitle>
+              <CardTitle className="text-[#002147] text-3xl font-bold tracking-tight">
+                Admin Portal
+              </CardTitle>
             </div>
-            <CardDescription className="text-gray-500">Secure access for Placement Cell</CardDescription>
+            <CardDescription className="text-gray-500">
+              Secure access for Placement Cell
+            </CardDescription>
           </div>
         </CardHeader>
 
         <CardContent className="px-8 pb-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
+              <Label htmlFor="email" className="text-gray-700 font-medium">
+                Email Address
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                 <Input
@@ -88,11 +101,17 @@ export default function LoginPage() {
                   className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#002147] focus:ring-[#002147] transition-all"
                 />
               </div>
-              {errors.email && <p className="text-destructive text-xs font-medium mt-1">{errors.email.message}</p>}
+              {errors.email && (
+                <p className="text-destructive text-xs font-medium mt-1">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+              <Label htmlFor="password" className="text-gray-700 font-medium">
+                Password
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                 <Input
@@ -103,8 +122,17 @@ export default function LoginPage() {
                   className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white focus:border-[#002147] focus:ring-[#002147] transition-all"
                 />
               </div>
-              {errors.password && <p className="text-destructive text-xs font-medium mt-1">{errors.password.message}</p>}
-              <a href="/admin/forgot-password" className="text-xs text-[#002147] hover:underline font-medium">Forgot Password?</a>
+              {errors.password && (
+                <p className="text-destructive text-xs font-medium mt-1">
+                  {errors.password.message}
+                </p>
+              )}
+              <a
+                href="/admin/forgot-password"
+                className="text-xs text-[#002147] hover:underline font-medium"
+              >
+                Forgot Password?
+              </a>
             </div>
 
             {error && (
@@ -125,7 +153,7 @@ export default function LoginPage() {
                   <span>Login</span>
                 </div>
               ) : (
-                'Login'
+                "Login"
               )}
             </Button>
           </form>
@@ -137,7 +165,6 @@ export default function LoginPage() {
           </p>
         </CardFooter>
       </Card>
-
     </div>
   );
 }

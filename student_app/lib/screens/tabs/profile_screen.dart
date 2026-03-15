@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
@@ -40,6 +41,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isSaving = false;
   bool _isUploadingResume = false;
   int _photoVersion = 0;
+  String? _authToken;
 
   // Controllers
   final _mobileController = TextEditingController();
@@ -91,6 +93,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+
+    // Load auth token for authenticated image requests
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) {
+        setState(() {
+          _authToken = prefs.getString('token');
+        });
+      }
+    });
 
     // Init the provider if it's empty, otherwise keep cached
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -548,7 +559,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       final client = http.Client();
       try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('token');
         final request = http.Request('GET', Uri.parse(downloadUrl));
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
 
         final streamedResponse = await client.send(request);
 
@@ -867,9 +883,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               .toString()
                                               .isNotEmpty
                                       ? CachedNetworkImage(
-                                          imageUrl: AppConstants.sanitizeUrl(
-                                            data['profile_photo_url'],
-                                          ),
+                                          imageUrl:
+                                              '${AppConstants.apiBaseUrl}/v1/student/profile-photo',
+                                          httpHeaders: _authToken != null
+                                              ? {
+                                                  'Authorization':
+                                                      'Bearer $_authToken',
+                                                }
+                                              : {},
                                           cacheKey:
                                               'my_profile_photo_$_photoVersion',
                                           fit: BoxFit.cover,

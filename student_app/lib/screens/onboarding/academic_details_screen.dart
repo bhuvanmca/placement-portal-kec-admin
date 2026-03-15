@@ -229,7 +229,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       LinearProgressIndicator(
-                        value: 0.5,
+                        value: 0.45,
                         backgroundColor: Theme.of(context).dividerColor,
                         color: Theme.of(context).colorScheme.primary,
                         minHeight: 4,
@@ -323,8 +323,9 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                           ),
                           validator: (value) {
                             if (_isDiplomaStudent) return null;
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Required';
+                            }
                             final num = double.tryParse(value);
                             if (num == null || num < 0 || num > 100) {
                               return 'Enter valid percentage';
@@ -356,8 +357,9 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                           ),
                           validator: (value) {
                             if (!_isDiplomaStudent) return null;
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Required';
+                            }
                             final num = double.tryParse(value);
                             if (num == null || num < 0 || num > 100) {
                               return 'Enter valid percentage';

@@ -19,6 +19,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   // Store file names for UI display
   String? _resumeName;
   String? _photoName;
+  String? _aadharDocName;
+  String? _panDocName;
 
   final _aadharController = TextEditingController();
   final _panController = TextEditingController();
@@ -38,6 +40,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     }
     if (state.profilePhotoUrl != null && state.profilePhotoUrl!.isNotEmpty) {
       _photoName = "Uploaded (from Profile Pic screen)";
+    }
+    if (state.aadharDocUrl != null && state.aadharDocUrl!.isNotEmpty) {
+      _aadharDocName = "Uploaded";
+    }
+    if (state.panDocUrl != null && state.panDocUrl!.isNotEmpty) {
+      _panDocName = "Uploaded";
     }
 
     // Identity Numbers State
@@ -76,6 +84,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         } else if (type == 'photo') {
           ref.read(onboardingProvider.notifier).updateProfilePhoto(url);
           setState(() => _photoName = file.name);
+        } else if (type == 'aadhar_doc') {
+          ref
+              .read(onboardingProvider.notifier)
+              .updateDocuments(aadharDocUrl: url);
+          setState(() => _aadharDocName = file.name);
+        } else if (type == 'pan_doc') {
+          ref.read(onboardingProvider.notifier).updateDocuments(panDocUrl: url);
+          setState(() => _panDocName = file.name);
         }
 
         if (mounted) {
@@ -116,6 +132,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
       // Construct payload
       final Map<String, dynamic> payload = {
+        // Basic Information
+        'first_name': state.firstName ?? '',
+        'middle_name': state.middleName ?? '',
+        'last_name': state.lastName ?? '',
+        'father_name': state.fatherName ?? '',
+        'mother_name': state.motherName ?? '',
         'mobile_number': state.mobileNumber ?? '',
         'dob': state.dob ?? '',
         'gender': state.gender ?? '',
@@ -140,6 +162,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'resume_url': state.resumeUrl ?? '',
         'aadhar_number': state.aadharNumber ?? '',
         'pan_number': state.panNumber ?? '',
+        'aadhar_doc_url': state.aadharDocUrl ?? '',
+        'pan_doc_url': state.panDocUrl ?? '',
       };
 
       await _studentService.updateProfile(payload);
@@ -357,6 +381,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           'Profile Photo',
                           _photoName,
                           () => _pickFile('photo'),
+                        ),
+                        _buildUploadCard(
+                          'Aadhar Card Document',
+                          _aadharDocName,
+                          () => _pickFile('aadhar_doc'),
+                        ),
+                        _buildUploadCard(
+                          'PAN Card Document',
+                          _panDocName,
+                          () => _pickFile('pan_doc'),
                         ),
                       ],
                     ),

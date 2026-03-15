@@ -7,8 +7,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/placement-portal-kec/admin-service/internal/models"
 )
 
 type DriveRepository struct {
@@ -1174,6 +1174,8 @@ func (r *DriveRepository) GetDriveApplicantsDetailed(ctx context.Context, driveI
             COALESCE(sp.address_line_1, ''), COALESCE(sp.address_line_2, ''), COALESCE(sp.state, ''),
             COALESCE(sp.pan_number, ''), COALESCE(sp.aadhar_number, ''),
             COALESCE(sp.social_links, '{}'::jsonb), COALESCE(sp.language_skills, '{}'::jsonb),
+            COALESCE(sp.first_name, ''), COALESCE(sp.middle_name, ''), COALESCE(sp.last_name, ''),
+            COALESCE(sp.father_name, ''), COALESCE(sp.mother_name, ''),
 
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
@@ -1191,6 +1193,7 @@ func (r *DriveRepository) GetDriveApplicantsDetailed(ctx context.Context, driveI
             COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb),
 
             COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
+            COALESCE(sd.aadhar_card_url, ''), COALESCE(sd.pan_card_url, ''),
             sd.resume_updated_at,
 
 			-- Drive Application Specifics
@@ -1250,6 +1253,8 @@ func (r *DriveRepository) GetDriveApplicantsDetailed(ctx context.Context, driveI
 			&s.AddressLine1, &s.AddressLine2, &s.State,
 			&s.PanNumber, &s.AadharNumber,
 			&socialLinksBytes, &languageSkillsBytes,
+			&s.FirstName, &s.MiddleName, &s.LastName,
+			&s.FatherName, &s.MotherName,
 
 			&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 			&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
@@ -1262,6 +1267,7 @@ func (r *DriveRepository) GetDriveApplicantsDetailed(ctx context.Context, driveI
 			&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes,
 
 			&s.ResumeURL, &s.ProfilePhotoURL,
+			&s.AadharCardURL, &s.PanCardURL,
 			&s.ResumeUpdatedAt,
 
 			// Drive Specifics

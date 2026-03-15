@@ -166,7 +166,7 @@ class _ProfilePicScreenState extends ConsumerState<ProfilePicScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               LinearProgressIndicator(
-                value: 0.9,
+                value: 0.75,
                 backgroundColor: Theme.of(context).dividerColor,
                 color: AppConstants.successColor,
                 minHeight: 4,

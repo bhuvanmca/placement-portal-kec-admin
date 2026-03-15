@@ -21,7 +21,9 @@ class WelcomeScreen extends StatelessWidget {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(60),
                 ),
                 child: Icon(
@@ -43,7 +45,9 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 'Placement Portal',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                  color:
+                      (Theme.of(context).textTheme.bodyMedium?.color ??
+                      Colors.grey),
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
@@ -52,7 +56,9 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 "Let's complete your profile to get started with placement opportunities.",
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                  color:
+                      (Theme.of(context).textTheme.bodyMedium?.color ??
+                      Colors.grey),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -60,7 +66,7 @@ class WelcomeScreen extends StatelessWidget {
               AppButton(
                 label: 'Get Started',
                 icon: Icons.arrow_forward_rounded,
-                onPressed: () => context.go('/onboarding/contact'),
+                onPressed: () => context.go('/onboarding/basic-info'),
               ),
               const SizedBox(height: 16),
             ],

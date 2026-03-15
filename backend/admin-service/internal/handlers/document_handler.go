@@ -60,6 +60,10 @@ func GetDocumentURL(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 
 	if documentURL == "" {
@@ -69,7 +73,7 @@ func GetDocumentURL(c *fiber.Ctx) error {
 	}
 
 	// Authorization check: students can only access their own documents, admins can access any
-	if role != "admin" && role != "student" {
+	if role != "admin" && role != "student" && role != "coordinator" && role != "super_admin" {
 		return c.Status(403).JSON(fiber.Map{
 			"error": "Unauthorized access",
 		})
@@ -171,6 +175,10 @@ func GetStudentDocumentURL(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 
 	if documentURL == "" {

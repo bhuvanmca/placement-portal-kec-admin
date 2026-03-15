@@ -105,6 +105,11 @@ type StudentFullProfile struct {
 
 	// Personal Info
 	FullName             string            `json:"full_name"`
+	FirstName            string            `json:"first_name"`
+	MiddleName           string            `json:"middle_name"`
+	LastName             string            `json:"last_name"`
+	FatherName           string            `json:"father_name"`
+	MotherName           string            `json:"mother_name"`
 	RegisterNumber       string            `json:"register_number"`
 	Department           string            `json:"department"`
 	DepartmentType       string            `json:"department_type"` // 'UG' or 'PG' from Master
@@ -172,6 +177,8 @@ type StudentFullProfile struct {
 	// Documents (URLs)
 	ResumeURL       string `json:"resume_url"`
 	ProfilePhotoURL string `json:"profile_photo_url"`
+	AadharCardURL   string `json:"aadhar_card_url"`
+	PanCardURL      string `json:"pan_card_url"`
 
 	// Identity
 	PanNumber    string `json:"pan_number"`

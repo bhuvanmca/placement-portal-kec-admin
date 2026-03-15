@@ -255,7 +255,7 @@ export default function EditDrivePage({
           logo_url: drive.logo_url,
           drive_type: drive.drive_type,
           company_category: drive.company_category,
-          offer_type: drive.offer_type || "Regular",
+          offer_type: (drive.offer_type || "Regular") as "Regular" | "Dream",
           allow_placed_candidates: drive.allow_placed_candidates ?? false,
           spoc_id: drive.spoc_id,
 

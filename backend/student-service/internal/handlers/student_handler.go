@@ -332,6 +332,12 @@ func (h *StudentHandler) GetMyProfile(c *fiber.Ctx) error {
 		if cachedProfile.ResumeURL != "" {
 			cachedProfile.ResumeURL = utils.GenerateSignedDocumentURL(cachedProfile.ResumeURL)
 		}
+		if cachedProfile.AadharCardURL != "" {
+			cachedProfile.AadharCardURL = utils.GenerateSignedDocumentURL(cachedProfile.AadharCardURL)
+		}
+		if cachedProfile.PanCardURL != "" {
+			cachedProfile.PanCardURL = utils.GenerateSignedDocumentURL(cachedProfile.PanCardURL)
+		}
 		return c.JSON(cachedProfile)
 	}
 
@@ -349,6 +355,12 @@ func (h *StudentHandler) GetMyProfile(c *fiber.Ctx) error {
 	}
 	if profile.ResumeURL != "" {
 		profile.ResumeURL = utils.GenerateSignedDocumentURL(profile.ResumeURL)
+	}
+	if profile.AadharCardURL != "" {
+		profile.AadharCardURL = utils.GenerateSignedDocumentURL(profile.AadharCardURL)
+	}
+	if profile.PanCardURL != "" {
+		profile.PanCardURL = utils.GenerateSignedDocumentURL(profile.PanCardURL)
 	}
 	return c.JSON(profile)
 }
@@ -466,7 +478,7 @@ func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 	userID := int64(c.Locals("user_id").(float64))
 	documentType := c.Params("type")
 
-	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type"})
@@ -483,6 +495,10 @@ func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 	if documentURL == "" {
 		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
@@ -515,7 +531,7 @@ func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 	}
 
 	documentType := c.Params("type")
-	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type"})
@@ -535,6 +551,10 @@ func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 	if documentURL == "" {
 		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
