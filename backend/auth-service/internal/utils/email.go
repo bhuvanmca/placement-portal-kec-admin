@@ -9,6 +9,9 @@ import (
 func SendOTPEmail(toEmail, otp string) error {
 	from := os.Getenv("SMTP_EMAIL")
 	password := os.Getenv("SMTP_PASSWORD")
+	if from == "" || password == "" {
+		return fmt.Errorf("SMTP credentials not configured")
+	}
 	host := "smtp.gmail.com"
 	port := "587"
 

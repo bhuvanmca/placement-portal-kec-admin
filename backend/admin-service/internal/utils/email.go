@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"html"
 	"net/smtp"
 	"os"
 )
@@ -9,6 +10,9 @@ import (
 func SendOTPEmail(toEmail, otp string) error {
 	from := os.Getenv("SMTP_EMAIL")
 	password := os.Getenv("SMTP_PASSWORD")
+	if from == "" || password == "" {
+		return fmt.Errorf("SMTP credentials not configured")
+	}
 	host := "smtp.gmail.com"
 	port := "587"
 
@@ -109,8 +113,13 @@ func SendOTPEmail(toEmail, otp string) error {
 func SendWelcomeEmail(toEmail, studentName, otp string) error {
 	from := os.Getenv("SMTP_EMAIL")
 	password := os.Getenv("SMTP_PASSWORD")
+	if from == "" || password == "" {
+		return fmt.Errorf("SMTP credentials not configured")
+	}
 	host := "smtp.gmail.com"
 	port := "587"
+
+	safeName := html.EscapeString(studentName)
 
 	// Email Body with professional styling
 	subject := "Subject: Welcome to Placement Portal - Set Up Your Account\n"
@@ -203,7 +212,7 @@ func SendWelcomeEmail(toEmail, studentName, otp string) error {
     </table>
 </body>
 </html>
-    `, studentName, otp)
+    `, safeName, otp)
 
 	msg := []byte(subject + mime + body)
 
