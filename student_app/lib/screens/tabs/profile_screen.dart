@@ -217,27 +217,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } else if (section == 'Undergraduate (UG)') {
       _ugCgpaController.text = _formatValueRaw(data['ug_cgpa']);
       _ugYearPassController.text = _formatValueRaw(data['ug_year_pass']);
-      _ugSemControllers[0].text = _formatValueRaw(data['ug_gpa_s1']);
-      _ugSemControllers[1].text = _formatValueRaw(data['ug_gpa_s2']);
-      _ugSemControllers[2].text = _formatValueRaw(data['ug_gpa_s3']);
-      _ugSemControllers[3].text = _formatValueRaw(data['ug_gpa_s4']);
-      _ugSemControllers[4].text = _formatValueRaw(data['ug_gpa_s5']);
-      _ugSemControllers[5].text = _formatValueRaw(data['ug_gpa_s6']);
-      _ugSemControllers[6].text = _formatValueRaw(data['ug_gpa_s7']);
-      _ugSemControllers[7].text = _formatValueRaw(data['ug_gpa_s8']);
-      _ugSemControllers[8].text = _formatValueRaw(data['ug_gpa_s9']);
-      _ugSemControllers[9].text = _formatValueRaw(data['ug_gpa_s10']);
     } else if (section == 'Postgraduate (PG)') {
       _pgCgpaController.text = _formatValueRaw(data['pg_cgpa']);
       _pgYearPassController.text = _formatValueRaw(data['pg_year_pass']);
-      _pgSemControllers[0].text = _formatValueRaw(data['pg_gpa_s1']);
-      _pgSemControllers[1].text = _formatValueRaw(data['pg_gpa_s2']);
-      _pgSemControllers[2].text = _formatValueRaw(data['pg_gpa_s3']);
-      _pgSemControllers[3].text = _formatValueRaw(data['pg_gpa_s4']);
-      _pgSemControllers[4].text = _formatValueRaw(data['pg_gpa_s5']);
-      _pgSemControllers[5].text = _formatValueRaw(data['pg_gpa_s6']);
-      _pgSemControllers[6].text = _formatValueRaw(data['pg_gpa_s7']);
-      _pgSemControllers[7].text = _formatValueRaw(data['pg_gpa_s8']);
     } else if (section == 'Backlogs & History') {
       _currentBacklogsController.text = _formatValueRaw(
         data['current_backlogs'],
@@ -263,11 +245,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {
       return value.toString();
     }
-  }
-
-  bool _hasDiplomaData(Map<String, dynamic> data) {
-    final diplomaMark = data['diploma_mark'];
-    return diplomaMark != null && diplomaMark is num && diplomaMark > 0;
   }
 
   Future<void> _saveSection(String section, Map<String, dynamic> data) async {
@@ -319,46 +296,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         updateData['ug_cgpa'] = double.tryParse(_ugCgpaController.text) ?? 0.0;
         updateData['ug_year_pass'] =
             int.tryParse(_ugYearPassController.text) ?? 0;
-        updateData['ug_gpa_s1'] =
-            double.tryParse(_ugSemControllers[0].text) ?? 0.0;
-        updateData['ug_gpa_s2'] =
-            double.tryParse(_ugSemControllers[1].text) ?? 0.0;
-        updateData['ug_gpa_s3'] =
-            double.tryParse(_ugSemControllers[2].text) ?? 0.0;
-        updateData['ug_gpa_s4'] =
-            double.tryParse(_ugSemControllers[3].text) ?? 0.0;
-        updateData['ug_gpa_s5'] =
-            double.tryParse(_ugSemControllers[4].text) ?? 0.0;
-        updateData['ug_gpa_s6'] =
-            double.tryParse(_ugSemControllers[5].text) ?? 0.0;
-        updateData['ug_gpa_s7'] =
-            double.tryParse(_ugSemControllers[6].text) ?? 0.0;
-        updateData['ug_gpa_s8'] =
-            double.tryParse(_ugSemControllers[7].text) ?? 0.0;
-        updateData['ug_gpa_s9'] =
-            double.tryParse(_ugSemControllers[8].text) ?? 0.0;
-        updateData['ug_gpa_s10'] =
-            double.tryParse(_ugSemControllers[9].text) ?? 0.0;
       } else if (section == 'Postgraduate (PG)') {
         updateData['pg_cgpa'] = double.tryParse(_pgCgpaController.text) ?? 0.0;
         updateData['pg_year_pass'] =
             int.tryParse(_pgYearPassController.text) ?? 0;
-        updateData['pg_gpa_s1'] =
-            double.tryParse(_pgSemControllers[0].text) ?? 0.0;
-        updateData['pg_gpa_s2'] =
-            double.tryParse(_pgSemControllers[1].text) ?? 0.0;
-        updateData['pg_gpa_s3'] =
-            double.tryParse(_pgSemControllers[2].text) ?? 0.0;
-        updateData['pg_gpa_s4'] =
-            double.tryParse(_pgSemControllers[3].text) ?? 0.0;
-        updateData['pg_gpa_s5'] =
-            double.tryParse(_pgSemControllers[4].text) ?? 0.0;
-        updateData['pg_gpa_s6'] =
-            double.tryParse(_pgSemControllers[5].text) ?? 0.0;
-        updateData['pg_gpa_s7'] =
-            double.tryParse(_pgSemControllers[6].text) ?? 0.0;
-        updateData['pg_gpa_s8'] =
-            double.tryParse(_pgSemControllers[7].text) ?? 0.0;
       } else if (section == 'Backlogs & History') {
         updateData['current_backlogs'] =
             int.tryParse(_currentBacklogsController.text) ?? 0;
@@ -1769,59 +1710,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
 
             // 12th
-            if (!_hasDiplomaData(data))
-              _buildSectionCard(
-                '12th Standard',
-                _editingSection == '12th Standard'
-                    ? [
-                        _buildEditTextField(
-                          controller: _twelfthMarkController,
-                          label: 'Percentage',
-                          type: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
+            _buildSectionCard(
+              '12th Standard',
+              _editingSection == '12th Standard'
+                  ? [
+                      _buildEditTextField(
+                        controller: _twelfthMarkController,
+                        label: 'Percentage',
+                        type: const TextInputType.numberWithOptions(
+                          decimal: true,
                         ),
-                        _buildEditTextField(
-                          controller: _twelfthBoardController,
-                          label: 'Board',
-                        ),
-                        _buildEditTextField(
-                          controller: _twelfthInstitutionController,
-                          label: 'Institution',
-                        ),
-                        _buildEditTextField(
-                          controller: _twelfthYearPassController,
-                          label: 'Year of Passing',
-                          type: TextInputType.number,
-                        ),
-                      ]
-                    : [
-                        _buildDetailItem(
-                          'Mark',
-                          '${_formatValue(data['twelfth_mark'])}%',
-                        ),
-                        _buildDetailItem('Board', data['twelfth_board']),
-                        _buildDetailItem(
-                          'Institution',
-                          data['twelfth_institution'],
-                        ),
-                        _buildDetailItem(
-                          'Year of Passing',
-                          data['twelfth_year_pass'],
-                        ),
-                      ],
-                onEdit: () => _startEditing('12th Standard', data),
-                onSave: () => _saveSection('12th Standard', data),
-                onCancel: _cancelEditing,
-              ),
+                      ),
+                      _buildEditTextField(
+                        controller: _twelfthBoardController,
+                        label: 'Board',
+                      ),
+                      _buildEditTextField(
+                        controller: _twelfthInstitutionController,
+                        label: 'Institution',
+                      ),
+                      _buildEditTextField(
+                        controller: _twelfthYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
+                      ),
+                    ]
+                  : [
+                      _buildDetailItem(
+                        'Mark',
+                        '${_formatValue(data['twelfth_mark'])}%',
+                      ),
+                      _buildDetailItem('Board', data['twelfth_board']),
+                      _buildDetailItem(
+                        'Institution',
+                        data['twelfth_institution'],
+                      ),
+                      _buildDetailItem(
+                        'Year of Passing',
+                        data['twelfth_year_pass'],
+                      ),
+                    ],
+              onEdit: () => _startEditing('12th Standard', data),
+              onSave: () => _saveSection('12th Standard', data),
+              onCancel: _cancelEditing,
+            ),
 
-            // Show 12th as NA if diploma student
-            if (_hasDiplomaData(data))
-              _buildSectionCard('12th Standard', [
-                _buildDetailItem('Status', 'N/A (Diploma Student)'),
-              ]),
-
-            // Diploma - always visible
+            // Diploma
             _buildSectionCard(
               'Diploma',
               _editingSection == 'Diploma'
@@ -1843,8 +1777,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         type: TextInputType.number,
                       ),
                     ]
-                  : _hasDiplomaData(data)
-                  ? [
+                  : [
                       _buildDetailItem(
                         'Mark',
                         '${_formatValue(data['diploma_mark'])}%',
@@ -1857,8 +1790,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         'Year of Passing',
                         data['diploma_year_pass'],
                       ),
-                    ]
-                  : [_buildDetailItem('Status', 'N/A')],
+                    ],
               onEdit: () => _startEditing('Diploma', data),
               onSave: () => _saveSection('Diploma', data),
               onCancel: _cancelEditing,
@@ -1881,62 +1813,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         label: 'Year of Passing',
                         type: TextInputType.number,
                       ),
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          'Semester GPAs',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                      Wrap(
-                        spacing: 8,
-                        children: List.generate(
-                          8,
-                          (i) => SizedBox(
-                            width: 70,
-                            child: _buildEditTextField(
-                              controller: _ugSemControllers[i],
-                              label: 'S${i + 1}',
-                              type: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                     ]
                   : [
                       _buildDetailItem('CGPA', data['ug_cgpa']),
                       _buildDetailItem('Year of Passing', data['ug_year_pass']),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Semester GPAs',
-                        style: TextStyle(
-                          color:
-                              (Theme.of(context).textTheme.bodyMedium?.color ??
-                              Colors.grey),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildGpaBadge('S1', data['ug_gpa_s1']),
-                          _buildGpaBadge('S2', data['ug_gpa_s2']),
-                          _buildGpaBadge('S3', data['ug_gpa_s3']),
-                          _buildGpaBadge('S4', data['ug_gpa_s4']),
-                          _buildGpaBadge('S5', data['ug_gpa_s5']),
-                          _buildGpaBadge('S6', data['ug_gpa_s6']),
-                          _buildGpaBadge('S7', data['ug_gpa_s7']),
-                          _buildGpaBadge('S8', data['ug_gpa_s8']),
-                        ],
-                      ),
                     ],
               onEdit: () => _startEditing('Undergraduate (UG)', data),
               onSave: () => _saveSection('Undergraduate (UG)', data),
@@ -1962,62 +1842,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           label: 'Year of Passing',
                           type: TextInputType.number,
                         ),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            'Semester GPAs',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        Wrap(
-                          spacing: 8,
-                          children: List.generate(
-                            4,
-                            (i) => SizedBox(
-                              width: 70,
-                              child: _buildEditTextField(
-                                controller: _pgSemControllers[i],
-                                label: 'S${i + 1}',
-                                type: const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                       ]
                     : [
                         _buildDetailItem('CGPA', data['pg_cgpa']),
                         _buildDetailItem(
                           'Year of Passing',
                           data['pg_year_pass'],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Semester GPAs',
-                          style: TextStyle(
-                            color:
-                                (Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color ??
-                                Colors.grey),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildGpaBadge('S1', data['pg_gpa_s1']),
-                            _buildGpaBadge('S2', data['pg_gpa_s2']),
-                            _buildGpaBadge('S3', data['pg_gpa_s3']),
-                            _buildGpaBadge('S4', data['pg_gpa_s4']),
-                          ],
                         ),
                       ],
                 onEdit: () => _startEditing('Postgraduate (PG)', data),
@@ -2234,37 +2064,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildGpaBadge(String semester, dynamic value) {
-    final displayValue = _formatValue(value);
-    final bool isEmpty =
-        displayValue == 'N/A' ||
-        displayValue.isEmpty ||
-        (value is num && value == 0);
-
-    return Chip(
-      label: Text(
-        '$semester: ${isEmpty ? 'N/A' : displayValue}',
-        style: TextStyle(
-          fontSize: 13,
-          color: isEmpty
-              ? (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey)
-                    .withValues(alpha: 0.5)
-              : (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
-          fontWeight: isEmpty ? FontWeight.normal : FontWeight.w500,
-        ),
-      ),
-      backgroundColor: isEmpty
-          ? Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.5)
-          : Theme.of(context).scaffoldBackgroundColor,
-      side: BorderSide(
-        color: isEmpty
-            ? Theme.of(context).dividerColor.withValues(alpha: 0.5)
-            : Theme.of(context).dividerColor,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );
   }
 

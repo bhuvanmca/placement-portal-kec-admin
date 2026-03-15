@@ -22,7 +22,6 @@ class OnboardingState {
   final double? diplomaMark;
   final double? ugCgpa;
   final double? pgCgpa;
-  final bool isDiplomaStudent;
   final int? tenthYearPass;
   final int? twelfthYearPass;
   final int? diplomaYearPass;
@@ -60,7 +59,6 @@ class OnboardingState {
     this.diplomaMark,
     this.ugCgpa,
     this.pgCgpa,
-    this.isDiplomaStudent = false,
     this.tenthYearPass,
     this.twelfthYearPass,
     this.diplomaYearPass,
@@ -93,7 +91,6 @@ class OnboardingState {
     double? diplomaMark,
     double? ugCgpa,
     double? pgCgpa,
-    bool? isDiplomaStudent,
     int? tenthYearPass,
     int? twelfthYearPass,
     int? diplomaYearPass,
@@ -125,7 +122,6 @@ class OnboardingState {
       diplomaMark: diplomaMark ?? this.diplomaMark,
       ugCgpa: ugCgpa ?? this.ugCgpa,
       pgCgpa: pgCgpa ?? this.pgCgpa,
-      isDiplomaStudent: isDiplomaStudent ?? this.isDiplomaStudent,
       tenthYearPass: tenthYearPass ?? this.tenthYearPass,
       twelfthYearPass: twelfthYearPass ?? this.twelfthYearPass,
       diplomaYearPass: diplomaYearPass ?? this.diplomaYearPass,
@@ -160,7 +156,6 @@ class OnboardingState {
       'diploma_mark': diplomaMark ?? 0.0,
       'ug_cgpa': ugCgpa,
       'pg_cgpa': pgCgpa ?? 0.0,
-      'is_diploma_student': isDiplomaStudent,
       'tenth_year_pass': tenthYearPass ?? 0,
       'twelfth_year_pass': twelfthYearPass ?? 0,
       'diploma_year_pass': diplomaYearPass ?? 0,
@@ -211,7 +206,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
           diplomaMark: (map['diploma_mark'] as num?)?.toDouble(),
           ugCgpa: (map['ug_cgpa'] as num?)?.toDouble(),
           pgCgpa: (map['pg_cgpa'] as num?)?.toDouble(),
-          isDiplomaStudent: map['is_diploma_student'] as bool? ?? false,
           tenthYearPass: (map['tenth_year_pass'] as num?)?.toInt(),
           twelfthYearPass: (map['twelfth_year_pass'] as num?)?.toInt(),
           diplomaYearPass: (map['diploma_year_pass'] as num?)?.toInt(),
@@ -273,7 +267,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     double ug,
     double? pg, {
     double? diploma,
-    bool? isDiploma,
     int? tenthYearPass,
     int? twelfthYearPass,
     int? diplomaYearPass,
@@ -286,7 +279,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       diplomaMark: diploma,
       ugCgpa: ug,
       pgCgpa: pg,
-      isDiplomaStudent: isDiploma,
       tenthYearPass: tenthYearPass,
       twelfthYearPass: twelfthYearPass,
       diplomaYearPass: diplomaYearPass,

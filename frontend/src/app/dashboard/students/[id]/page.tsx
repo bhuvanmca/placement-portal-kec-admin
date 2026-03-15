@@ -539,54 +539,43 @@ export default function StudentProfilePage({
                         Higher Secondary (12th)
                       </h4>
                       <div className="space-y-4">
-                        {student.twelfth_mark > 0 ? (
-                          <>
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                              <span className="text-sm text-gray-500 font-medium">
-                                HSC Percentage
-                              </span>
-                              <span className="text-xl font-bold text-[#002147]">
-                                {student.twelfth_mark}%
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                              <span className="text-sm text-gray-500 font-medium">
-                                Board
-                              </span>
-                              <span className="text-sm font-semibold text-gray-700">
-                                {student.twelfth_board}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                              <span className="text-sm text-gray-500 font-medium">
-                                Institution
-                              </span>
-                              <span
-                                className="text-sm font-semibold text-gray-700 truncate max-w-50"
-                                title={student.twelfth_institution}
-                              >
-                                {student.twelfth_institution || "-"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-500 font-medium">
-                                Year of Passing
-                              </span>
-                              <span className="text-sm font-semibold text-gray-700">
-                                {student.twelfth_year_pass}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-500 font-medium">
-                              Status
-                            </span>
-                            <span className="text-sm font-semibold text-amber-600">
-                              N/A (Diploma Student)
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                          <span className="text-sm text-gray-500 font-medium">
+                            HSC Percentage
+                          </span>
+                          <span className="text-xl font-bold text-[#002147]">
+                            {student.twelfth_mark
+                              ? `${student.twelfth_mark}%`
+                              : "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                          <span className="text-sm text-gray-500 font-medium">
+                            Board
+                          </span>
+                          <span className="text-sm font-semibold text-gray-700">
+                            {student.twelfth_board || "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                          <span className="text-sm text-gray-500 font-medium">
+                            Institution
+                          </span>
+                          <span
+                            className="text-sm font-semibold text-gray-700 truncate max-w-50"
+                            title={student.twelfth_institution}
+                          >
+                            {student.twelfth_institution || "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500 font-medium">
+                            Year of Passing
+                          </span>
+                          <span className="text-sm font-semibold text-gray-700">
+                            {student.twelfth_year_pass || "-"}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -595,46 +584,35 @@ export default function StudentProfilePage({
                         Diploma
                       </h4>
                       <div className="space-y-4">
-                        {student.diploma_mark > 0 ? (
-                          <>
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                              <span className="text-sm text-gray-500 font-medium">
-                                Diploma Percentage
-                              </span>
-                              <span className="text-xl font-bold text-[#002147]">
-                                {student.diploma_mark}%
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                              <span className="text-sm text-gray-500 font-medium">
-                                Institution
-                              </span>
-                              <span
-                                className="text-sm font-semibold text-gray-700 truncate max-w-50"
-                                title={student.diploma_institution}
-                              >
-                                {student.diploma_institution || "-"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-500 font-medium">
-                                Year of Passing
-                              </span>
-                              <span className="text-sm font-semibold text-gray-700">
-                                {student.diploma_year_pass}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-500 font-medium">
-                              Status
-                            </span>
-                            <span className="text-sm font-semibold text-gray-400">
-                              N/A
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                          <span className="text-sm text-gray-500 font-medium">
+                            Diploma Percentage
+                          </span>
+                          <span className="text-xl font-bold text-[#002147]">
+                            {student.diploma_mark
+                              ? `${student.diploma_mark}%`
+                              : "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                          <span className="text-sm text-gray-500 font-medium">
+                            Institution
+                          </span>
+                          <span
+                            className="text-sm font-semibold text-gray-700 truncate max-w-50"
+                            title={student.diploma_institution}
+                          >
+                            {student.diploma_institution || "-"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500 font-medium">
+                            Year of Passing
+                          </span>
+                          <span className="text-sm font-semibold text-gray-700">
+                            {student.diploma_year_pass || "-"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -683,32 +661,6 @@ export default function StudentProfilePage({
                         <div className="text-2xl font-black text-gray-700">
                           {student.history_of_backlogs}
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
-                        PG Semester Performance
-                      </h4>
-                      <div className="grid grid-cols-4 md:grid-cols-4 gap-3">
-                        {[1, 2, 3, 4].map((sem) => {
-                          const val = student[`pg_gpa_s${sem}`];
-                          return (
-                            <div
-                              key={sem}
-                              className="flex flex-col items-center p-2 rounded-lg bg-[#002147]/5 border border-[#002147]/10"
-                            >
-                              <span className="text-[10px] font-bold text-[#002147]/40 uppercase mb-1">
-                                Sem {sem}
-                              </span>
-                              <span
-                                className={`font-bold ${!val ? "text-gray-300" : "text-[#002147]"}`}
-                              >
-                                {val || "-"}
-                              </span>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
                   </div>
@@ -762,32 +714,6 @@ export default function StudentProfilePage({
                         </div>
                       </>
                     )}
-                  </div>
-
-                  <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">
-                      UG Semester Performance
-                    </h4>
-                    <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
-                        const val = student[`ug_gpa_s${sem}`];
-                        return (
-                          <div
-                            key={sem}
-                            className="flex flex-col items-center p-2 rounded-lg bg-[#002147]/5 border border-[#002147]/10"
-                          >
-                            <span className="text-[10px] font-bold text-[#002147]/40 uppercase mb-1">
-                              Sem {sem}
-                            </span>
-                            <span
-                              className={`font-bold ${!val ? "text-gray-300" : "text-[#002147]"}`}
-                            >
-                              {val || "-"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
                   </div>
                 </div>
               </TabsContent>

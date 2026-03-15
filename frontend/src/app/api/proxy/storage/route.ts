@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const validTypes = ['profile_photo', 'resume'];
+    const validTypes = ['profile_photo', 'resume', 'aadhar', 'pan'];
     if (!validTypes.includes(type)) {
         return new NextResponse('Invalid document type', { status: 400 });
     }
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         // Force correct content type for known document types
         if (type === 'resume' && (!contentType || contentType === 'application/octet-stream')) {
             contentType = 'application/pdf';
-        } else if (type === 'profile_photo' && (!contentType || contentType === 'application/octet-stream')) {
+        } else if (!contentType || contentType === 'application/octet-stream') {
             contentType = 'image/jpeg';
         }
         if (contentType) {

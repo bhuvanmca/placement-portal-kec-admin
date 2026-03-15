@@ -153,8 +153,12 @@ func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate OTP"})
 	}
 
-	// Log OTP to console (email delivery to be configured later)
-	log.Printf("[PASSWORD RESET] OTP for %s: %s (valid for 10 minutes)", input.Email, otp)
+	// Send OTP email asynchronously
+	go func() {
+		if err := utils.SendOTPEmail(input.Email, otp); err != nil {
+			log.Printf("[PASSWORD RESET] Failed to send OTP email to %s: %v", input.Email, err)
+		}
+	}()
 
 	return c.JSON(fiber.Map{"message": "If the email exists, an OTP has been sent"})
 }

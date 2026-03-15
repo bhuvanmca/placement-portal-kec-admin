@@ -920,10 +920,10 @@ func (h *StudentHandler) StreamMyDocument(c *fiber.Ctx) error {
 	userID := int64(c.Locals("user_id").(float64))
 	documentType := c.Params("type")
 
-	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume' or 'profile_photo'"})
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume', 'profile_photo', 'aadhar', or 'pan'"})
 	}
 
 	profile, err := h.studentRepo.GetStudentFullProfile(c.Context(), userID)
@@ -937,6 +937,10 @@ func (h *StudentHandler) StreamMyDocument(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 	if documentURL == "" {
 		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
@@ -992,10 +996,10 @@ func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
 	}
 
 	documentType := c.Params("type")
-	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume' or 'profile_photo'"})
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume', 'profile_photo', 'aadhar', or 'pan'"})
 	}
 
 	profile, err := h.studentRepo.GetStudentFullProfile(c.Context(), int64(studentID))
@@ -1012,6 +1016,10 @@ func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 	if documentURL == "" {
 		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})

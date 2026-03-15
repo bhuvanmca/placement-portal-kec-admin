@@ -54,8 +54,11 @@ class AuthController extends _$AuthController {
         // Token valid — sync profile completion from server
         final body = json.decode(response.body);
         final data = body['data'] ?? body;
+        // GET /profile doesn't return is_profile_complete, so fall back
+        // to locally stored value when the field is absent.
         final serverProfileComplete =
-            data['is_profile_complete'] as bool? ?? false;
+            data['is_profile_complete'] as bool? ??
+            await ref.read(authServiceProvider).isProfileComplete();
         final role = await ref.read(authServiceProvider).getRole();
         return AuthState(isProfileComplete: serverProfileComplete, role: role);
       }
