@@ -27,6 +27,16 @@ class OnboardingState {
   final int? diplomaYearPass;
   final int? ugYearPass;
   final int? pgYearPass;
+  final String? tenthBoard;
+  final String? tenthInstitution;
+  final String? twelfthBoard;
+  final String? twelfthInstitution;
+  final String? diplomaInstitution;
+  final String? diplomaUniversity;
+  final String? ugInstitution;
+  final String? ugUniversity;
+  final String? pgInstitution;
+  final String? pgUniversity;
 
   // Address
   final String? addressLine1;
@@ -64,6 +74,16 @@ class OnboardingState {
     this.diplomaYearPass,
     this.ugYearPass,
     this.pgYearPass,
+    this.tenthBoard,
+    this.tenthInstitution,
+    this.twelfthBoard,
+    this.twelfthInstitution,
+    this.diplomaInstitution,
+    this.diplomaUniversity,
+    this.ugInstitution,
+    this.ugUniversity,
+    this.pgInstitution,
+    this.pgUniversity,
     this.socialLinks,
     this.addressLine1,
     this.addressLine2,
@@ -96,6 +116,16 @@ class OnboardingState {
     int? diplomaYearPass,
     int? ugYearPass,
     int? pgYearPass,
+    String? tenthBoard,
+    String? tenthInstitution,
+    String? twelfthBoard,
+    String? twelfthInstitution,
+    String? diplomaInstitution,
+    String? diplomaUniversity,
+    String? ugInstitution,
+    String? ugUniversity,
+    String? pgInstitution,
+    String? pgUniversity,
     Map<String, String>? socialLinks,
     String? addressLine1,
     String? addressLine2,
@@ -127,6 +157,16 @@ class OnboardingState {
       diplomaYearPass: diplomaYearPass ?? this.diplomaYearPass,
       ugYearPass: ugYearPass ?? this.ugYearPass,
       pgYearPass: pgYearPass ?? this.pgYearPass,
+      tenthBoard: tenthBoard ?? this.tenthBoard,
+      tenthInstitution: tenthInstitution ?? this.tenthInstitution,
+      twelfthBoard: twelfthBoard ?? this.twelfthBoard,
+      twelfthInstitution: twelfthInstitution ?? this.twelfthInstitution,
+      diplomaInstitution: diplomaInstitution ?? this.diplomaInstitution,
+      diplomaUniversity: diplomaUniversity ?? this.diplomaUniversity,
+      ugInstitution: ugInstitution ?? this.ugInstitution,
+      ugUniversity: ugUniversity ?? this.ugUniversity,
+      pgInstitution: pgInstitution ?? this.pgInstitution,
+      pgUniversity: pgUniversity ?? this.pgUniversity,
       socialLinks: socialLinks ?? this.socialLinks,
       addressLine1: addressLine1 ?? this.addressLine1,
       addressLine2: addressLine2 ?? this.addressLine2,
@@ -161,6 +201,16 @@ class OnboardingState {
       'diploma_year_pass': diplomaYearPass ?? 0,
       'ug_year_pass': ugYearPass ?? 0,
       'pg_year_pass': pgYearPass ?? 0,
+      'tenth_board': tenthBoard,
+      'tenth_institution': tenthInstitution,
+      'twelfth_board': twelfthBoard,
+      'twelfth_institution': twelfthInstitution,
+      'diploma_institution': diplomaInstitution,
+      'diploma_university': diplomaUniversity,
+      'ug_institution': ugInstitution,
+      'ug_university': ugUniversity,
+      'pg_institution': pgInstitution,
+      'pg_university': pgUniversity,
       'social_links': socialLinks ?? {},
       'address_line_1': addressLine1,
       'address_line_2': addressLine2,
@@ -169,8 +219,8 @@ class OnboardingState {
       'resume_url': resumeUrl,
       'aadhar_number': aadharNumber,
       'pan_number': panNumber,
-      'aadhar_doc_url': aadharDocUrl,
-      'pan_doc_url': panDocUrl,
+      'aadhar_card_url': aadharDocUrl,
+      'pan_card_url': panDocUrl,
     };
   }
 }
@@ -211,6 +261,16 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
           diplomaYearPass: (map['diploma_year_pass'] as num?)?.toInt(),
           ugYearPass: (map['ug_year_pass'] as num?)?.toInt(),
           pgYearPass: (map['pg_year_pass'] as num?)?.toInt(),
+          tenthBoard: map['tenth_board'] as String?,
+          tenthInstitution: map['tenth_institution'] as String?,
+          twelfthBoard: map['twelfth_board'] as String?,
+          twelfthInstitution: map['twelfth_institution'] as String?,
+          diplomaInstitution: map['diploma_institution'] as String?,
+          diplomaUniversity: map['diploma_university'] as String?,
+          ugInstitution: map['ug_institution'] as String?,
+          ugUniversity: map['ug_university'] as String?,
+          pgInstitution: map['pg_institution'] as String?,
+          pgUniversity: map['pg_university'] as String?,
           socialLinks: map['social_links'] != null
               ? Map<String, String>.from(map['social_links'] as Map)
               : null,
@@ -272,6 +332,16 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     int? diplomaYearPass,
     int? ugYearPass,
     int? pgYearPass,
+    String? tenthBoard,
+    String? tenthInstitution,
+    String? twelfthBoard,
+    String? twelfthInstitution,
+    String? diplomaInstitution,
+    String? diplomaUniversity,
+    String? ugInstitution,
+    String? ugUniversity,
+    String? pgInstitution,
+    String? pgUniversity,
   }) {
     state = state.copyWith(
       tenthMark: tenth,
@@ -284,6 +354,16 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       diplomaYearPass: diplomaYearPass,
       ugYearPass: ugYearPass,
       pgYearPass: pgYearPass,
+      tenthBoard: tenthBoard,
+      tenthInstitution: tenthInstitution,
+      twelfthBoard: twelfthBoard,
+      twelfthInstitution: twelfthInstitution,
+      diplomaInstitution: diplomaInstitution,
+      diplomaUniversity: diplomaUniversity,
+      ugInstitution: ugInstitution,
+      ugUniversity: ugUniversity,
+      pgInstitution: pgInstitution,
+      pgUniversity: pgUniversity,
     );
     _saveToPrefs();
   }

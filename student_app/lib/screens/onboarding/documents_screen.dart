@@ -163,6 +163,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'diploma_year_pass': state.diplomaYearPass ?? 0,
         'ug_year_pass': state.ugYearPass ?? 0,
         'pg_year_pass': state.pgYearPass ?? 0,
+        'tenth_board': state.tenthBoard ?? '',
+        'tenth_institution': state.tenthInstitution ?? '',
+        'twelfth_board': state.twelfthBoard ?? '',
+        'twelfth_institution': state.twelfthInstitution ?? '',
+        'diploma_institution': state.diplomaInstitution ?? '',
+        'diploma_university': state.diplomaUniversity ?? '',
+        'ug_institution': state.ugInstitution ?? '',
+        'ug_university': state.ugUniversity ?? '',
+        'pg_institution': state.pgInstitution ?? '',
+        'pg_university': state.pgUniversity ?? '',
         'social_links': state.socialLinks ?? {},
         'placement_willingness': state.placementWillingness ?? 'Interested',
         // Documents & Identity
@@ -170,8 +180,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'resume_url': state.resumeUrl ?? '',
         'aadhar_number': state.aadharNumber ?? '',
         'pan_number': state.panNumber ?? '',
-        'aadhar_doc_url': state.aadharDocUrl ?? '',
-        'pan_doc_url': state.panDocUrl ?? '',
+        'aadhar_card_url': state.aadharDocUrl ?? '',
+        'pan_card_url': state.panDocUrl ?? ''
       };
 
       await _studentService.updateProfile(payload);

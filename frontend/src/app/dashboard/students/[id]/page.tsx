@@ -557,17 +557,6 @@ export default function StudentProfilePage({
                             {student.twelfth_board || "-"}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                          <span className="text-sm text-gray-500 font-medium">
-                            Institution
-                          </span>
-                          <span
-                            className="text-sm font-semibold text-gray-700 truncate max-w-50"
-                            title={student.twelfth_institution}
-                          >
-                            {student.twelfth_institution || "-"}
-                          </span>
-                        </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500 font-medium">
                             Year of Passing
@@ -575,6 +564,17 @@ export default function StudentProfilePage({
                           <span className="text-sm font-semibold text-gray-700">
                             {student.twelfth_year_pass || "-"}
                           </span>
+                        </div>
+                        <div className="pt-2">
+                          <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">
+                            Institution
+                          </span>
+                          <p
+                            className="text-sm font-medium text-gray-600 mt-1 line-clamp-1"
+                            title={student.twelfth_institution}
+                          >
+                            {student.twelfth_institution || "-"}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -596,13 +596,10 @@ export default function StudentProfilePage({
                         </div>
                         <div className="flex justify-between items-center border-b border-gray-50 pb-2">
                           <span className="text-sm text-gray-500 font-medium">
-                            Institution
+                            University
                           </span>
-                          <span
-                            className="text-sm font-semibold text-gray-700 truncate max-w-50"
-                            title={student.diploma_institution}
-                          >
-                            {student.diploma_institution || "-"}
+                          <span className="text-sm font-semibold text-gray-700">
+                            {student.diploma_university || "-"}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -612,6 +609,17 @@ export default function StudentProfilePage({
                           <span className="text-sm font-semibold text-gray-700">
                             {student.diploma_year_pass || "-"}
                           </span>
+                        </div>
+                        <div className="pt-2">
+                          <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">
+                            Institution
+                          </span>
+                          <p
+                            className="text-sm font-medium text-gray-600 mt-1 line-clamp-1"
+                            title={student.diploma_institution}
+                          >
+                            {student.diploma_institution || "-"}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -628,7 +636,7 @@ export default function StudentProfilePage({
                       </h3>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="p-4 bg-[#002147]/5 border border-[#002147]/10 rounded-xl flex flex-col items-center justify-center text-center">
                         <span className="text-[10px] font-black text-[#002147]/60 uppercase tracking-widest mb-1">
                           PG CGPA
@@ -654,7 +662,7 @@ export default function StudentProfilePage({
                           {student.current_backlogs}
                         </div>
                       </div>
-                      <div className="p-4 bg-gray-50/50 border border-gray-100 rounded-xl flex flex-col items-center justify-center text-center col-span-2 lg:col-span-2">
+                      <div className="p-4 bg-gray-50/50 border border-gray-100 rounded-xl flex flex-col items-center justify-center text-center">
                         <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">
                           History of Backlogs
                         </span>
@@ -663,6 +671,30 @@ export default function StudentProfilePage({
                         </div>
                       </div>
                     </div>
+                    {(student.pg_institution || student.pg_university || student.pg_year_pass) && (
+                      <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                        <div className="space-y-3">
+                          {student.pg_institution && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-500 font-medium">Institution</span>
+                              <span className="text-sm font-semibold text-gray-700">{student.pg_institution}</span>
+                            </div>
+                          )}
+                          {student.pg_university && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-500 font-medium">University</span>
+                              <span className="text-sm font-semibold text-gray-700">{student.pg_university}</span>
+                            </div>
+                          )}
+                          {student.pg_year_pass > 0 && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-500 font-medium">Year of Passing</span>
+                              <span className="text-sm font-semibold text-gray-700">{student.pg_year_pass}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -675,7 +707,7 @@ export default function StudentProfilePage({
                     </h3>
                   </div>
 
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className={`grid grid-cols-2 ${student.department_type !== "PG" ? "lg:grid-cols-3" : ""} gap-4`}>
                     <div className="p-4 bg-[#002147]/5 border border-[#002147]/10 rounded-xl flex flex-col items-center justify-center text-center">
                       <span className="text-[10px] font-black text-[#002147]/60 uppercase tracking-widest mb-1">
                         UG CGPA
@@ -704,7 +736,7 @@ export default function StudentProfilePage({
                             {student.current_backlogs}
                           </div>
                         </div>
-                        <div className="p-4 bg-gray-50/50 border border-gray-100 rounded-xl flex flex-col items-center justify-center text-center col-span-2 lg:col-span-2">
+                        <div className="p-4 bg-gray-50/50 border border-gray-100 rounded-xl flex flex-col items-center justify-center text-center">
                           <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">
                             History of Backlogs
                           </span>
@@ -715,6 +747,30 @@ export default function StudentProfilePage({
                       </>
                     )}
                   </div>
+                  {(student.ug_institution || student.ug_university || student.ug_year_pass) && (
+                    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                      <div className="space-y-3">
+                        {student.ug_institution && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500 font-medium">Institution</span>
+                            <span className="text-sm font-semibold text-gray-700">{student.ug_institution}</span>
+                          </div>
+                        )}
+                        {student.ug_university && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500 font-medium">University</span>
+                            <span className="text-sm font-semibold text-gray-700">{student.ug_university}</span>
+                          </div>
+                        )}
+                        {student.ug_year_pass > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500 font-medium">Year of Passing</span>
+                            <span className="text-sm font-semibold text-gray-700">{student.ug_year_pass}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 

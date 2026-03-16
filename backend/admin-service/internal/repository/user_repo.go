@@ -189,17 +189,17 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
             -- Schooling
             coalesce(sch.tenth_mark,0), coalesce(sch.tenth_board,''), coalesce(sch.tenth_year_pass,0), coalesce(sch.tenth_institution,''),
             coalesce(sch.twelfth_mark,0), coalesce(sch.twelfth_board,''), coalesce(sch.twelfth_year_pass,0), coalesce(sch.twelfth_institution,''),
-            coalesce(sch.diploma_mark,0), coalesce(sch.diploma_year_pass,0), coalesce(sch.diploma_institution,''),
+            coalesce(sch.diploma_mark,0), coalesce(sch.diploma_year_pass,0), coalesce(sch.diploma_institution,''), coalesce(sch.diploma_university,''),
             
             -- Backlogs
             coalesce(sch.current_backlogs,0), coalesce(sch.history_of_backlogs,0),
             coalesce(sch.gap_years,0), coalesce(sch.gap_reason, ''),
 
             -- UG Degree (Score Only)
-            coalesce(d_ug.year_pass, 0), coalesce(d_ug.cgpa, 0), coalesce(d_ug.semester_gpas, '{}'::jsonb),
+            coalesce(d_ug.year_pass, 0), coalesce(d_ug.institution, ''), coalesce(d_ug.university, ''), coalesce(d_ug.cgpa, 0), coalesce(d_ug.semester_gpas, '{}'::jsonb),
 
             -- PG Degree (Score Only)
-            coalesce(d_pg.year_pass, 0), coalesce(d_pg.cgpa, 0), coalesce(d_pg.semester_gpas, '{}'::jsonb),
+            coalesce(d_pg.year_pass, 0), coalesce(d_pg.institution, ''), coalesce(d_pg.university, ''), coalesce(d_pg.cgpa, 0), coalesce(d_pg.semester_gpas, '{}'::jsonb),
 
             coalesce(sd.resume_url, ''), coalesce(u.profile_photo_url, ''),
             coalesce(sd.aadhar_card_url, ''), coalesce(sd.pan_card_url, ''),
@@ -260,16 +260,16 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
 
 		&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 		&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-		&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution,
+		&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 		&s.CurrentBacklogs, &s.HistoryBacklogs,
 		&s.GapYears, &s.GapReason,
 
 		// UG (Score Only)
-		&s.UgYearPass, &s.UgCgpa, &ugSemesterGpasBytes,
+		&s.UgYearPass, &s.UgInstitution, &s.UgUniversity, &s.UgCgpa, &ugSemesterGpasBytes,
 
 		// PG (Score Only)
-		&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes,
+		&s.PgYearPass, &s.PgInstitution, &s.PgUniversity, &s.PgCgpa, &pgSemesterGpasBytes,
 
 		&s.ResumeURL, &s.ProfilePhotoURL,
 		&s.AadharCardURL, &s.PanCardURL,
@@ -571,17 +571,17 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
             COALESCE(sch.twelfth_mark, 0), COALESCE(sch.twelfth_board, ''), COALESCE(sch.twelfth_year_pass, 0), COALESCE(sch.twelfth_institution, ''),
-            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''),
+            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
             
             -- Backlogs
             COALESCE(sch.current_backlogs, 0), COALESCE(sch.history_of_backlogs, 0),
             COALESCE(sch.gap_years, 0), COALESCE(sch.gap_reason, ''),
 
             -- UG Degree (Score Only)
-            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb), COALESCE(d_ug.institution, ''),
+            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb), COALESCE(d_ug.institution, ''), COALESCE(d_ug.university, ''),
 
             -- PG Degree (Score Only)
-            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb), COALESCE(d_pg.institution, ''),
+            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb), COALESCE(d_pg.institution, ''), COALESCE(d_pg.university, ''),
 
             COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
             COALESCE(sd.aadhar_card_url, ''), COALESCE(sd.pan_card_url, ''),
@@ -629,13 +629,13 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
 
 			&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 			&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-			&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution,
+			&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 			&s.CurrentBacklogs, &s.HistoryBacklogs,
 			&s.GapYears, &s.GapReason,
 
-			&s.UgYearPass, &s.UgCgpa, &ugSemesterGpasBytes, &s.UgInstitution,
-			&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes, &s.PgInstitution,
+			&s.UgYearPass, &s.UgCgpa, &ugSemesterGpasBytes, &s.UgInstitution, &s.UgUniversity,
+			&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes, &s.PgInstitution, &s.PgUniversity,
 
 			&s.ResumeURL, &s.ProfilePhotoURL,
 			&s.AadharCardURL, &s.PanCardURL,

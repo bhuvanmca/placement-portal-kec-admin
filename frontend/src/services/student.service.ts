@@ -47,6 +47,7 @@ export interface Student {
   diploma_mark?: number;
   diploma_year_pass?: number;
   diploma_institution?: string;
+  diploma_university?: string;
 
   // Degrees
   ug_cgpa?: number; // from 'ug_cgpa'
@@ -54,8 +55,10 @@ export interface Student {
 
   ug_year_pass?: number;
   ug_institution?: string;
+  ug_university?: string;
   pg_year_pass?: number;
   pg_institution?: string;
+  pg_university?: string;
 
   current_backlogs?: number;
   history_of_backlogs?: number;

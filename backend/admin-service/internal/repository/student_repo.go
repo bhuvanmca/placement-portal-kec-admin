@@ -100,16 +100,16 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
             user_id, 
             tenth_mark, tenth_board, tenth_year_pass, tenth_institution,
             twelfth_mark, twelfth_board, twelfth_year_pass, twelfth_institution,
-            diploma_mark, diploma_year_pass, diploma_institution,
+            diploma_mark, diploma_year_pass, diploma_institution, diploma_university,
             current_backlogs, history_of_backlogs, gap_years, gap_reason
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         ON CONFLICT (user_id) DO UPDATE SET
             tenth_mark = EXCLUDED.tenth_mark, tenth_board = EXCLUDED.tenth_board, 
             tenth_year_pass = EXCLUDED.tenth_year_pass, tenth_institution = EXCLUDED.tenth_institution,
             twelfth_mark = EXCLUDED.twelfth_mark, twelfth_board = EXCLUDED.twelfth_board,
             twelfth_year_pass = EXCLUDED.twelfth_year_pass, twelfth_institution = EXCLUDED.twelfth_institution,
             diploma_mark = EXCLUDED.diploma_mark, diploma_year_pass = EXCLUDED.diploma_year_pass, 
-            diploma_institution = EXCLUDED.diploma_institution,
+            diploma_institution = EXCLUDED.diploma_institution, diploma_university = EXCLUDED.diploma_university,
             current_backlogs = EXCLUDED.current_backlogs, history_of_backlogs = EXCLUDED.history_of_backlogs,
             gap_years = EXCLUDED.gap_years, gap_reason = EXCLUDED.gap_reason
     `
@@ -117,7 +117,7 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 		userID,
 		input.TenthMark, input.TenthBoard, input.TenthYearPass, input.TenthInstitution,
 		input.TwelfthMark, input.TwelfthBoard, input.TwelfthYearPass, input.TwelfthInstitution,
-		input.DiplomaMark, input.DiplomaYearPass, input.DiplomaInstitution,
+		input.DiplomaMark, input.DiplomaYearPass, input.DiplomaInstitution, input.DiplomaUniversity,
 		input.CurrentBacklogs, input.HistoryBacklogs, input.GapYears, input.GapReason,
 	); err != nil {
 		return fmt.Errorf("failed to update schooling: %w", err)
@@ -187,28 +187,29 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 	pgJson, _ := json.Marshal(pgMap)
 
 	// Query for Degree Upsert
-	// Columns: user_id, degree_level, year_pass, cgpa, institution, semester_gpas
+	// Columns: user_id, degree_level, year_pass, cgpa, institution, university, semester_gpas
 	queryDegree := `
         INSERT INTO student_degrees (
-			user_id, degree_level, year_pass, cgpa, institution, semester_gpas
+			user_id, degree_level, year_pass, cgpa, institution, university, semester_gpas
 		)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (user_id, degree_level) DO UPDATE SET
 			year_pass = EXCLUDED.year_pass,
             cgpa = EXCLUDED.cgpa,
             institution = EXCLUDED.institution,
+            university = EXCLUDED.university,
             semester_gpas = EXCLUDED.semester_gpas
     `
 
 	// Upsert UG
 	if _, err := tx.Exec(ctx, queryDegree,
-		userID, "UG", input.UgYearPass, input.UgCgpa, input.UgInstitution, ugJson); err != nil {
+		userID, "UG", input.UgYearPass, input.UgCgpa, input.UgInstitution, input.UgUniversity, ugJson); err != nil {
 		return fmt.Errorf("failed to update UG degree: %w", err)
 	}
 
 	// Upsert PG
 	if _, err := tx.Exec(ctx, queryDegree,
-		userID, "PG", input.PgYearPass, input.PgCgpa, input.PgInstitution, pgJson); err != nil {
+		userID, "PG", input.PgYearPass, input.PgCgpa, input.PgInstitution, input.PgUniversity, pgJson); err != nil {
 		return fmt.Errorf("failed to update PG degree: %w", err)
 	}
 
@@ -255,17 +256,17 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
             COALESCE(sch.twelfth_mark, 0), COALESCE(sch.twelfth_board, ''), COALESCE(sch.twelfth_year_pass, 0), COALESCE(sch.twelfth_institution, ''),
-            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''),
+            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
             
             -- Backlogs
             COALESCE(sch.current_backlogs, 0), COALESCE(sch.history_of_backlogs, 0),
             COALESCE(sch.gap_years, 0), COALESCE(sch.gap_reason, ''),
 
             -- UG Degree (Score Only)
-            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.institution, ''), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb),
+            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.institution, ''), COALESCE(d_ug.university, ''), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb),
 
             -- PG Degree (Score Only)
-            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.institution, ''), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb),
+            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.institution, ''), COALESCE(d_pg.university, ''), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb),
 
             COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
             COALESCE(sd.aadhar_card_url, ''), COALESCE(sd.pan_card_url, ''),
@@ -299,13 +300,13 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 
 		&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 		&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-		&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution,
+		&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 		&s.CurrentBacklogs, &s.HistoryBacklogs,
 		&s.GapYears, &s.GapReason,
 
-		&s.UgYearPass, &s.UgInstitution, &s.UgCgpa, &ugSemesterGpasBytes,
-		&s.PgYearPass, &s.PgInstitution, &s.PgCgpa, &pgSemesterGpasBytes,
+		&s.UgYearPass, &s.UgInstitution, &s.UgUniversity, &s.UgCgpa, &ugSemesterGpasBytes,
+		&s.PgYearPass, &s.PgInstitution, &s.PgUniversity, &s.PgCgpa, &pgSemesterGpasBytes,
 
 		&s.ResumeURL, &s.ProfilePhotoURL,
 		&s.AadharCardURL, &s.PanCardURL,

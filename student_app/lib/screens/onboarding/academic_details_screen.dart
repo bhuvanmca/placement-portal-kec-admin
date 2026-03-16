@@ -27,6 +27,16 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   final _diplomaYearController = TextEditingController();
   final _ugYearController = TextEditingController();
   final _pgYearController = TextEditingController();
+  final _tenthBoardController = TextEditingController();
+  final _tenthInstitutionController = TextEditingController();
+  final _twelfthBoardController = TextEditingController();
+  final _twelfthInstitutionController = TextEditingController();
+  final _diplomaInstitutionController = TextEditingController();
+  final _diplomaUniversityController = TextEditingController();
+  final _ugInstitutionController = TextEditingController();
+  final _ugUniversityController = TextEditingController();
+  final _pgInstitutionController = TextEditingController();
+  final _pgUniversityController = TextEditingController();
 
   bool _isLoading = true;
   String _departmentType = 'UG';
@@ -66,6 +76,16 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
     if (state.pgYearPass != null && state.pgYearPass! > 0) {
       _pgYearController.text = state.pgYearPass.toString();
     }
+    _tenthBoardController.text = state.tenthBoard ?? '';
+    _tenthInstitutionController.text = state.tenthInstitution ?? '';
+    _twelfthBoardController.text = state.twelfthBoard ?? '';
+    _twelfthInstitutionController.text = state.twelfthInstitution ?? '';
+    _diplomaInstitutionController.text = state.diplomaInstitution ?? '';
+    _diplomaUniversityController.text = state.diplomaUniversity ?? '';
+    _ugInstitutionController.text = state.ugInstitution ?? '';
+    _ugUniversityController.text = state.ugUniversity ?? '';
+    _pgInstitutionController.text = state.pgInstitution ?? '';
+    _pgUniversityController.text = state.pgUniversity ?? '';
 
     _loadProfile();
   }
@@ -100,6 +120,16 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
     _diplomaYearController.dispose();
     _ugYearController.dispose();
     _pgYearController.dispose();
+    _tenthBoardController.dispose();
+    _tenthInstitutionController.dispose();
+    _twelfthBoardController.dispose();
+    _twelfthInstitutionController.dispose();
+    _diplomaInstitutionController.dispose();
+    _diplomaUniversityController.dispose();
+    _ugInstitutionController.dispose();
+    _ugUniversityController.dispose();
+    _pgInstitutionController.dispose();
+    _pgUniversityController.dispose();
     super.dispose();
   }
 
@@ -137,6 +167,16 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
             diplomaYearPass: diplomaYear,
             ugYearPass: ugYear,
             pgYearPass: pgYear,
+            tenthBoard: _tenthBoardController.text,
+            tenthInstitution: _tenthInstitutionController.text,
+            twelfthBoard: _twelfthBoardController.text,
+            twelfthInstitution: _twelfthInstitutionController.text,
+            diplomaInstitution: _diplomaInstitutionController.text,
+            diplomaUniversity: _diplomaUniversityController.text,
+            ugInstitution: _ugInstitutionController.text,
+            ugUniversity: _ugUniversityController.text,
+            pgInstitution: _pgInstitutionController.text,
+            pgUniversity: _pgUniversityController.text,
           );
       context.go('/onboarding/address');
     }
@@ -192,6 +232,13 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
         }
         return null;
       },
+    );
+  }
+
+  Widget _nameField(TextEditingController controller, String label, String hint, IconData icon) {
+    return TextFormField(
+      controller: controller,
+      decoration: _inputDecoration(label, hint, icon, suffixText: ''),
     );
   }
 
@@ -271,6 +318,10 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                       ),
                       const SizedBox(height: 12),
                       _yearField(_tenthYearController, '10th Year of Passing'),
+                      const SizedBox(height: 12),
+                      _nameField(_tenthBoardController, '10th Board', 'CBSE / State Board', Icons.account_balance_outlined),
+                      const SizedBox(height: 12),
+                      _nameField(_tenthInstitutionController, '10th Institution', 'School name', Icons.school_outlined),
                       const SizedBox(height: 16),
                       // 12th
                       TextFormField(
@@ -302,6 +353,10 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                         _twelfthYearController,
                         '12th Year of Passing',
                       ),
+                      const SizedBox(height: 12),
+                      _nameField(_twelfthBoardController, '12th Board', 'CBSE / State Board', Icons.account_balance_outlined),
+                      const SizedBox(height: 12),
+                      _nameField(_twelfthInstitutionController, '12th Institution', 'School name', Icons.school_outlined),
                       const SizedBox(height: 16),
                       // Diploma
                       TextFormField(
@@ -333,6 +388,10 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                         _diplomaYearController,
                         'Diploma Year of Passing',
                       ),
+                      const SizedBox(height: 12),
+                      _nameField(_diplomaInstitutionController, 'Diploma Institution', 'College name', Icons.school_outlined),
+                      const SizedBox(height: 12),
+                      _nameField(_diplomaUniversityController, 'Diploma University', 'University name', Icons.account_balance_outlined),
                       const SizedBox(height: 24),
                       Text(
                         'UG Degree CGPA',
@@ -375,6 +434,10 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                       ),
                       const SizedBox(height: 12),
                       _yearField(_ugYearController, 'UG Year of Passing'),
+                      const SizedBox(height: 12),
+                      _nameField(_ugInstitutionController, 'UG Institution', 'College name', Icons.school_outlined),
+                      const SizedBox(height: 12),
+                      _nameField(_ugUniversityController, 'UG University', 'University name', Icons.account_balance_outlined),
                       const SizedBox(height: 24),
 
                       if (_departmentType == 'PG') ...[
@@ -419,6 +482,10 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                         ),
                         const SizedBox(height: 12),
                         _yearField(_pgYearController, 'PG Year of Passing'),
+                        const SizedBox(height: 12),
+                        _nameField(_pgInstitutionController, 'PG Institution', 'College name', Icons.school_outlined),
+                        const SizedBox(height: 12),
+                        _nameField(_pgUniversityController, 'PG University', 'University name', Icons.account_balance_outlined),
                         const SizedBox(height: 24),
                       ],
 
