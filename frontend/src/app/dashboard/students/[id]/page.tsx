@@ -136,7 +136,8 @@ export default function StudentProfilePage({
     try {
       // Use the authenticated stream endpoint through the backend
       // This is more reliable than presigned URLs (no expiry, no signature issues)
-      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const streamUrl = `${baseUrl}/v1/admin/students/${id}/documents/${docType}/stream`;
 
@@ -152,7 +153,9 @@ export default function StudentProfilePage({
         try {
           const json = JSON.parse(text);
           if (json.error) msg = json.error;
-        } catch { /* ignore parse error */ }
+        } catch {
+          /* ignore parse error */
+        }
         toast.error(msg);
         return;
       }

@@ -467,19 +467,12 @@ func ListStudents(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch students"})
 	}
 
-	// Transform all document URLs to browser-accessible URLs
+	// Only presign profile photo URLs for the list view (needed for avatar images).
+	// Resume/Aadhar/Pan URLs are NOT displayed inline in the list — they are viewed
+	// on-demand via the stream endpoint, so presigning them here is wasteful and slow.
 	for i := range students {
 		if students[i].ProfilePhotoURL != "" {
 			students[i].ProfilePhotoURL = utils.GenerateSignedProfileURL(students[i].ProfilePhotoURL)
-		}
-		if students[i].ResumeURL != "" {
-			students[i].ResumeURL = utils.GenerateSignedDocumentURL(students[i].ResumeURL)
-		}
-		if students[i].AadharCardURL != "" {
-			students[i].AadharCardURL = utils.GenerateSignedDocumentURL(students[i].AadharCardURL)
-		}
-		if students[i].PanCardURL != "" {
-			students[i].PanCardURL = utils.GenerateSignedDocumentURL(students[i].PanCardURL)
 		}
 	}
 

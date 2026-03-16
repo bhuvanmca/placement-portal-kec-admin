@@ -200,6 +200,7 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
             coalesce(d_pg.year_pass, 0), coalesce(d_pg.cgpa, 0), coalesce(d_pg.semester_gpas, '{}'::jsonb),
 
             coalesce(sd.resume_url, ''), coalesce(u.profile_photo_url, ''),
+            coalesce(sd.aadhar_card_url, ''), coalesce(sd.pan_card_url, ''),
             sd.resume_updated_at
         FROM users u
         JOIN student_personal sp ON u.id = sp.user_id
@@ -267,6 +268,7 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
 		&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes,
 
 		&s.ResumeURL, &s.ProfilePhotoURL,
+		&s.AadharCardURL, &s.PanCardURL,
 		&s.ResumeUpdatedAt,
 	)
 	if err != nil {

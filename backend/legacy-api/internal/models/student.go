@@ -170,6 +170,8 @@ type StudentFullProfile struct {
 	// Documents (URLs)
 	ResumeURL       string `json:"resume_url"`
 	ProfilePhotoURL string `json:"profile_photo_url"`
+	AadharCardURL   string `json:"aadhar_card_url"`
+	PanCardURL      string `json:"pan_card_url"`
 
 	// Identity
 	PanNumber    string `json:"pan_number"`

@@ -481,9 +481,18 @@ func GetStudentDetails(c *fiber.Ctx) error {
 	repo := repository.NewUserRepository(database.DB)
 	userProfile, err := repo.GetStudentByRegisterNumber(c.Context(), param)
 	if err == nil {
-		// Presign Profile Photo URL
+		// Presign document URLs for browser access
 		if userProfile.ProfilePhotoURL != "" {
 			userProfile.ProfilePhotoURL = utils.GenerateSignedProfileURL(userProfile.ProfilePhotoURL)
+		}
+		if userProfile.ResumeURL != "" {
+			userProfile.ResumeURL = utils.GenerateSignedDocumentURL(userProfile.ResumeURL)
+		}
+		if userProfile.AadharCardURL != "" {
+			userProfile.AadharCardURL = utils.GenerateSignedDocumentURL(userProfile.AadharCardURL)
+		}
+		if userProfile.PanCardURL != "" {
+			userProfile.PanCardURL = utils.GenerateSignedDocumentURL(userProfile.PanCardURL)
 		}
 		return c.JSON(userProfile)
 	}
