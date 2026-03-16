@@ -57,15 +57,22 @@ class DriveService {
     }
   }
 
-  Future<void> applyForDrive(int driveId, {List<int>? roleIds}) async {
+  Future<void> applyForDrive(int driveId, {List<int>? roleIds, bool requestToAttend = false}) async {
     final token = await _getToken();
+    final Map<String, dynamic> bodyMap = {};
+    if (roleIds != null) {
+      bodyMap['role_ids'] = roleIds;
+    }
+    if (requestToAttend) {
+      bodyMap['request_to_attend'] = true;
+    }
     final response = await _apiClient.post(
       Uri.parse('$baseUrl/v1/drives/$driveId/apply'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: roleIds != null ? jsonEncode({'role_ids': roleIds}) : null,
+      body: bodyMap.isNotEmpty ? jsonEncode(bodyMap) : null,
     );
 
     debugPrint(

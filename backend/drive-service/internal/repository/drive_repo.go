@@ -1482,7 +1482,7 @@ func (r *DriveRepository) GetDriveRequests(ctx context.Context) ([]models.DriveA
 }
 
 // ApplyForDrive
-func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID int64, roleIDs []int64, forceRegister bool) (bool, string, error) {
+func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID int64, roleIDs []int64, forceRegister bool, requestToAttend bool) (bool, string, error) {
 	const maxStatusChanges = 10
 
 	// First, check basic eligibility or if it's force register
@@ -1523,6 +1523,10 @@ func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID 
 			return false, "You have already applied for this drive.", nil
 		}
 
+		if existingStatus == "request_to_attend" {
+			return false, "Your request is already submitted and awaiting approval.", nil
+		}
+
 		if existingStatus == "opted_out" {
 			// Allow re-opt-in if under the toggle limit
 			if changeCount >= maxStatusChanges {
@@ -1561,9 +1565,13 @@ func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID 
 	}
 
 	// No existing application - insert new one
+	initialStatus := "opted_in"
+	if requestToAttend {
+		initialStatus = "request_to_attend"
+	}
 	_, err = tx.Exec(ctx, `
 		INSERT INTO drive_applications (student_id, drive_id, status, status_change_count)
-		VALUES ($1, $2, 'opted_in', 0)`, studentID, driveID)
+		VALUES ($1, $2, $3, 0)`, studentID, driveID, initialStatus)
 
 	if err != nil {
 		return false, "Failed to record application", err
@@ -1583,6 +1591,9 @@ func (r *DriveRepository) ApplyForDrive(ctx context.Context, studentID, driveID 
 		return false, "Transaction failed", err
 	}
 
+	if requestToAttend {
+		return true, "Request submitted. Admin will review your application.", nil
+	}
 	return true, "Successfully applied for drive", nil
 }
 

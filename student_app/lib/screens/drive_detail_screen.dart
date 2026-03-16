@@ -60,6 +60,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       await driveService.applyForDrive(
         widget.drive['id'],
         roleIds: _selectedRoleIds.isNotEmpty ? _selectedRoleIds : null,
+        requestToAttend: true,
       );
       if (mounted) {
         setState(() {

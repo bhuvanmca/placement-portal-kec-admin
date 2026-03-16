@@ -346,8 +346,10 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", userID))
 
 	// Send profile update confirmation email (async)
+	// Use background context — c.Context() is recycled by fasthttp after handler returns.
+	bgCtx := context.Background()
 	go func() {
-		user, err := h.userRepo.GetUserByID(c.Context(), userID)
+		user, err := h.userRepo.GetUserByID(bgCtx, userID)
 		if err != nil {
 			fmt.Printf("Email Error: Failed to fetch user %d for profile update email: %v\n", userID, err)
 			return

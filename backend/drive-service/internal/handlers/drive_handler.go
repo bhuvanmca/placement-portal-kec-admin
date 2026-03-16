@@ -1267,14 +1267,15 @@ func (h *DriveHandler) ApplyForDrive(c *fiber.Ctx) error {
 
 	// 3. Parse Role IDs (Optional/Required based on drive)
 	var input struct {
-		RoleIDs []int64 `json:"role_ids"`
+		RoleIDs          []int64 `json:"role_ids"`
+		RequestToAttend  bool    `json:"request_to_attend"`
 	}
 	// We ignore parsing error as body might be empty for simple drives
 	c.BodyParser(&input)
 
 	// 4. Call Repo
 	repo := h.repo
-	success, message, err := repo.ApplyForDrive(c.Context(), studentID, driveID, input.RoleIDs, false)
+	success, message, err := repo.ApplyForDrive(c.Context(), studentID, driveID, input.RoleIDs, false, input.RequestToAttend)
 
 	if err != nil {
 		errMsg := "Failed to process application"
