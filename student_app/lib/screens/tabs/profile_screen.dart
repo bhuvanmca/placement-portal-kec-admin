@@ -40,6 +40,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String? _editingSection;
   bool _isSaving = false;
   bool _isUploadingResume = false;
+  bool _isUploadingAadhar = false;
+  bool _isUploadingPan = false;
   int _photoVersion = 0;
   String? _authToken;
 
@@ -390,6 +392,116 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _isUploadingResume = false);
     }
+  }
+
+  Future<void> _uploadDocument(String docType, String label) async {
+    final isAadhar = docType == 'aadhar';
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+      if (result == null) return;
+
+      setState(() {
+        if (isAadhar) {
+          _isUploadingAadhar = true;
+        } else {
+          _isUploadingPan = true;
+        }
+      });
+      final file = result.files.single;
+
+      await _studentService.uploadFile(file.path!, docType);
+      await _refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$label uploaded successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$label upload failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (isAadhar) {
+            _isUploadingAadhar = false;
+          } else {
+            _isUploadingPan = false;
+          }
+        });
+      }
+    }
+  }
+
+  Widget _buildDocumentRow({
+    required String label,
+    required String docType,
+    required String? url,
+    required bool isUploading,
+  }) {
+    final hasDoc = url != null && url.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          if (hasDoc)
+            InkWell(
+              onTap: () => _openDocument(docType, url),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.description,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'View $label',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color ??
+                            Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (hasDoc) const SizedBox(width: 8),
+          isUploading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : TextButton.icon(
+                  onPressed: () => _uploadDocument(docType, label),
+                  icon: const Icon(Icons.upload_file, size: 18),
+                  label: Text(hasDoc ? 'Update $label' : 'Upload $label'),
+                ),
+        ],
+      ),
+    );
   }
 
   Widget _buildEditTextField({
@@ -1214,16 +1326,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         controller: _aadharNumberController,
                         label: 'Aadhar Number',
                       ),
+                      _buildDocumentRow(
+                        label: 'Aadhar Card',
+                        docType: 'aadhar',
+                        url: data['aadhar_card_url']?.toString(),
+                        isUploading: _isUploadingAadhar,
+                      ),
                       _buildEditTextField(
                         controller: _panNumberController,
                         label: 'PAN Number',
+                      ),
+                      _buildDocumentRow(
+                        label: 'PAN Card',
+                        docType: 'pan',
+                        url: data['pan_card_url']?.toString(),
+                        isUploading: _isUploadingPan,
                       ),
                     ]
                   : [
                       _buildDetailItem('Date of Birth', data['dob']),
                       _buildDetailItem('Gender', data['gender']),
                       _buildDetailItem('Aadhar Number', data['aadhar_number']),
+                      _buildDocumentRow(
+                        label: 'Aadhar Card',
+                        docType: 'aadhar',
+                        url: data['aadhar_card_url']?.toString(),
+                        isUploading: _isUploadingAadhar,
+                      ),
                       _buildDetailItem('PAN Number', data['pan_number']),
+                      _buildDocumentRow(
+                        label: 'PAN Card',
+                        docType: 'pan',
+                        url: data['pan_card_url']?.toString(),
+                        isUploading: _isUploadingPan,
+                      ),
                     ],
               onEdit: () => _startEditing('Identity', data),
               onSave: () => _saveSection('Identity', data),

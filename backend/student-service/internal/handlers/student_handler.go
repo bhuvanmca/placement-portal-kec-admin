@@ -152,6 +152,19 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	// The Flutter app sends only the section being edited (e.g., just mobile_number
 	// for "Contact Details"). Without merging, all other fields would be overwritten
 	// with zero values, causing data loss across unrelated sections.
+	//
+	// To allow setting numeric fields to 0 (e.g., clearing backlogs), we parse
+	// the raw body to see which keys were explicitly sent.
+	sentFields := map[string]bool{}
+	if body := c.Body(); len(body) > 0 {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err == nil {
+			for k := range raw {
+				sentFields[k] = true
+			}
+		}
+	}
+
 	if input.MobileNumber == "" {
 		input.MobileNumber = currentProfile.MobileNumber
 	}
@@ -230,16 +243,16 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	if input.DiplomaUniversity == "" {
 		input.DiplomaUniversity = currentProfile.DiplomaUniversity
 	}
-	if input.CurrentBacklogs == 0 {
+	if input.CurrentBacklogs == 0 && !sentFields["current_backlogs"] {
 		input.CurrentBacklogs = currentProfile.CurrentBacklogs
 	}
-	if input.HistoryBacklogs == 0 {
+	if input.HistoryBacklogs == 0 && !sentFields["history_of_backlogs"] {
 		input.HistoryBacklogs = currentProfile.HistoryBacklogs
 	}
-	if input.GapYears == 0 {
+	if input.GapYears == 0 && !sentFields["gap_years"] {
 		input.GapYears = currentProfile.GapYears
 	}
-	if input.GapReason == "" {
+	if input.GapReason == "" && !sentFields["gap_reason"] {
 		input.GapReason = currentProfile.GapReason
 	}
 	// Degrees

@@ -118,6 +118,10 @@
     handle /api/v1/config/* {
         reverse_proxy admin-service:8085
     }
+    # Config (admin write — departments, batches)
+    handle /api/v1/admin/config/* {
+        reverse_proxy admin-service:8085
+    }
     # SPOCs (public read)
     handle /api/v1/spocs* {
         reverse_proxy admin-service:8085

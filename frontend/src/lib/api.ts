@@ -96,6 +96,8 @@ api.interceptors.response.use(
         toast.error('Invalid credentials');
       } else if (status === 401 && !error.config?.url?.includes('/user/account')) {
         toast.error('Session expired. Please login again.');
+      } else if (status === 403) {
+        toast.error(errorMessage || 'Access denied. You do not have permission.');
       }
     } else if (status === 500) {
       toast.error('Internal Server Error. Please try again later.');

@@ -95,8 +95,9 @@ export default function AcademicConfigPage() {
       setDeptCode("");
       fetchConfig();
     } catch (error: any) {
-      if (!error?.handled)
-        toast.error(error?.message || "Failed to add department");
+      const msg = error?.message || "Failed to add department";
+      if (!error?.handled) toast.error(msg);
+      console.error("Add department error:", error?.status, msg);
     } finally {
       setAddingDept(false);
     }
@@ -129,8 +130,9 @@ export default function AcademicConfigPage() {
       handleCancelEditDept();
       fetchConfig();
     } catch (error: any) {
-      if (!error?.handled)
-        toast.error(error?.message || "Failed to update department");
+      const msg = error?.message || "Failed to update department";
+      if (!error?.handled) toast.error(msg);
+      console.error("Update department error:", error?.status, msg);
     } finally {
       setAddingDept(false);
     }
@@ -154,7 +156,9 @@ export default function AcademicConfigPage() {
       setBatchYear("");
       fetchConfig();
     } catch (error: any) {
-      if (!error?.handled) toast.error(error?.message || "Failed to add batch");
+      const msg = error?.message || "Failed to add batch";
+      if (!error?.handled) toast.error(msg);
+      console.error("Add batch error:", error?.status, msg);
     } finally {
       setAddingBatch(false);
     }
@@ -183,8 +187,9 @@ export default function AcademicConfigPage() {
       handleCancelEditBatch();
       fetchConfig();
     } catch (error: any) {
-      if (!error?.handled)
-        toast.error(error?.message || "Failed to update batch");
+      const msg = error?.message || "Failed to update batch";
+      if (!error?.handled) toast.error(msg);
+      console.error("Update batch error:", error?.status, msg);
     } finally {
       setAddingBatch(false);
     }
