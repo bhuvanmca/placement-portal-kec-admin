@@ -78,6 +78,11 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch current profile", "details": err.Error()})
 	}
 
+	// Skip permission checks (checkAndRevert) for students who haven't
+	// completed onboarding yet. This lets first-time users set their
+	// academic scores directly without admin approval.
+	skipPermissionCheck := !currentProfile.OnboardingCompleted
+
 	permRepo := repository.NewPermissionRepository(database.DB)
 
 	checkAndRevert := func(fieldName string, newVal interface{}, currentVal interface{}, revertFunc func()) error {
@@ -107,46 +112,48 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if err := checkAndRevert("mobile_number", input.MobileNumber, currentProfile.MobileNumber, func() { input.MobileNumber = "" }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Permission check failed"})
-	}
-	if err := checkAndRevert("dob", input.Dob, currentProfile.Dob, func() { input.Dob = "" }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Permission check failed"})
-	}
-	if err := checkAndRevert("gender", input.Gender, currentProfile.Gender, func() { input.Gender = "" }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Permission check failed"})
-	}
+	if !skipPermissionCheck {
+		if err := checkAndRevert("mobile_number", input.MobileNumber, currentProfile.MobileNumber, func() { input.MobileNumber = "" }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Permission check failed"})
+		}
+		if err := checkAndRevert("dob", input.Dob, currentProfile.Dob, func() { input.Dob = "" }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Permission check failed"})
+		}
+		if err := checkAndRevert("gender", input.Gender, currentProfile.Gender, func() { input.Gender = "" }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Permission check failed"})
+		}
 
-	addressAllowed, _ := permRepo.GetPermission("address")
-	if !addressAllowed {
-		if input.AddressLine1 != "" && input.AddressLine1 != currentProfile.AddressLine1 {
-			permRepo.CreateChangeRequest(models.StudentChangeRequest{StudentID: userID, FieldName: "address_line_1", OldValue: currentProfile.AddressLine1, NewValue: input.AddressLine1})
-			input.AddressLine1 = ""
+		addressAllowed, _ := permRepo.GetPermission("address")
+		if !addressAllowed {
+			if input.AddressLine1 != "" && input.AddressLine1 != currentProfile.AddressLine1 {
+				permRepo.CreateChangeRequest(models.StudentChangeRequest{StudentID: userID, FieldName: "address_line_1", OldValue: currentProfile.AddressLine1, NewValue: input.AddressLine1})
+				input.AddressLine1 = ""
+			}
+			if input.AddressLine2 != "" && input.AddressLine2 != currentProfile.AddressLine2 {
+				permRepo.CreateChangeRequest(models.StudentChangeRequest{StudentID: userID, FieldName: "address_line_2", OldValue: currentProfile.AddressLine2, NewValue: input.AddressLine2})
+				input.AddressLine2 = ""
+			}
+			if input.State != "" && input.State != currentProfile.State {
+				permRepo.CreateChangeRequest(models.StudentChangeRequest{StudentID: userID, FieldName: "state", OldValue: currentProfile.State, NewValue: input.State})
+				input.State = ""
+			}
 		}
-		if input.AddressLine2 != "" && input.AddressLine2 != currentProfile.AddressLine2 {
-			permRepo.CreateChangeRequest(models.StudentChangeRequest{StudentID: userID, FieldName: "address_line_2", OldValue: currentProfile.AddressLine2, NewValue: input.AddressLine2})
-			input.AddressLine2 = ""
-		}
-		if input.State != "" && input.State != currentProfile.State {
-			permRepo.CreateChangeRequest(models.StudentChangeRequest{StudentID: userID, FieldName: "state", OldValue: currentProfile.State, NewValue: input.State})
-			input.State = ""
-		}
-	}
 
-	if err := checkAndRevert("tenth_mark", input.TenthMark, currentProfile.TenthMark, func() { input.TenthMark = currentProfile.TenthMark }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
-	}
-	if err := checkAndRevert("twelfth_mark", input.TwelfthMark, currentProfile.TwelfthMark, func() { input.TwelfthMark = currentProfile.TwelfthMark }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
-	}
-	if err := checkAndRevert("ug_cgpa", input.UgCgpa, currentProfile.UgCgpa, func() { input.UgCgpa = currentProfile.UgCgpa }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
-	}
-	if err := checkAndRevert("pg_cgpa", input.PgCgpa, currentProfile.PgCgpa, func() { input.PgCgpa = currentProfile.PgCgpa }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
-	}
-	if err := checkAndRevert("placement_willingness", input.PlacementWillingness, currentProfile.PlacementWillingness, func() { input.PlacementWillingness = "" }); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
+		if err := checkAndRevert("tenth_mark", input.TenthMark, currentProfile.TenthMark, func() { input.TenthMark = currentProfile.TenthMark }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
+		}
+		if err := checkAndRevert("twelfth_mark", input.TwelfthMark, currentProfile.TwelfthMark, func() { input.TwelfthMark = currentProfile.TwelfthMark }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
+		}
+		if err := checkAndRevert("ug_cgpa", input.UgCgpa, currentProfile.UgCgpa, func() { input.UgCgpa = currentProfile.UgCgpa }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
+		}
+		if err := checkAndRevert("pg_cgpa", input.PgCgpa, currentProfile.PgCgpa, func() { input.PgCgpa = currentProfile.PgCgpa }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
+		}
+		if err := checkAndRevert("placement_willingness", input.PlacementWillingness, currentProfile.PlacementWillingness, func() { input.PlacementWillingness = "" }); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
+		}
 	}
 
 	// Merge input with current profile to preserve fields not in the request.
@@ -340,6 +347,13 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 
 	if err := h.studentRepo.UpdateStudentProfile(c.Context(), userID, input); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update profile", "details": err.Error()})
+	}
+
+	// Mark onboarding as completed after the first successful profile save.
+	if skipPermissionCheck {
+		if err := h.studentRepo.SetOnboardingCompleted(c.Context(), userID); err != nil {
+			fmt.Printf("Warning: failed to mark onboarding complete for user %d: %v\n", userID, err)
+		}
 	}
 
 	// Invalidate cached profile
