@@ -491,25 +491,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       }
 
-      // Use the public URL directly — bucket has public read policy
-      var downloadUrl = AppConstants.sanitizeUrl(url);
-      if (!downloadUrl.startsWith('http://') &&
-          !downloadUrl.startsWith('https://')) {
-        downloadUrl = 'https://$downloadUrl';
-      }
+      // Use the authenticated stream endpoint which fetches from S3 via the backend.
+      // This avoids Garage anonymous access issues and Bearer token conflicts.
+      final streamUrl =
+          '${AppConstants.apiBaseUrl}/v1/student/documents/$documentType/stream';
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
       final client = http.Client();
       try {
-        final request = http.Request('GET', Uri.parse(downloadUrl));
-        // Only add auth header for API endpoints, NOT for storage URLs.
-        // Garage S3 API rejects non-S3 Authorization headers with 400.
-        final isStorageUrl = downloadUrl.contains('/storage/');
-        if (!isStorageUrl) {
-          final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('token');
-          if (token != null && token.isNotEmpty) {
-            request.headers['Authorization'] = 'Bearer $token';
-          }
+        final request = http.Request('GET', Uri.parse(streamUrl));
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
         }
 
         final streamedResponse = await client.send(request);

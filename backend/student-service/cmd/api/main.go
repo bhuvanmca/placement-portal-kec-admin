@@ -34,6 +34,11 @@ func main() {
 	// Initialize Redis Cache
 	services.InitRedis()
 
+	// Ensure S3 bucket exists with public read policy
+	if err := utils.InitBucket(); err != nil {
+		log.Printf("Warning: Failed to initialize S3 bucket: %v", err)
+	}
+
 	// Initialize Repositories
 	studentRepo := repository.NewStudentRepository(pool)
 	userRepo := repository.NewUserRepository(pool)

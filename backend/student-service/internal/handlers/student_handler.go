@@ -606,8 +606,17 @@ func (h *StudentHandler) UploadDocument(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "File is required"})
 	}
-	if fileHeader.Size > 1024*1024 {
-		return c.Status(400).JSON(fiber.Map{"error": "File size exceeds 1MB limit"})
+
+	// Size limits: 5MB for resume, 2MB for identity documents
+	var maxSize int64
+	switch docType {
+	case "resume":
+		maxSize = 5 * 1024 * 1024
+	default:
+		maxSize = 2 * 1024 * 1024
+	}
+	if fileHeader.Size > maxSize {
+		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("File size exceeds %dMB limit", maxSize/(1024*1024))})
 	}
 
 	registerNumber, err := h.userRepo.GetRegisterNumber(c.Context(), userID)

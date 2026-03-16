@@ -17,6 +17,7 @@ import (
 	"github.com/placement-portal-kec/drive-service/internal/repository"
 	"github.com/placement-portal-kec/drive-service/internal/routes"
 	"github.com/placement-portal-kec/drive-service/internal/services"
+	"github.com/placement-portal-kec/drive-service/internal/utils"
 )
 
 func main() {
@@ -65,6 +66,11 @@ func main() {
 
 	// Initialize Redis Cache
 	services.InitRedis()
+
+	// Ensure S3 bucket exists with public read policy
+	if err := utils.InitBucket(); err != nil {
+		log.Printf("Warning: Failed to initialize S3 bucket: %v", err)
+	}
 
 	driveRepo := repository.NewDriveRepository(db)
 	driveHandler := handlers.NewDriveHandler(driveRepo)
