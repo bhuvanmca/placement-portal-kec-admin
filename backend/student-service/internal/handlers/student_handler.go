@@ -59,13 +59,11 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 
 	currentProfile, err := h.studentRepo.GetStudentFullProfile(c.Context(), userID)
 
-	isFirstOnboarding := false
-	missingPersonal := currentProfile == nil || currentProfile.MobileNumber == "" || currentProfile.Dob == ""
-	missingAcademic := currentProfile == nil || currentProfile.TenthMark == 0
-
-	if err != nil || missingPersonal || missingAcademic {
-		isFirstOnboarding = true
-	}
+	// First onboarding: only when the profile row doesn't exist at all.
+	// Previously this also triggered when any field was missing (DOB, TenthMark),
+	// which caused data loss when editing a single section (e.g., academics)
+	// because all other fields would be overwritten with zero values.
+	isFirstOnboarding := currentProfile == nil && err != nil
 
 	if isFirstOnboarding {
 		if err := h.studentRepo.UpdateStudentProfile(c.Context(), userID, input); err != nil {
@@ -178,8 +176,16 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	if input.SocialLinks == nil {
 		input.SocialLinks = currentProfile.SocialLinks
 	}
+	// Ensure SocialLinks is never nil (prevents NOT NULL constraint violations)
+	if input.SocialLinks == nil {
+		input.SocialLinks = map[string]string{}
+	}
 	if input.LanguageSkills == nil {
 		input.LanguageSkills = currentProfile.LanguageSkills
+	}
+	// Ensure LanguageSkills is never nil (prevents NOT NULL constraint violations)
+	if input.LanguageSkills == nil {
+		input.LanguageSkills = []string{}
 	}
 	if input.PanNumber == "" {
 		input.PanNumber = currentProfile.PanNumber

@@ -238,7 +238,11 @@
     # Garage Storage (Public Access)
     # ──────────────────────────────────────────────
     handle_path /storage/* {
-        reverse_proxy garage:3900
+        reverse_proxy garage:3900 {
+            # Set Host to Garage's internal address so S3 auth/policy checks work correctly.
+            # Without this, Garage receives the public domain as Host and may reject anonymous requests.
+            header_up Host garage:3900
+        }
     }
 
     # ──────────────────────────────────────────────

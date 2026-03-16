@@ -72,9 +72,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         final file = result.files.single;
 
         // Upload immediately
+        // Map internal type names to backend-expected types:
+        // Backend accepts: resume, aadhar, pan, profile_pic
+        String uploadType = type;
+        if (type == 'photo') {
+          uploadType = 'profile_pic';
+        } else if (type == 'aadhar_doc') {
+          uploadType = 'aadhar';
+        } else if (type == 'pan_doc') {
+          uploadType = 'pan';
+        }
+
         final url = await _studentService.uploadFile(
           file.path!,
-          type == 'photo' ? 'profile_pic' : type,
+          uploadType,
         );
 
         // Update provider with URL
