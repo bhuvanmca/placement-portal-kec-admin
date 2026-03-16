@@ -409,19 +409,41 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: (Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[800]
-              : Colors.grey[200])!,
+          color: status == 'approved'
+              ? const Color(0xFF10B981).withValues(alpha: 0.3)
+              : status == 'rejected'
+                  ? const Color(0xFFEF4444).withValues(alpha: 0.3)
+                  : (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[800]
+                      : Colors.grey[200])!,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Top accent bar
+          Container(
+            height: 4,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.6),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(14),
+                topRight: Radius.circular(14),
+              ),
+            ),
+          ),
+
           // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -440,12 +462,12 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
+                    horizontal: 10,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: statusColor.withValues(alpha: 0.3),
                     ),
@@ -455,7 +477,7 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     children: [
                       Icon(
                         _getStatusIcon(status),
-                        size: 12,
+                        size: 13,
                         color: statusColor,
                       ),
                       const SizedBox(width: 4),
@@ -483,29 +505,104 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                   child: _buildValueBox(
                     'Current',
                     request['old_value'] ?? 'N/A',
-                    Colors.grey[100]!,
+                    Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]!
+                        : Colors.grey[100]!,
                     Colors.grey[600]!,
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Icon(
-                    Icons.arrow_forward,
+                    Icons.arrow_forward_rounded,
                     size: 16,
-                    color: Colors.grey,
+                    color: statusColor.withValues(alpha: 0.6),
                   ),
                 ),
                 Expanded(
                   child: _buildValueBox(
                     'New',
                     request['new_value'] ?? 'N/A',
-                    const Color(0xFF10B981).withValues(alpha: 0.05),
-                    const Color(0xFF10B981),
+                    status == 'approved'
+                        ? const Color(0xFF10B981).withValues(alpha: 0.08)
+                        : status == 'rejected'
+                            ? const Color(0xFFEF4444).withValues(alpha: 0.08)
+                            : const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                    status == 'approved'
+                        ? const Color(0xFF10B981)
+                        : status == 'rejected'
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFFF59E0B),
                   ),
                 ),
               ],
             ),
           ),
+
+          // Status message for approved/rejected
+          if (status == 'approved')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Update approved and applied to your profile',
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF059669),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          if (status == 'rejected')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cancel_rounded, size: 14, color: Color(0xFFEF4444)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Update request was rejected by admin',
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFFDC2626),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // Reason & Date
           if (request['reason'] != null &&
@@ -527,33 +624,51 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
               request['admin_comment'].toString().isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.comment_outlined,
-                    size: 12,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      request['admin_comment'],
-                      style: GoogleFonts.geist(
-                        fontSize: 12,
-                        color: Colors.grey[500],
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[850]
+                      : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.admin_panel_settings_outlined,
+                      size: 14,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Admin: ${request['admin_comment']}',
+                        style: GoogleFonts.geist(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
           // Date
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-            child: Text(
-              _formatDate(request['created_at']),
-              style: GoogleFonts.geist(fontSize: 11, color: Colors.grey[400]),
+            child: Row(
+              children: [
+                Icon(Icons.schedule_rounded, size: 12, color: Colors.grey[400]),
+                const SizedBox(width: 4),
+                Text(
+                  _formatDate(request['created_at']),
+                  style: GoogleFonts.geist(fontSize: 11, color: Colors.grey[400]),
+                ),
+              ],
             ),
           ),
         ],
@@ -721,133 +836,181 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
     final remarks = request['remarks'] ?? '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: (Theme.of(context).brightness == Brightness.dark
               ? Colors.grey[800]
               : Colors.grey[200])!,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with company name and status
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.business,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    companyName,
-                    style: GoogleFonts.geist(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color:
-                          (Theme.of(context).textTheme.bodyLarge?.color ??
-                          Colors.black),
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getStatusIcon(status),
-                        size: 12,
-                        color: statusColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        statusLabel,
-                        style: GoogleFonts.geist(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: statusColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          // Top accent bar
+          Container(
+            height: 4,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.6),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(14),
+                topRight: Radius.circular(14),
+              ),
             ),
           ),
 
-          // Roles
-          if (appliedRoleNames.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(44, 0, 16, 6),
-              child: Row(
-                children: [
-                  Icon(Icons.work_outline, size: 13, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      appliedRoleNames,
-                      style: GoogleFonts.geist(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Admin remarks
-          if (remarks.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(44, 0, 16, 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.comment_outlined,
-                    size: 13,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      remarks,
-                      style: GoogleFonts.geist(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Actioned by / Date
           Padding(
-            padding: const EdgeInsets.fromLTRB(44, 0, 16, 14),
-            child: Text(
-              _formatDate(request['applied_at']),
-              style: GoogleFonts.geist(fontSize: 11, color: Colors.grey[400]),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Company name row with status badge
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.business_rounded,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            companyName,
+                            style: GoogleFonts.geist(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                            ),
+                          ),
+                          if (appliedRoleNames.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                appliedRoleNames,
+                                style: GoogleFonts.geist(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getStatusIcon(status),
+                            size: 13,
+                            color: statusColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            statusLabel,
+                            style: GoogleFonts.geist(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Remarks section
+                if (remarks.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[850]
+                          : Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[700]!
+                            : Colors.grey[200]!,
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 14,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            remarks,
+                            style: GoogleFonts.geist(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey[600],
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Footer with date and arrow
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.schedule_rounded, size: 13, color: Colors.grey[400]),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDate(request['applied_at']),
+                      style: GoogleFonts.geist(fontSize: 11, color: Colors.grey[400]),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: Colors.grey[400],
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],

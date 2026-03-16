@@ -96,6 +96,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _languageInputController = TextEditingController();
   String? _selectedGender;
 
+  // Pending requests tracking - maps field_name to request info
+  Map<String, Map<String, dynamic>> _pendingRequests = {};
+
   @override
   void initState() {
     super.initState();
@@ -115,7 +118,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!ref.read(profileProvider).hasValue) {
         ref.read(profileProvider.notifier).refresh();
       }
+      _fetchPendingRequests();
     });
+  }
+
+  Future<void> _fetchPendingRequests() async {
+    try {
+      final requests = await _studentService.getRequests();
+      if (mounted) {
+        final Map<String, Map<String, dynamic>> pending = {};
+        for (final req in requests) {
+          if (req['status'] == 'pending') {
+            pending[req['field_name']] = Map<String, dynamic>.from(req);
+          }
+        }
+        setState(() {
+          _pendingRequests = pending;
+        });
+      }
+    } catch (_) {}
+  }
+
+  /// Returns the set of field names that have pending requests for a given section
+  Set<String> _getPendingFieldsForSection(String section) {
+    final Map<String, List<String>> sectionFields = {
+      '10th Standard': ['tenth_mark', 'tenth_board', 'tenth_institution', 'tenth_year_pass'],
+      '12th Standard': ['twelfth_mark', 'twelfth_board', 'twelfth_institution', 'twelfth_year_pass'],
+      'Diploma': ['diploma_mark', 'diploma_institution', 'diploma_university', 'diploma_year_pass'],
+      'Undergraduate (UG)': ['ug_cgpa', 'ug_year_pass', 'ug_institution', 'ug_university'],
+      'Postgraduate (PG)': ['pg_cgpa', 'pg_year_pass', 'pg_institution', 'pg_university'],
+      'Backlogs & History': ['current_backlogs', 'history_of_backlogs', 'gap_years', 'gap_reason'],
+      'Identity': ['dob', 'gender', 'aadhar_number', 'pan_number'],
+      'Contact Details': ['mobile_number'],
+      'Address': ['address_line_1', 'address_line_2', 'state'],
+    };
+    final fields = sectionFields[section] ?? [];
+    return fields.where((f) => _pendingRequests.containsKey(f)).toSet();
+  }
+
+  bool _sectionHasPendingRequest(String section) {
+    return _getPendingFieldsForSection(section).isNotEmpty;
   }
 
   @override
@@ -168,6 +210,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _refresh() async {
     // HapticFeedback.selectionClick();
     await ref.read(profileProvider.notifier).refreshQuietly();
+    await _fetchPendingRequests();
   }
 
   void _startEditing(String section, Map<String, dynamic> data) {
@@ -353,9 +396,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await _refresh();
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Section updated successfully')),
-        );
+        // Check if any fields in this section now have pending requests
+        final pendingFields = _getPendingFieldsForSection(section);
+        if (pendingFields.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Update request sent for admin verification'),
+              backgroundColor: Color(0xFFF59E0B),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Section updated successfully')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -2154,6 +2208,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     VoidCallback? onCancel,
   }) {
     final bool isEditing = _editingSection == title;
+    final bool hasPending = _sectionHasPendingRequest(title);
+    final pendingFields = _getPendingFieldsForSection(title);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 16),
@@ -2179,7 +2235,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Colors.black),
                 ),
               ),
-              if (!isEditing && onEdit != null && _editingSection == null)
+              if (!isEditing && onEdit != null && _editingSection == null && !hasPending)
                 IconButton(
                   constraints: const BoxConstraints(),
                   padding: EdgeInsets.zero,
@@ -2188,6 +2244,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
             ],
           ),
+          // Show "under verification" banner when fields have pending requests
+          if (hasPending) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.hourglass_top_rounded, size: 16, color: Color(0xFFF59E0B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Under verification by admin',
+                          style: GoogleFonts.geist(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFB45309),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Fields: ${pendingFields.map((f) => f.replaceAll("_", " ")).join(", ")}',
+                          style: GoogleFonts.geist(
+                            fontSize: 11,
+                            color: const Color(0xFFD97706),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           ...children,
           if (isEditing) ...[

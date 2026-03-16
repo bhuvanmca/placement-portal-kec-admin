@@ -3,6 +3,7 @@ import apiClient from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,9 @@ export function MarkUpdateList() {
   // Selection state
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Per-card rejection reasons
+  const [rejectionReasons, setRejectionReasons] = useState<Record<number, string>>({});
 
   // Filters
   const [filterTime, setFilterTime] = useState<string>("all");
@@ -112,9 +116,14 @@ export function MarkUpdateList() {
       await apiClient.put(`/v1/admin/requests/${id}`, {
         action,
         rejection_reason:
-          action === "reject" ? "Rejected via Admin Panel" : undefined,
+          action === "reject" ? (rejectionReasons[id] || "Rejected by admin") : undefined,
       });
       setPendingRequests((prev) => prev.filter((r) => r.id !== id));
+      setRejectionReasons((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       toast.success(`Request ${action}d`);
     } catch (err: any) {
       if (err?.response?.status === 409) {
@@ -323,34 +332,47 @@ export function MarkUpdateList() {
 
               {/* Actions */}
               {!selectionMode && (
-                <div className="flex gap-2 px-4 pb-4 pt-1 mt-auto">
-                  <Button
-                    size="sm"
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 h-8 text-xs rounded-lg font-medium"
-                    onClick={() => handleReviewRequest(req.id, "approve")}
-                    disabled={processingRequestId === req.id}
-                  >
-                    {processingRequestId === req.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Check className="h-3 w-3 mr-1" />
-                    )}
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="flex-1 h-8 text-xs rounded-lg font-medium"
-                    onClick={() => handleReviewRequest(req.id, "reject")}
-                    disabled={processingRequestId === req.id}
-                  >
-                    {processingRequestId === req.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <X className="h-3 w-3 mr-1" />
-                    )}
-                    Reject
-                  </Button>
+                <div className="px-4 pb-4 pt-1 mt-auto space-y-2">
+                  <Input
+                    placeholder="Reason (optional, for rejection)"
+                    className="h-7 text-xs"
+                    value={rejectionReasons[req.id] || ""}
+                    onChange={(e) =>
+                      setRejectionReasons((prev) => ({
+                        ...prev,
+                        [req.id]: e.target.value,
+                      }))
+                    }
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 h-8 text-xs rounded-lg font-medium"
+                      onClick={() => handleReviewRequest(req.id, "approve")}
+                      disabled={processingRequestId === req.id}
+                    >
+                      {processingRequestId === req.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3 mr-1" />
+                      )}
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="flex-1 h-8 text-xs rounded-lg font-medium"
+                      onClick={() => handleReviewRequest(req.id, "reject")}
+                      disabled={processingRequestId === req.id}
+                    >
+                      {processingRequestId === req.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <X className="h-3 w-3 mr-1" />
+                      )}
+                      Reject
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
