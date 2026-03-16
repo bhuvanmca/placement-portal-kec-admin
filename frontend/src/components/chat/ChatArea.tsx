@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Users, MoreVertical, Reply, Trash2, Pin, Forward, FileText, Download, ExternalLink, Mic, X, CheckCircle2, CheckSquare } from 'lucide-react';
+import { Users, MoreVertical, Reply, Trash2, Pin, Forward, FileText, Download, ExternalLink, Mic, X, CheckCircle2, CheckSquare, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -452,6 +452,32 @@ export default function ChatArea({ groupId, groupName, groupImage, groupType, se
                     )}
                 </div>
              </div>
+             <Button
+               variant="ghost"
+               size="icon"
+               className="h-9 w-9 text-gray-500 hover:text-gray-900"
+               onClick={async () => {
+                 if (!groupId || groupId === -1) return;
+                 setIsLoading(true);
+                 try {
+                   const data = await ChatService.getHistory(groupId);
+                   const history = Array.isArray(data) ? data : (data.messages || []);
+                   const sorted = (history || []).sort((a: ChatMessage, b: ChatMessage) =>
+                     new Date(a.created_at || Date.now()).getTime() - new Date(b.created_at || Date.now()).getTime()
+                   );
+                   setMessages(sorted);
+                   setHasOlder(!Array.isArray(data) && data.has_older);
+                   toast.success('Chat refreshed');
+                 } catch (error) {
+                   console.error('Failed to refresh messages', error);
+                   toast.error('Failed to refresh');
+                 } finally {
+                   setIsLoading(false);
+                 }
+               }}
+             >
+               <RefreshCw className="h-4 w-4" />
+             </Button>
           </div>
       )}
 
