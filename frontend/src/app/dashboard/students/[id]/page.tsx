@@ -35,7 +35,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthImage } from "@/hooks/use-auth-image";
 import { formatDateTime } from "@/lib/utils";
 
 export default function StudentProfilePage({
@@ -49,7 +48,6 @@ export default function StudentProfilePage({
   const router = useRouter();
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const profilePhotoUrl = useAuthImage(student?.id, "profile_photo");
 
   // Pending Requests state
   const [requests, setRequests] = useState<
@@ -130,35 +128,13 @@ export default function StudentProfilePage({
     docType: "resume" | "profile_photo" | "aadhar" | "pan",
     url?: string,
   ) => {
-    if (!url) return;
-
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("Not authenticated");
-        return;
-      }
-
-      const proxyUrl = `/api/proxy/storage?studentId=${student.id}&type=${docType}`;
-      const response = await fetch(proxyUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        toast.error("Could not access document");
-        return;
-      }
-
-      const contentType =
-        response.headers.get("Content-Type") ||
-        (docType === "resume" ? "application/pdf" : "image/jpeg");
-      const blob = await response.blob();
-      const typedBlob = new Blob([blob], { type: contentType });
-      const blobUrl = URL.createObjectURL(typedBlob);
-      window.open(blobUrl, "_blank");
-    } catch (error) {
-      toast.error("Failed to access document");
+    if (!url) {
+      toast.error("Document not uploaded yet");
+      return;
     }
+
+    // Open the browser-accessible URL directly — no blob proxy needed
+    window.open(url, "_blank");
   };
 
   if (loading)
@@ -323,7 +299,7 @@ export default function StudentProfilePage({
           <div className="space-y-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center text-center">
               <Avatar className="h-32 w-32 mb-4 ring-4 ring-gray-50">
-                <AvatarImage src={profilePhotoUrl || ""} />
+                <AvatarImage src={student.profile_photo_url || ""} />
                 <AvatarFallback className="text-4xl bg-[#002147] text-white font-bold">
                   {student.full_name
                     ? student.full_name.charAt(0).toUpperCase()

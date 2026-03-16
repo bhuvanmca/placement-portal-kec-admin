@@ -1,20 +1,17 @@
 "use client";
 
-import { useAuthImage } from "@/hooks/use-auth-image";
 import { AvatarImage } from "@/components/ui/avatar";
 
 interface StudentAvatarImageProps {
-  studentId: number | string | undefined;
+  profilePhotoUrl?: string;
   className?: string;
 }
 
 export function StudentAvatarImage({
-  studentId,
+  profilePhotoUrl,
   className,
 }: StudentAvatarImageProps) {
-  const blobUrl = useAuthImage(studentId, "profile_photo");
+  if (!profilePhotoUrl) return null; // triggers AvatarFallback
 
-  if (!blobUrl) return null; // triggers AvatarFallback
-
-  return <AvatarImage src={blobUrl} className={className} />;
+  return <AvatarImage src={profilePhotoUrl} className={className} />;
 }

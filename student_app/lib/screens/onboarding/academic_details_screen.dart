@@ -32,6 +32,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   final _twelfthBoardController = TextEditingController();
   final _twelfthInstitutionController = TextEditingController();
   final _diplomaInstitutionController = TextEditingController();
+  final _diplomaBoardController = TextEditingController();
   final _diplomaUniversityController = TextEditingController();
   final _ugInstitutionController = TextEditingController();
   final _ugUniversityController = TextEditingController();
@@ -81,6 +82,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
     _twelfthBoardController.text = state.twelfthBoard ?? '';
     _twelfthInstitutionController.text = state.twelfthInstitution ?? '';
     _diplomaInstitutionController.text = state.diplomaInstitution ?? '';
+    _diplomaBoardController.text = state.diplomaBoard ?? '';
     _diplomaUniversityController.text = state.diplomaUniversity ?? '';
     _ugInstitutionController.text = state.ugInstitution ?? '';
     _ugUniversityController.text = state.ugUniversity ?? '';
@@ -125,6 +127,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
     _twelfthBoardController.dispose();
     _twelfthInstitutionController.dispose();
     _diplomaInstitutionController.dispose();
+    _diplomaBoardController.dispose();
     _diplomaUniversityController.dispose();
     _ugInstitutionController.dispose();
     _ugUniversityController.dispose();
@@ -172,6 +175,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
             twelfthBoard: _twelfthBoardController.text,
             twelfthInstitution: _twelfthInstitutionController.text,
             diplomaInstitution: _diplomaInstitutionController.text,
+            diplomaBoard: _diplomaBoardController.text,
             diplomaUniversity: _diplomaUniversityController.text,
             ugInstitution: _ugInstitutionController.text,
             ugUniversity: _ugUniversityController.text,
@@ -419,6 +423,13 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                         'Diploma Institution',
                         'College name',
                         Icons.school_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _diplomaBoardController,
+                        'Diploma Board',
+                        'AICTE / State Board',
+                        Icons.account_balance_outlined,
                       ),
                       const SizedBox(height: 12),
                       _nameField(

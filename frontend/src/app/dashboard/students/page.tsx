@@ -382,33 +382,13 @@ export default function StudentsPage() {
   };
 
   const handleViewResume = async (studentId: number, url?: string) => {
-    if (!url) return;
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("Not authenticated");
-        return;
-      }
-
-      const proxyUrl = `/api/proxy/storage?studentId=${studentId}&type=resume`;
-      const response = await fetch(proxyUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        toast.error("Could not access resume");
-        return;
-      }
-
-      const contentType =
-        response.headers.get("Content-Type") || "application/pdf";
-      const blob = await response.blob();
-      const typedBlob = new Blob([blob], { type: contentType });
-      const blobUrl = URL.createObjectURL(typedBlob);
-      window.open(blobUrl, "_blank");
-    } catch (error) {
-      toast.error("Failed to access document");
+    if (!url) {
+      toast.error("Resume not uploaded yet");
+      return;
     }
+
+    // Open the browser-accessible URL directly — no blob proxy needed
+    window.open(url, "_blank");
   };
 
   const handleExport = (student?: Student) => {
@@ -1284,7 +1264,7 @@ export default function StudentsPage() {
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9 border border-gray-100">
-                                  <StudentAvatarImage studentId={student.id} />
+                                  <StudentAvatarImage profilePhotoUrl={student.profile_photo_url} />
                                   <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
                                     {student.full_name
                                       ?.substring(0, 2)

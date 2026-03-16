@@ -32,6 +32,7 @@ class OnboardingState {
   final String? twelfthBoard;
   final String? twelfthInstitution;
   final String? diplomaInstitution;
+  final String? diplomaBoard;
   final String? diplomaUniversity;
   final String? ugInstitution;
   final String? ugUniversity;
@@ -79,6 +80,7 @@ class OnboardingState {
     this.twelfthBoard,
     this.twelfthInstitution,
     this.diplomaInstitution,
+    this.diplomaBoard,
     this.diplomaUniversity,
     this.ugInstitution,
     this.ugUniversity,
@@ -121,6 +123,7 @@ class OnboardingState {
     String? twelfthBoard,
     String? twelfthInstitution,
     String? diplomaInstitution,
+    String? diplomaBoard,
     String? diplomaUniversity,
     String? ugInstitution,
     String? ugUniversity,
@@ -162,6 +165,7 @@ class OnboardingState {
       twelfthBoard: twelfthBoard ?? this.twelfthBoard,
       twelfthInstitution: twelfthInstitution ?? this.twelfthInstitution,
       diplomaInstitution: diplomaInstitution ?? this.diplomaInstitution,
+      diplomaBoard: diplomaBoard ?? this.diplomaBoard,
       diplomaUniversity: diplomaUniversity ?? this.diplomaUniversity,
       ugInstitution: ugInstitution ?? this.ugInstitution,
       ugUniversity: ugUniversity ?? this.ugUniversity,
@@ -206,6 +210,7 @@ class OnboardingState {
       'twelfth_board': twelfthBoard,
       'twelfth_institution': twelfthInstitution,
       'diploma_institution': diplomaInstitution,
+      'diploma_board': diplomaBoard,
       'diploma_university': diplomaUniversity,
       'ug_institution': ugInstitution,
       'ug_university': ugUniversity,
@@ -266,6 +271,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
           twelfthBoard: map['twelfth_board'] as String?,
           twelfthInstitution: map['twelfth_institution'] as String?,
           diplomaInstitution: map['diploma_institution'] as String?,
+          diplomaBoard: map['diploma_board'] as String?,
           diplomaUniversity: map['diploma_university'] as String?,
           ugInstitution: map['ug_institution'] as String?,
           ugUniversity: map['ug_university'] as String?,
@@ -337,6 +343,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     String? twelfthBoard,
     String? twelfthInstitution,
     String? diplomaInstitution,
+    String? diplomaBoard,
     String? diplomaUniversity,
     String? ugInstitution,
     String? ugUniversity,
@@ -359,6 +366,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       twelfthBoard: twelfthBoard,
       twelfthInstitution: twelfthInstitution,
       diplomaInstitution: diplomaInstitution,
+      diplomaBoard: diplomaBoard,
       diplomaUniversity: diplomaUniversity,
       ugInstitution: ugInstitution,
       ugUniversity: ugUniversity,

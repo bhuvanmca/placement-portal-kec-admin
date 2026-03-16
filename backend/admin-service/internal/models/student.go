@@ -30,6 +30,7 @@ type UpdateProfileInput struct {
 	TwelfthYearPass    int     `json:"twelfth_year_pass"`
 	TwelfthInstitution string  `json:"twelfth_institution"`
 	DiplomaMark        float64 `json:"diploma_mark"`
+	DiplomaBoard       string  `json:"diploma_board"`
 	DiplomaYearPass    int     `json:"diploma_year_pass"`
 	DiplomaInstitution string  `json:"diploma_institution"`
 	DiplomaUniversity  string  `json:"diploma_university"`
@@ -140,6 +141,7 @@ type StudentFullProfile struct {
 	TwelfthInstitution string  `json:"twelfth_institution"`
 
 	DiplomaMark        float64 `json:"diploma_mark"`
+	DiplomaBoard       string  `json:"diploma_board"`
 	DiplomaYearPass    int     `json:"diploma_year_pass"`
 	DiplomaInstitution string  `json:"diploma_institution"`
 	DiplomaUniversity  string  `json:"diploma_university"`
@@ -218,6 +220,7 @@ type StudentSchooling struct {
 	TwelfthYearPass    int     `json:"twelfth_year_pass"`
 	TwelfthInstitution string  `json:"twelfth_institution"`
 	DiplomaMark        float64 `json:"diploma_mark"`
+	DiplomaBoard       string  `json:"diploma_board"`
 	DiplomaYearPass    int     `json:"diploma_year_pass"`
 	DiplomaInstitution string  `json:"diploma_institution"`
 	CurrentBacklogs    int     `json:"current_backlogs"`

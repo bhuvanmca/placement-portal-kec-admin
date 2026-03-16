@@ -189,7 +189,7 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
             -- Schooling
             coalesce(sch.tenth_mark,0), coalesce(sch.tenth_board,''), coalesce(sch.tenth_year_pass,0), coalesce(sch.tenth_institution,''),
             coalesce(sch.twelfth_mark,0), coalesce(sch.twelfth_board,''), coalesce(sch.twelfth_year_pass,0), coalesce(sch.twelfth_institution,''),
-            coalesce(sch.diploma_mark,0), coalesce(sch.diploma_year_pass,0), coalesce(sch.diploma_institution,''), coalesce(sch.diploma_university,''),
+            coalesce(sch.diploma_mark,0), coalesce(sch.diploma_board,''), coalesce(sch.diploma_year_pass,0), coalesce(sch.diploma_institution,''), coalesce(sch.diploma_university,''),
             
             -- Backlogs
             coalesce(sch.current_backlogs,0), coalesce(sch.history_of_backlogs,0),
@@ -260,7 +260,7 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
 
 		&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 		&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-		&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
+		&s.DiplomaMark, &s.DiplomaBoard, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 		&s.CurrentBacklogs, &s.HistoryBacklogs,
 		&s.GapYears, &s.GapReason,
@@ -571,7 +571,7 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
             COALESCE(sch.twelfth_mark, 0), COALESCE(sch.twelfth_board, ''), COALESCE(sch.twelfth_year_pass, 0), COALESCE(sch.twelfth_institution, ''),
-            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
+            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_board, ''), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
             
             -- Backlogs
             COALESCE(sch.current_backlogs, 0), COALESCE(sch.history_of_backlogs, 0),
@@ -629,7 +629,7 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
 
 			&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 			&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-			&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
+			&s.DiplomaMark, &s.DiplomaBoard, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 			&s.CurrentBacklogs, &s.HistoryBacklogs,
 			&s.GapYears, &s.GapReason,

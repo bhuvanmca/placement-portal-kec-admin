@@ -107,15 +107,16 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
             user_id, 
             tenth_mark, tenth_board, tenth_year_pass, tenth_institution,
             twelfth_mark, twelfth_board, twelfth_year_pass, twelfth_institution,
-            diploma_mark, diploma_year_pass, diploma_institution, diploma_university,
+            diploma_mark, diploma_board, diploma_year_pass, diploma_institution, diploma_university,
             current_backlogs, history_of_backlogs, gap_years, gap_reason
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         ON CONFLICT (user_id) DO UPDATE SET
             tenth_mark = EXCLUDED.tenth_mark, tenth_board = EXCLUDED.tenth_board, 
             tenth_year_pass = EXCLUDED.tenth_year_pass, tenth_institution = EXCLUDED.tenth_institution,
             twelfth_mark = EXCLUDED.twelfth_mark, twelfth_board = EXCLUDED.twelfth_board,
             twelfth_year_pass = EXCLUDED.twelfth_year_pass, twelfth_institution = EXCLUDED.twelfth_institution,
-            diploma_mark = EXCLUDED.diploma_mark, diploma_year_pass = EXCLUDED.diploma_year_pass, 
+            diploma_mark = EXCLUDED.diploma_mark, diploma_board = EXCLUDED.diploma_board,
+            diploma_year_pass = EXCLUDED.diploma_year_pass, 
             diploma_institution = EXCLUDED.diploma_institution, diploma_university = EXCLUDED.diploma_university,
             current_backlogs = EXCLUDED.current_backlogs, history_of_backlogs = EXCLUDED.history_of_backlogs,
             gap_years = EXCLUDED.gap_years, gap_reason = EXCLUDED.gap_reason
@@ -124,7 +125,7 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 		userID,
 		input.TenthMark, input.TenthBoard, input.TenthYearPass, input.TenthInstitution,
 		input.TwelfthMark, input.TwelfthBoard, input.TwelfthYearPass, input.TwelfthInstitution,
-		input.DiplomaMark, input.DiplomaYearPass, input.DiplomaInstitution, input.DiplomaUniversity,
+		input.DiplomaMark, input.DiplomaBoard, input.DiplomaYearPass, input.DiplomaInstitution, input.DiplomaUniversity,
 		input.CurrentBacklogs, input.HistoryBacklogs, input.GapYears, input.GapReason,
 	); err != nil {
 		return fmt.Errorf("failed to update schooling: %w", err)
@@ -265,7 +266,7 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
             COALESCE(sch.twelfth_mark, 0), COALESCE(sch.twelfth_board, ''), COALESCE(sch.twelfth_year_pass, 0), COALESCE(sch.twelfth_institution, ''),
-            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
+            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_board, ''), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
             
             -- Backlogs
             COALESCE(sch.current_backlogs, 0), COALESCE(sch.history_of_backlogs, 0),
@@ -309,7 +310,7 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 
 		&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 		&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-		&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
+		&s.DiplomaMark, &s.DiplomaBoard, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 		&s.CurrentBacklogs, &s.HistoryBacklogs,
 		&s.GapYears, &s.GapReason,
@@ -491,7 +492,7 @@ func (r *StudentRepository) ApplyFieldUpdate(studentID int64, fieldName string, 
 		query = fmt.Sprintf("UPDATE student_schooling SET %s = $1 WHERE user_id = $2", fieldName)
 		args = []interface{}{newValue, studentID}
 
-	case "tenth_board", "tenth_institution", "twelfth_board", "twelfth_institution", "diploma_institution":
+	case "tenth_board", "tenth_institution", "twelfth_board", "twelfth_institution", "diploma_board", "diploma_institution", "diploma_university":
 		query = fmt.Sprintf("UPDATE student_schooling SET %s = $1 WHERE user_id = $2", fieldName)
 		args = []interface{}{newValue, studentID}
 

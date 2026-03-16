@@ -467,10 +467,19 @@ func ListStudents(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch students"})
 	}
 
-	// Presign Profile Photo URLs
+	// Transform all document URLs to browser-accessible URLs
 	for i := range students {
 		if students[i].ProfilePhotoURL != "" {
 			students[i].ProfilePhotoURL = utils.GenerateSignedProfileURL(students[i].ProfilePhotoURL)
+		}
+		if students[i].ResumeURL != "" {
+			students[i].ResumeURL = utils.GenerateSignedDocumentURL(students[i].ResumeURL)
+		}
+		if students[i].AadharCardURL != "" {
+			students[i].AadharCardURL = utils.GenerateSignedDocumentURL(students[i].AadharCardURL)
+		}
+		if students[i].PanCardURL != "" {
+			students[i].PanCardURL = utils.GenerateSignedDocumentURL(students[i].PanCardURL)
 		}
 	}
 
@@ -503,9 +512,18 @@ func GetStudentDetails(c *fiber.Ctx) error {
 	repo := repository.NewUserRepository(database.DB)
 	userProfile, err := repo.GetStudentByRegisterNumber(c.Context(), param)
 	if err == nil {
-		// Presign Profile Photo URL
+		// Transform all document URLs to browser-accessible URLs
 		if userProfile.ProfilePhotoURL != "" {
 			userProfile.ProfilePhotoURL = utils.GenerateSignedProfileURL(userProfile.ProfilePhotoURL)
+		}
+		if userProfile.ResumeURL != "" {
+			userProfile.ResumeURL = utils.GenerateSignedDocumentURL(userProfile.ResumeURL)
+		}
+		if userProfile.AadharCardURL != "" {
+			userProfile.AadharCardURL = utils.GenerateSignedDocumentURL(userProfile.AadharCardURL)
+		}
+		if userProfile.PanCardURL != "" {
+			userProfile.PanCardURL = utils.GenerateSignedDocumentURL(userProfile.PanCardURL)
 		}
 		return c.JSON(userProfile)
 	}

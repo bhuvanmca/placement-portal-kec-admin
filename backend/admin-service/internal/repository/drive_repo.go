@@ -1180,7 +1180,7 @@ func (r *DriveRepository) GetDriveApplicantsDetailed(ctx context.Context, driveI
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
             COALESCE(sch.twelfth_mark, 0), COALESCE(sch.twelfth_board, ''), COALESCE(sch.twelfth_year_pass, 0), COALESCE(sch.twelfth_institution, ''),
-            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''),
+            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_board, ''), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
             
             -- Backlogs
             COALESCE(sch.current_backlogs, 0), COALESCE(sch.history_of_backlogs, 0),
@@ -1258,7 +1258,7 @@ func (r *DriveRepository) GetDriveApplicantsDetailed(ctx context.Context, driveI
 
 			&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 			&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-			&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution,
+			&s.DiplomaMark, &s.DiplomaBoard, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 			&s.CurrentBacklogs, &s.HistoryBacklogs,
 			&s.GapYears, &s.GapReason,
