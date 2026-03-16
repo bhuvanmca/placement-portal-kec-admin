@@ -416,10 +416,10 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
           color: status == 'approved'
               ? const Color(0xFF10B981).withValues(alpha: 0.3)
               : status == 'rejected'
-                  ? const Color(0xFFEF4444).withValues(alpha: 0.3)
-                  : (Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[800]
-                      : Colors.grey[200])!,
+              ? const Color(0xFFEF4444).withValues(alpha: 0.3)
+              : (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]
+                    : Colors.grey[200])!,
         ),
         boxShadow: [
           BoxShadow(
@@ -526,13 +526,13 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     status == 'approved'
                         ? const Color(0xFF10B981).withValues(alpha: 0.08)
                         : status == 'rejected'
-                            ? const Color(0xFFEF4444).withValues(alpha: 0.08)
-                            : const Color(0xFFF59E0B).withValues(alpha: 0.08),
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.08)
+                        : const Color(0xFFF59E0B).withValues(alpha: 0.08),
                     status == 'approved'
                         ? const Color(0xFF10B981)
                         : status == 'rejected'
-                            ? const Color(0xFFEF4444)
-                            : const Color(0xFFF59E0B),
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFFF59E0B),
                   ),
                 ),
               ],
@@ -545,7 +545,10 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(8),
@@ -555,7 +558,11 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 14,
+                      color: Color(0xFF10B981),
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -577,7 +584,10 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEF4444).withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(8),
@@ -587,7 +597,11 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.cancel_rounded, size: 14, color: Color(0xFFEF4444)),
+                    const Icon(
+                      Icons.cancel_rounded,
+                      size: 14,
+                      color: Color(0xFFEF4444),
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -666,7 +680,10 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                 const SizedBox(width: 4),
                 Text(
                   _formatDate(request['created_at']),
-                  style: GoogleFonts.geist(fontSize: 11, color: Colors.grey[400]),
+                  style: GoogleFonts.geist(
+                    fontSize: 11,
+                    color: Colors.grey[400],
+                  ),
                 ),
               ],
             ),
@@ -878,7 +895,9 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -897,7 +916,11 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                             style: GoogleFonts.geist(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).textTheme.bodyLarge?.color ??
+                                  Colors.black,
                             ),
                           ),
                           if (appliedRoleNames.isNotEmpty)
@@ -919,7 +942,10 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
@@ -996,11 +1022,18 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Icon(Icons.schedule_rounded, size: 13, color: Colors.grey[400]),
+                    Icon(
+                      Icons.schedule_rounded,
+                      size: 13,
+                      color: Colors.grey[400],
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       _formatDate(request['applied_at']),
-                      style: GoogleFonts.geist(fontSize: 11, color: Colors.grey[400]),
+                      style: GoogleFonts.geist(
+                        fontSize: 11,
+                        color: Colors.grey[400],
+                      ),
                     ),
                     const Spacer(),
                     Icon(

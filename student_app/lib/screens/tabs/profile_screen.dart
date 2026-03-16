@@ -142,12 +142,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// Returns the set of field names that have pending requests for a given section
   Set<String> _getPendingFieldsForSection(String section) {
     final Map<String, List<String>> sectionFields = {
-      '10th Standard': ['tenth_mark', 'tenth_board', 'tenth_institution', 'tenth_year_pass'],
-      '12th Standard': ['twelfth_mark', 'twelfth_board', 'twelfth_institution', 'twelfth_year_pass'],
-      'Diploma': ['diploma_mark', 'diploma_institution', 'diploma_university', 'diploma_year_pass'],
-      'Undergraduate (UG)': ['ug_cgpa', 'ug_year_pass', 'ug_institution', 'ug_university'],
-      'Postgraduate (PG)': ['pg_cgpa', 'pg_year_pass', 'pg_institution', 'pg_university'],
-      'Backlogs & History': ['current_backlogs', 'history_of_backlogs', 'gap_years', 'gap_reason'],
+      '10th Standard': [
+        'tenth_mark',
+        'tenth_board',
+        'tenth_institution',
+        'tenth_year_pass',
+      ],
+      '12th Standard': [
+        'twelfth_mark',
+        'twelfth_board',
+        'twelfth_institution',
+        'twelfth_year_pass',
+      ],
+      'Diploma': [
+        'diploma_mark',
+        'diploma_institution',
+        'diploma_university',
+        'diploma_year_pass',
+      ],
+      'Undergraduate (UG)': [
+        'ug_cgpa',
+        'ug_year_pass',
+        'ug_institution',
+        'ug_university',
+      ],
+      'Postgraduate (PG)': [
+        'pg_cgpa',
+        'pg_year_pass',
+        'pg_institution',
+        'pg_university',
+      ],
+      'Backlogs & History': [
+        'current_backlogs',
+        'history_of_backlogs',
+        'gap_years',
+        'gap_reason',
+      ],
       'Identity': ['dob', 'gender', 'aadhar_number', 'pan_number'],
       'Contact Details': ['mobile_number'],
       'Address': ['address_line_1', 'address_line_2', 'state'],
@@ -2235,7 +2265,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       Colors.black),
                 ),
               ),
-              if (!isEditing && onEdit != null && _editingSection == null && !hasPending)
+              if (!isEditing &&
+                  onEdit != null &&
+                  _editingSection == null &&
+                  !hasPending)
                 IconButton(
                   constraints: const BoxConstraints(),
                   padding: EdgeInsets.zero,
@@ -2253,11 +2286,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFFFF7ED),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.hourglass_top_rounded, size: 16, color: Color(0xFFF59E0B)),
+                  const Icon(
+                    Icons.hourglass_top_rounded,
+                    size: 16,
+                    color: Color(0xFFF59E0B),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(

@@ -27,7 +27,9 @@ export function MarkUpdateList() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Per-card rejection reasons
-  const [rejectionReasons, setRejectionReasons] = useState<Record<number, string>>({});
+  const [rejectionReasons, setRejectionReasons] = useState<
+    Record<number, string>
+  >({});
 
   // Filters
   const [filterTime, setFilterTime] = useState<string>("all");
@@ -116,7 +118,9 @@ export function MarkUpdateList() {
       await apiClient.put(`/v1/admin/requests/${id}`, {
         action,
         rejection_reason:
-          action === "reject" ? (rejectionReasons[id] || "Rejected by admin") : undefined,
+          action === "reject"
+            ? rejectionReasons[id] || "Rejected by admin"
+            : undefined,
       });
       setPendingRequests((prev) => prev.filter((r) => r.id !== id));
       setRejectionReasons((prev) => {
