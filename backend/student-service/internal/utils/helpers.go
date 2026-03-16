@@ -2,12 +2,129 @@ package utils
 
 import (
 	"crypto/rand"
+	"crypto/tls"
 	"fmt"
 	"math/big"
+	"net"
 	"net/smtp"
 	"os"
 	"strings"
+	"time"
 )
+
+const smtpHost = "smtp.gmail.com"
+
+// sendRawEmail sends an email using IPv4-forced connections with port 465 (implicit TLS)
+// fallback to port 587 (STARTTLS) to handle networks with broken IPv6 routing.
+func sendRawEmail(recipients []string, msg []byte) error {
+	from := os.Getenv("SMTP_EMAIL")
+	password := os.Getenv("SMTP_PASSWORD")
+	if from == "" || password == "" {
+		return fmt.Errorf("SMTP credentials not configured")
+	}
+
+	dialer := &net.Dialer{Timeout: 30 * time.Second}
+	tlsConfig := &tls.Config{ServerName: smtpHost}
+
+	if err := sendMailTLS(dialer, tlsConfig, from, password, recipients, msg); err == nil {
+		return nil
+	}
+
+	return sendMailSTARTTLS(dialer, tlsConfig, from, password, recipients, msg)
+}
+
+func sendMailTLS(dialer *net.Dialer, tlsConfig *tls.Config, from, password string, recipients []string, msg []byte) error {
+	conn, err := dialer.Dial("tcp4", smtpHost+":465")
+	if err != nil {
+		return fmt.Errorf("TCP dial: %w", err)
+	}
+	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.Handshake(); err != nil {
+		conn.Close()
+		return fmt.Errorf("TLS handshake: %w", err)
+	}
+	defer tlsConn.Close()
+
+	return smtpSession(tlsConn, from, password, recipients, msg)
+}
+
+func sendMailSTARTTLS(dialer *net.Dialer, tlsConfig *tls.Config, from, password string, recipients []string, msg []byte) error {
+	conn, err := dialer.Dial("tcp4", smtpHost+":587")
+	if err != nil {
+		return fmt.Errorf("dial: %w", err)
+	}
+
+	client, err := smtp.NewClient(conn, smtpHost)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("SMTP client: %w", err)
+	}
+	defer client.Close()
+
+	if err = client.StartTLS(tlsConfig); err != nil {
+		return fmt.Errorf("STARTTLS: %w", err)
+	}
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	if err = client.Mail(from); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	for _, rcpt := range recipients {
+		if err = client.Rcpt(rcpt); err != nil {
+			return fmt.Errorf("rcpt to %s: %w", rcpt, err)
+		}
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("data: %w", err)
+	}
+	if _, err = w.Write(msg); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("close data: %w", err)
+	}
+	return client.Quit()
+}
+
+func smtpSession(conn net.Conn, from, password string, recipients []string, msg []byte) error {
+	client, err := smtp.NewClient(conn, smtpHost)
+	if err != nil {
+		return fmt.Errorf("SMTP client: %w", err)
+	}
+	defer client.Close()
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	if err = client.Mail(from); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	for _, rcpt := range recipients {
+		if err = client.Rcpt(rcpt); err != nil {
+			return fmt.Errorf("rcpt to %s: %w", rcpt, err)
+		}
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("data: %w", err)
+	}
+	if _, err = w.Write(msg); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("close data: %w", err)
+	}
+	return client.Quit()
+}
 
 var SecretKey = []byte(os.Getenv("JWT_SECRET"))
 
@@ -28,18 +145,6 @@ func GenerateRandomString(length int) string {
 
 // SendWelcomeEmail sends a welcome email with credentials to a newly created student
 func SendWelcomeEmail(toEmail, name, otp string) error {
-	from := os.Getenv("SMTP_EMAIL")
-	password := os.Getenv("SMTP_PASSWORD")
-	host := "smtp.gmail.com"
-	port := "587"
-
-	if from == "" || password == "" {
-		return fmt.Errorf("SMTP credentials not configured")
-	}
-
-	auth := smtp.PlainAuth("", from, password, host)
-	addr := host + ":" + port
-
 	subject := "Subject: Welcome to KEC Placement Portal\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 
@@ -80,23 +185,11 @@ func SendWelcomeEmail(toEmail, name, otp string) error {
 `, escapeHTML(name), escapeHTML(toEmail), escapeHTML(otp))
 
 	msg := []byte(subject + mime + body)
-	return smtp.SendMail(addr, auth, from, []string{toEmail}, msg)
+	return sendRawEmail([]string{toEmail}, msg)
 }
 
 // SendProfileUpdateEmail sends a confirmation email when a student updates their profile
 func SendProfileUpdateEmail(toEmail, name string) error {
-	from := os.Getenv("SMTP_EMAIL")
-	password := os.Getenv("SMTP_PASSWORD")
-	host := "smtp.gmail.com"
-	port := "587"
-
-	if from == "" || password == "" {
-		return fmt.Errorf("SMTP credentials not configured")
-	}
-
-	auth := smtp.PlainAuth("", from, password, host)
-	addr := host + ":" + port
-
 	subject := "Subject: Profile Updated - KEC Placement Portal\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 
@@ -132,7 +225,7 @@ Hi %s, your personal information on the KEC Placement Portal has been updated su
 `, escapeHTML(name))
 
 	msg := []byte(subject + mime + body)
-	return smtp.SendMail(addr, auth, from, []string{toEmail}, msg)
+	return sendRawEmail([]string{toEmail}, msg)
 }
 
 func escapeHTML(s string) string {

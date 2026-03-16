@@ -9,16 +9,123 @@ import (
 	"time"
 )
 
-func SendOTPEmail(toEmail, otp string) error {
+const smtpHost = "smtp.gmail.com"
+
+// sendRawEmail sends an email using IPv4-forced connections with port 465 (implicit TLS)
+// fallback to port 587 (STARTTLS) to handle networks with broken IPv6 routing.
+func sendRawEmail(recipients []string, msg []byte) error {
 	from := os.Getenv("SMTP_EMAIL")
 	password := os.Getenv("SMTP_PASSWORD")
 	if from == "" || password == "" {
 		return fmt.Errorf("SMTP credentials not configured")
 	}
-	host := "smtp.gmail.com"
-	port := "587"
-	addr := host + ":" + port
 
+	dialer := &net.Dialer{Timeout: 30 * time.Second}
+	tlsConfig := &tls.Config{ServerName: smtpHost}
+
+	// Try port 465 (implicit TLS) first
+	if err := sendMailTLS(dialer, tlsConfig, from, password, recipients, msg); err == nil {
+		return nil
+	}
+
+	// Fall back to port 587 (STARTTLS)
+	return sendMailSTARTTLS(dialer, tlsConfig, from, password, recipients, msg)
+}
+
+func sendMailTLS(dialer *net.Dialer, tlsConfig *tls.Config, from, password string, recipients []string, msg []byte) error {
+	conn, err := dialer.Dial("tcp4", smtpHost+":465")
+	if err != nil {
+		return fmt.Errorf("TCP dial: %w", err)
+	}
+	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.Handshake(); err != nil {
+		conn.Close()
+		return fmt.Errorf("TLS handshake: %w", err)
+	}
+	defer tlsConn.Close()
+
+	return smtpSession(tlsConn, from, password, recipients, msg)
+}
+
+func sendMailSTARTTLS(dialer *net.Dialer, tlsConfig *tls.Config, from, password string, recipients []string, msg []byte) error {
+	conn, err := dialer.Dial("tcp4", smtpHost+":587")
+	if err != nil {
+		return fmt.Errorf("dial: %w", err)
+	}
+
+	client, err := smtp.NewClient(conn, smtpHost)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("SMTP client: %w", err)
+	}
+	defer client.Close()
+
+	if err = client.StartTLS(tlsConfig); err != nil {
+		return fmt.Errorf("STARTTLS: %w", err)
+	}
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	if err = client.Mail(from); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	for _, rcpt := range recipients {
+		if err = client.Rcpt(rcpt); err != nil {
+			return fmt.Errorf("rcpt to %s: %w", rcpt, err)
+		}
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("data: %w", err)
+	}
+	if _, err = w.Write(msg); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("close data: %w", err)
+	}
+	return client.Quit()
+}
+
+func smtpSession(conn net.Conn, from, password string, recipients []string, msg []byte) error {
+	client, err := smtp.NewClient(conn, smtpHost)
+	if err != nil {
+		return fmt.Errorf("SMTP client: %w", err)
+	}
+	defer client.Close()
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+
+	if err = client.Mail(from); err != nil {
+		return fmt.Errorf("mail from: %w", err)
+	}
+	for _, rcpt := range recipients {
+		if err = client.Rcpt(rcpt); err != nil {
+			return fmt.Errorf("rcpt to %s: %w", rcpt, err)
+		}
+	}
+
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("data: %w", err)
+	}
+	if _, err = w.Write(msg); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("close data: %w", err)
+	}
+	return client.Quit()
+}
+
+func SendOTPEmail(toEmail, otp string) error {
 	subject := "Subject: Password Reset Request - Placement Portal\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	body := fmt.Sprintf(`
@@ -56,50 +163,5 @@ func SendOTPEmail(toEmail, otp string) error {
 `, otp)
 
 	msg := []byte(subject + mime + body)
-
-	// Force IPv4 ("tcp4") to avoid IPv6 routing issues on networks without proper IPv6 connectivity
-	dialer := &net.Dialer{Timeout: 30 * time.Second}
-	conn, err := dialer.Dial("tcp4", addr)
-	if err != nil {
-		return fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-
-	client, err := smtp.NewClient(conn, host)
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("failed to create SMTP client: %w", err)
-	}
-	defer client.Close()
-
-	// STARTTLS
-	tlsConfig := &tls.Config{ServerName: host}
-	if err = client.StartTLS(tlsConfig); err != nil {
-		return fmt.Errorf("STARTTLS failed: %w", err)
-	}
-
-	// Authenticate
-	auth := smtp.PlainAuth("", from, password, host)
-	if err = client.Auth(auth); err != nil {
-		return fmt.Errorf("SMTP auth failed: %w", err)
-	}
-
-	// Send
-	if err = client.Mail(from); err != nil {
-		return fmt.Errorf("MAIL FROM failed: %w", err)
-	}
-	if err = client.Rcpt(toEmail); err != nil {
-		return fmt.Errorf("RCPT TO failed: %w", err)
-	}
-	w, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("DATA failed: %w", err)
-	}
-	if _, err = w.Write(msg); err != nil {
-		return fmt.Errorf("failed to write message: %w", err)
-	}
-	if err = w.Close(); err != nil {
-		return fmt.Errorf("failed to close message: %w", err)
-	}
-
-	return client.Quit()
+	return sendRawEmail([]string{toEmail}, msg)
 }

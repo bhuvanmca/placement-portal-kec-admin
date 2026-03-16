@@ -31,7 +31,7 @@ func customResolver() *net.Resolver {
 const (
 	smtpHost = "smtp.gmail.com"
 	smtpUser = "kecdrives@kongu.edu"
-	smtpPass = "otls ytni smav ptbv"
+	smtpPass = "xckv rruu mwrj qvho"
 )
 
 type EmailData struct {
@@ -88,8 +88,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("DNS resolution failed: %v", err)
 	}
-	ip := ips[0]
-	fmt.Printf("Resolved to: %s\n\n", ip)
+
+	// Filter for IPv4 addresses — most Indian ISPs have broken IPv6 routing
+	fmt.Printf("All resolved addresses: %v\n", ips)
+	var ipv4 string
+	for _, ip := range ips {
+		if net.ParseIP(ip) != nil && !strings.Contains(ip, ":") {
+			ipv4 = ip
+			break
+		}
+	}
+	if ipv4 == "" {
+		log.Fatal("No IPv4 address found for ", smtpHost)
+	}
+	ip := ipv4
+	fmt.Printf("Using IPv4: %s\n\n", ip)
 
 	// Try port 465 (SMTPS/implicit TLS) first, fall back to 587 (STARTTLS)
 	ports := []string{"465", "587"}
@@ -123,20 +136,27 @@ func sendMailTLS(addr, host, user, pass string, recipients []string, msg []byte)
 	tlsConfig := &tls.Config{ServerName: host}
 	dialer := &net.Dialer{Timeout: 30 * time.Second}
 
-	conn, err := tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
+	// Force IPv4 to avoid IPv6 routing issues
+	conn, err := dialer.Dial("tcp4", addr)
 	if err != nil {
-		return fmt.Errorf("TLS dial: %w", err)
+		return fmt.Errorf("TCP dial: %w", err)
 	}
-	defer conn.Close()
+	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.Handshake(); err != nil {
+		conn.Close()
+		return fmt.Errorf("TLS handshake: %w", err)
+	}
+	defer tlsConn.Close()
 
-	return smtpSession(conn, host, user, pass, recipients, msg)
+	return smtpSession(tlsConn, host, user, pass, recipients, msg)
 }
 
 // sendMailSTARTTLS sends email using STARTTLS (port 587)
 func sendMailSTARTTLS(addr, host, user, pass string, recipients []string, msg []byte) error {
 	dialer := &net.Dialer{Timeout: 30 * time.Second}
 
-	conn, err := dialer.Dial("tcp", addr)
+	// Force IPv4 to avoid IPv6 routing issues
+	conn, err := dialer.Dial("tcp4", addr)
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
 	}
