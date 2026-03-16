@@ -248,22 +248,14 @@ func (r *StudentRepository) UpdateStudentProfile(ctx context.Context, userID int
 	return tx.Commit(ctx)
 }
 
-// SetOnboardingCompleted marks the student's onboarding as done so future
-// profile edits go through the normal permission/approval flow.
-func (r *StudentRepository) SetOnboardingCompleted(ctx context.Context, userID int64) error {
-	_, err := r.DB.Exec(ctx,
-		`UPDATE student_personal SET onboarding_completed = TRUE WHERE user_id = $1`, userID)
-	return err
-}
-
 // GetStudentFullProfile fetches all details by joining tables
 func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID int64) (*models.StudentFullProfile, error) {
 	// 1. Basic Profile Query (Score Only)
 	query := `
         SELECT 
             u.id, u.email, u.is_blocked, u.last_login,
-            COALESCE(u.name, ''), COALESCE(sp.register_number, ''), COALESCE(sp.department, ''), COALESCE(dm.type, 'UG'), COALESCE(sp.batch_year, 0), 
-            COALESCE(sp.student_type, ''), COALESCE(sp.placement_willingness, ''),
+            COALESCE(u.name, ''), sp.register_number, sp.department, COALESCE(dm.type, 'UG'), sp.batch_year, 
+            sp.student_type, sp.placement_willingness,
             COALESCE(sp.mobile_number, ''), COALESCE(sp.gender, ''), COALESCE(sp.dob::text, ''),
             COALESCE(sp.address_line_1, ''), COALESCE(sp.address_line_2, ''), COALESCE(sp.state, ''),
             COALESCE(sp.pan_number, ''), COALESCE(sp.aadhar_number, ''),
@@ -288,8 +280,7 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 
             COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
             COALESCE(sd.aadhar_card_url, ''), COALESCE(sd.pan_card_url, ''),
-            sd.resume_updated_at,
-            COALESCE(sp.onboarding_completed, FALSE)
+            sd.resume_updated_at
         FROM users u
         LEFT JOIN student_personal sp ON u.id = sp.user_id
         LEFT JOIN departments dm ON sp.department = dm.code
@@ -330,7 +321,6 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 		&s.ResumeURL, &s.ProfilePhotoURL,
 		&s.AadharCardURL, &s.PanCardURL,
 		&s.ResumeUpdatedAt,
-		&s.OnboardingCompleted,
 	)
 	if err != nil {
 		fmt.Printf("GetStudentFullProfile Scan Error for user %d: %v\n", userID, err)

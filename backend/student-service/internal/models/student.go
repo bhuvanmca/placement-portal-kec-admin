@@ -179,7 +179,6 @@ type StudentFullProfile struct {
 	PanNumber            string            `json:"pan_number"`
 	AadharNumber         string            `json:"aadhar_number"`
 	ResumeUpdatedAt      *time.Time        `json:"resume_updated_at"`
-	OnboardingCompleted  bool              `json:"onboarding_completed"`
 	PlacementStats       PlacementStats    `json:"placement_stats"`
 }
 
