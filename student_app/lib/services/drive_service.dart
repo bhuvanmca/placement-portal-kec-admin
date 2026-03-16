@@ -57,7 +57,11 @@ class DriveService {
     }
   }
 
-  Future<void> applyForDrive(int driveId, {List<int>? roleIds, bool requestToAttend = false}) async {
+  Future<void> applyForDrive(
+    int driveId, {
+    List<int>? roleIds,
+    bool requestToAttend = false,
+  }) async {
     final token = await _getToken();
     final Map<String, dynamic> bodyMap = {};
     if (roleIds != null) {

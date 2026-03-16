@@ -1267,8 +1267,8 @@ func (h *DriveHandler) ApplyForDrive(c *fiber.Ctx) error {
 
 	// 3. Parse Role IDs (Optional/Required based on drive)
 	var input struct {
-		RoleIDs          []int64 `json:"role_ids"`
-		RequestToAttend  bool    `json:"request_to_attend"`
+		RoleIDs         []int64 `json:"role_ids"`
+		RequestToAttend bool    `json:"request_to_attend"`
 	}
 	// We ignore parsing error as body might be empty for simple drives
 	c.BodyParser(&input)
