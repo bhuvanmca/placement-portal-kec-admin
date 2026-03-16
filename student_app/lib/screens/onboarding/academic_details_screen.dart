@@ -274,25 +274,29 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _hasError
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Failed to load department info',
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadProfile,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
                     ),
-                  )
-                : SingleChildScrollView(
+                    const SizedBox(height: 16),
+                    Text(
+                      'Failed to load department info',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadProfile,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
                 padding: const EdgeInsets.all(AppConstants.spacingLarge),
                 child: Form(
                   key: _formKey,
