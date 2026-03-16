@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For HapticFeedback
@@ -7,8 +9,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
@@ -29,12 +33,17 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final StudentService _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
   late PageController _pageController;
 
   // --- In-place Editing State ---
   String? _editingSection;
   bool _isSaving = false;
+  bool _isUploadingResume = false;
+  bool _isUploadingAadhar = false;
+  bool _isUploadingPan = false;
+  int _photoVersion = 0;
+  String? _authToken;
 
   // Controllers
   final _mobileController = TextEditingController();
@@ -51,18 +60,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _tenthMarkController = TextEditingController();
   final _tenthBoardController = TextEditingController();
   final _tenthInstitutionController = TextEditingController();
+  final _tenthYearPassController = TextEditingController();
   final _twelfthMarkController = TextEditingController();
   final _twelfthBoardController = TextEditingController();
   final _twelfthInstitutionController = TextEditingController();
+  final _twelfthYearPassController = TextEditingController();
   final _diplomaMarkController = TextEditingController();
   final _diplomaInstitutionController = TextEditingController();
+  final _diplomaUniversityController = TextEditingController();
+  final _diplomaYearPassController = TextEditingController();
 
   final _ugCgpaController = TextEditingController();
+  final _ugYearPassController = TextEditingController();
+  final _ugInstitutionController = TextEditingController();
+  final _ugUniversityController = TextEditingController();
   final List<TextEditingController> _ugSemControllers = List.generate(
     10,
     (_) => TextEditingController(),
   );
   final _pgCgpaController = TextEditingController();
+  final _pgYearPassController = TextEditingController();
+  final _pgInstitutionController = TextEditingController();
+  final _pgUniversityController = TextEditingController();
   final List<TextEditingController> _pgSemControllers = List.generate(
     8,
     (_) => TextEditingController(),
@@ -81,6 +100,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+
+    // Load auth token for authenticated image requests
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) {
+        setState(() {
+          _authToken = prefs.getString('token');
+        });
+      }
+    });
 
     // Init the provider if it's empty, otherwise keep cached
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -106,16 +134,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _tenthMarkController.dispose();
     _tenthBoardController.dispose();
     _tenthInstitutionController.dispose();
+    _tenthYearPassController.dispose();
     _twelfthMarkController.dispose();
     _twelfthBoardController.dispose();
     _twelfthInstitutionController.dispose();
+    _twelfthYearPassController.dispose();
     _diplomaMarkController.dispose();
     _diplomaInstitutionController.dispose();
+    _diplomaUniversityController.dispose();
+    _diplomaYearPassController.dispose();
     _ugCgpaController.dispose();
+    _ugYearPassController.dispose();
+    _ugInstitutionController.dispose();
+    _ugUniversityController.dispose();
     for (var c in _ugSemControllers) {
       c.dispose();
     }
     _pgCgpaController.dispose();
+    _pgYearPassController.dispose();
+    _pgInstitutionController.dispose();
+    _pgUniversityController.dispose();
     for (var c in _pgSemControllers) {
       c.dispose();
     }
@@ -170,39 +208,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _tenthInstitutionController.text = _formatValueRaw(
         data['tenth_institution'],
       );
+      _tenthYearPassController.text = _formatValueRaw(data['tenth_year_pass']);
     } else if (section == '12th Standard') {
       _twelfthMarkController.text = _formatValueRaw(data['twelfth_mark']);
       _twelfthBoardController.text = _formatValueRaw(data['twelfth_board']);
       _twelfthInstitutionController.text = _formatValueRaw(
         data['twelfth_institution'],
       );
-    } else if (section == 'Diploma (If applicable)') {
+      _twelfthYearPassController.text = _formatValueRaw(
+        data['twelfth_year_pass'],
+      );
+    } else if (section == 'Diploma') {
       _diplomaMarkController.text = _formatValueRaw(data['diploma_mark']);
       _diplomaInstitutionController.text = _formatValueRaw(
         data['diploma_institution'],
       );
+      _diplomaUniversityController.text = _formatValueRaw(
+        data['diploma_university'],
+      );
+      _diplomaYearPassController.text = _formatValueRaw(
+        data['diploma_year_pass'],
+      );
     } else if (section == 'Undergraduate (UG)') {
       _ugCgpaController.text = _formatValueRaw(data['ug_cgpa']);
-      _ugSemControllers[0].text = _formatValueRaw(data['ug_gpa_s1']);
-      _ugSemControllers[1].text = _formatValueRaw(data['ug_gpa_s2']);
-      _ugSemControllers[2].text = _formatValueRaw(data['ug_gpa_s3']);
-      _ugSemControllers[3].text = _formatValueRaw(data['ug_gpa_s4']);
-      _ugSemControllers[4].text = _formatValueRaw(data['ug_gpa_s5']);
-      _ugSemControllers[5].text = _formatValueRaw(data['ug_gpa_s6']);
-      _ugSemControllers[6].text = _formatValueRaw(data['ug_gpa_s7']);
-      _ugSemControllers[7].text = _formatValueRaw(data['ug_gpa_s8']);
-      _ugSemControllers[8].text = _formatValueRaw(data['ug_gpa_s9']);
-      _ugSemControllers[9].text = _formatValueRaw(data['ug_gpa_s10']);
+      _ugYearPassController.text = _formatValueRaw(data['ug_year_pass']);
+      _ugInstitutionController.text = _formatValueRaw(data['ug_institution']);
+      _ugUniversityController.text = _formatValueRaw(data['ug_university']);
+      for (int i = 0; i < 10; i++) {
+        _ugSemControllers[i].text = _formatValueRaw(data['ug_gpa_s${i + 1}']);
+      }
     } else if (section == 'Postgraduate (PG)') {
       _pgCgpaController.text = _formatValueRaw(data['pg_cgpa']);
-      _pgSemControllers[0].text = _formatValueRaw(data['pg_gpa_s1']);
-      _pgSemControllers[1].text = _formatValueRaw(data['pg_gpa_s2']);
-      _pgSemControllers[2].text = _formatValueRaw(data['pg_gpa_s3']);
-      _pgSemControllers[3].text = _formatValueRaw(data['pg_gpa_s4']);
-      _pgSemControllers[4].text = _formatValueRaw(data['pg_gpa_s5']);
-      _pgSemControllers[5].text = _formatValueRaw(data['pg_gpa_s6']);
-      _pgSemControllers[6].text = _formatValueRaw(data['pg_gpa_s7']);
-      _pgSemControllers[7].text = _formatValueRaw(data['pg_gpa_s8']);
+      _pgYearPassController.text = _formatValueRaw(data['pg_year_pass']);
+      _pgInstitutionController.text = _formatValueRaw(data['pg_institution']);
+      _pgUniversityController.text = _formatValueRaw(data['pg_university']);
+      for (int i = 0; i < 8; i++) {
+        _pgSemControllers[i].text = _formatValueRaw(data['pg_gpa_s${i + 1}']);
+      }
     } else if (section == 'Backlogs & History') {
       _currentBacklogsController.text = _formatValueRaw(
         data['current_backlogs'],
@@ -220,10 +262,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return value.toString();
   }
 
+  String _formatDateTime(dynamic value) {
+    if (value == null) return '';
+    try {
+      final dt = DateTime.parse(value.toString());
+      return DateFormat('dd MMM yyyy, hh:mm a').format(dt.toLocal());
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
   Future<void> _saveSection(String section, Map<String, dynamic> data) async {
     setState(() => _isSaving = true);
     try {
-      final Map<String, dynamic> updateData = Map.from(data);
+      // Only send fields being edited, not the full profile
+      final Map<String, dynamic> updateData = {};
 
       if (section == 'Contact Details') {
         updateData['mobile_number'] = _mobileController.text;
@@ -249,55 +302,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             double.tryParse(_tenthMarkController.text) ?? 0.0;
         updateData['tenth_board'] = _tenthBoardController.text;
         updateData['tenth_institution'] = _tenthInstitutionController.text;
+        updateData['tenth_year_pass'] =
+            int.tryParse(_tenthYearPassController.text) ?? 0;
       } else if (section == '12th Standard') {
         updateData['twelfth_mark'] =
             double.tryParse(_twelfthMarkController.text) ?? 0.0;
         updateData['twelfth_board'] = _twelfthBoardController.text;
         updateData['twelfth_institution'] = _twelfthInstitutionController.text;
-      } else if (section == 'Diploma (If applicable)') {
+        updateData['twelfth_year_pass'] =
+            int.tryParse(_twelfthYearPassController.text) ?? 0;
+      } else if (section == 'Diploma') {
         updateData['diploma_mark'] =
             double.tryParse(_diplomaMarkController.text) ?? 0.0;
         updateData['diploma_institution'] = _diplomaInstitutionController.text;
+        updateData['diploma_university'] = _diplomaUniversityController.text;
+        updateData['diploma_year_pass'] =
+            int.tryParse(_diplomaYearPassController.text) ?? 0;
       } else if (section == 'Undergraduate (UG)') {
         updateData['ug_cgpa'] = double.tryParse(_ugCgpaController.text) ?? 0.0;
-        updateData['ug_gpa_s1'] =
-            double.tryParse(_ugSemControllers[0].text) ?? 0.0;
-        updateData['ug_gpa_s2'] =
-            double.tryParse(_ugSemControllers[1].text) ?? 0.0;
-        updateData['ug_gpa_s3'] =
-            double.tryParse(_ugSemControllers[2].text) ?? 0.0;
-        updateData['ug_gpa_s4'] =
-            double.tryParse(_ugSemControllers[3].text) ?? 0.0;
-        updateData['ug_gpa_s5'] =
-            double.tryParse(_ugSemControllers[4].text) ?? 0.0;
-        updateData['ug_gpa_s6'] =
-            double.tryParse(_ugSemControllers[5].text) ?? 0.0;
-        updateData['ug_gpa_s7'] =
-            double.tryParse(_ugSemControllers[6].text) ?? 0.0;
-        updateData['ug_gpa_s8'] =
-            double.tryParse(_ugSemControllers[7].text) ?? 0.0;
-        updateData['ug_gpa_s9'] =
-            double.tryParse(_ugSemControllers[8].text) ?? 0.0;
-        updateData['ug_gpa_s10'] =
-            double.tryParse(_ugSemControllers[9].text) ?? 0.0;
+        updateData['ug_year_pass'] =
+            int.tryParse(_ugYearPassController.text) ?? 0;
+        updateData['ug_institution'] = _ugInstitutionController.text;
+        updateData['ug_university'] = _ugUniversityController.text;
+        for (int i = 0; i < 10; i++) {
+          updateData['ug_gpa_s${i + 1}'] =
+              double.tryParse(_ugSemControllers[i].text) ?? 0.0;
+        }
       } else if (section == 'Postgraduate (PG)') {
         updateData['pg_cgpa'] = double.tryParse(_pgCgpaController.text) ?? 0.0;
-        updateData['pg_gpa_s1'] =
-            double.tryParse(_pgSemControllers[0].text) ?? 0.0;
-        updateData['pg_gpa_s2'] =
-            double.tryParse(_pgSemControllers[1].text) ?? 0.0;
-        updateData['pg_gpa_s3'] =
-            double.tryParse(_pgSemControllers[2].text) ?? 0.0;
-        updateData['pg_gpa_s4'] =
-            double.tryParse(_pgSemControllers[3].text) ?? 0.0;
-        updateData['pg_gpa_s5'] =
-            double.tryParse(_pgSemControllers[4].text) ?? 0.0;
-        updateData['pg_gpa_s6'] =
-            double.tryParse(_pgSemControllers[5].text) ?? 0.0;
-        updateData['pg_gpa_s7'] =
-            double.tryParse(_pgSemControllers[6].text) ?? 0.0;
-        updateData['pg_gpa_s8'] =
-            double.tryParse(_pgSemControllers[7].text) ?? 0.0;
+        updateData['pg_year_pass'] =
+            int.tryParse(_pgYearPassController.text) ?? 0;
+        updateData['pg_institution'] = _pgInstitutionController.text;
+        updateData['pg_university'] = _pgUniversityController.text;
+        for (int i = 0; i < 8; i++) {
+          updateData['pg_gpa_s${i + 1}'] =
+              double.tryParse(_pgSemControllers[i].text) ?? 0.0;
+        }
       } else if (section == 'Backlogs & History') {
         updateData['current_backlogs'] =
             int.tryParse(_currentBacklogsController.text) ?? 0;
@@ -309,11 +349,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       await _studentService.updateProfile(updateData);
       if (mounted) {
+        _editingSection = null;
+        await _refresh();
+      }
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Section updated successfully')),
         );
-        _editingSection = null;
-        _refresh();
       }
     } catch (e) {
       if (mounted) {
@@ -334,6 +376,145 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _languageInputController.clear();
       });
     }
+  }
+
+  Future<void> _uploadResume() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (result == null) return;
+
+      setState(() => _isUploadingResume = true);
+      final file = result.files.single;
+
+      await _studentService.uploadFile(file.path!, 'resume');
+      await _refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Resume uploaded successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Resume upload failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingResume = false);
+    }
+  }
+
+  Future<void> _uploadDocument(String docType, String label) async {
+    final isAadhar = docType == 'aadhar';
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+      if (result == null) return;
+
+      setState(() {
+        if (isAadhar) {
+          _isUploadingAadhar = true;
+        } else {
+          _isUploadingPan = true;
+        }
+      });
+      final file = result.files.single;
+
+      await _studentService.uploadFile(file.path!, docType);
+      await _refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label uploaded successfully')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label upload failed: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (isAadhar) {
+            _isUploadingAadhar = false;
+          } else {
+            _isUploadingPan = false;
+          }
+        });
+      }
+    }
+  }
+
+  Widget _buildDocumentRow({
+    required String label,
+    required String docType,
+    required String? url,
+    required bool isUploading,
+  }) {
+    final hasDoc = url != null && url.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          if (hasDoc)
+            InkWell(
+              onTap: () => _openDocument(docType, url),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.description,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'View $label',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color:
+                            Theme.of(context).textTheme.bodyLarge?.color ??
+                            Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (hasDoc) const SizedBox(width: 8),
+          isUploading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : TextButton.icon(
+                  onPressed: () => _uploadDocument(docType, label),
+                  icon: const Icon(Icons.upload_file, size: 18),
+                  label: Text(hasDoc ? 'Update $label' : 'Upload $label'),
+                ),
+        ],
+      ),
+    );
   }
 
   Widget _buildEditTextField({
@@ -445,54 +626,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _openDocument(String documentType) async {
+  Future<void> _openDocument(String documentType, String url) async {
     try {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Opening document...'),
-            duration: Duration(seconds: 2),
+            content: Text('Downloading document...'),
+            duration: Duration(seconds: 3),
           ),
         );
       }
 
-      final presignedURL = await _studentService.getDocumentURL(documentType);
+      // Use the authenticated stream endpoint which fetches from S3 via the backend.
+      // This avoids Garage anonymous access issues and Bearer token conflicts.
+      final streamUrl =
+          '${AppConstants.apiBaseUrl}/v1/student/documents/$documentType/stream';
 
-      if (presignedURL.isEmpty) {
-        throw 'Document URL not found';
-      }
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
-      final sanitizedURL = AppConstants.sanitizeUrl(
-        presignedURL,
-      ); // [NEW] Sanitize
-      final response = await http.get(Uri.parse(sanitizedURL));
-
-      if (response.statusCode != 200) {
-        throw 'Failed to download document (Status: ${response.statusCode})';
-      }
-
-      String extension = 'pdf';
-      final contentType = response.headers['content-type']?.toLowerCase();
-      if (contentType != null) {
-        if (contentType.contains('image/jpeg') ||
-            contentType.contains('image/jpg')) {
-          extension = 'jpg';
-        } else if (contentType.contains('image/png')) {
-          extension = 'png';
-        } else if (contentType.contains('application/pdf')) {
-          extension = 'pdf';
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', Uri.parse(streamUrl));
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
         }
-      }
 
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/${documentType}_document.$extension');
-      await file.writeAsBytes(response.bodyBytes);
+        final streamedResponse = await client.send(request);
 
-      final result = await OpenFilex.open(file.path);
+        if (streamedResponse.statusCode != 200) {
+          final body = await streamedResponse.stream.bytesToString();
+          final msg =
+              _tryParseErrorBody(body) ??
+              'Status: ${streamedResponse.statusCode}';
+          throw Exception(msg);
+        }
 
-      if (result.type != ResultType.done) {
-        throw result.message;
+        String extension = 'pdf';
+        final contentType = streamedResponse.headers['content-type']
+            ?.toLowerCase();
+        if (contentType != null) {
+          if (contentType.contains('image/jpeg') ||
+              contentType.contains('image/jpg')) {
+            extension = 'jpg';
+          } else if (contentType.contains('image/png')) {
+            extension = 'png';
+          } else if (contentType.contains('application/pdf')) {
+            extension = 'pdf';
+          }
+        }
+
+        final tempDir = await getTemporaryDirectory();
+        final file = File(
+          '${tempDir.path}/${documentType}_document.$extension',
+        );
+
+        // Stream bytes directly to file to avoid memory/encoding issues
+        final sink = file.openWrite();
+        await streamedResponse.stream.pipe(sink);
+        await sink.close();
+
+        final result = await OpenFilex.open(file.path);
+
+        if (result.type != ResultType.done) {
+          throw Exception(result.message);
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
       if (mounted) {
@@ -504,6 +705,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         );
       }
+    }
+  }
+
+  /// Tries to parse a JSON error body and return the "error" field.
+  String? _tryParseErrorBody(String body) {
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      return map['error'] as String?;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -553,24 +764,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           );
         }
 
-        final newUrl = await _studentService.uploadFile(
-          imageFile.path,
-          'profile_pic',
-        );
+        await _studentService.uploadFile(imageFile.path, 'profile_pic');
 
-        // Evict from cache ensuring we use the sanitized URL (same as UI)
+        // Evict the profile photo from cache so the new photo is loaded
         try {
-          final sanitizedUrl = AppConstants.sanitizeUrl(newUrl);
-          await CachedNetworkImage.evictFromCache(sanitizedUrl);
+          await CachedNetworkImage.evictFromCache(
+            '${AppConstants.apiBaseUrl}/v1/student/profile-photo',
+            cacheKey: 'my_profile_photo_$_photoVersion',
+          );
         } catch (e) {
           debugPrint("Failed to evict cache: $e");
         }
+
+        // Clear the entire image cache to ensure the new photo is shown
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile photo updated successfully')),
           );
-          _refresh();
+          setState(() {
+            _photoVersion++;
+          });
         }
       }
     } catch (e) {
@@ -754,12 +970,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               .toString()
                                               .isNotEmpty
                                       ? CachedNetworkImage(
-                                          key: ValueKey(
-                                            data['profile_photo_url'],
-                                          ),
-                                          imageUrl: AppConstants.sanitizeUrl(
-                                            data['profile_photo_url'],
-                                          ),
+                                          imageUrl:
+                                              '${AppConstants.apiBaseUrl}/v1/student/profile-photo',
+                                          httpHeaders: _authToken != null
+                                              ? {
+                                                  'Authorization':
+                                                      'Bearer $_authToken',
+                                                }
+                                              : {},
+                                          cacheKey:
+                                              'my_profile_photo_$_photoVersion',
                                           fit: BoxFit.cover,
                                           memCacheHeight: 300,
                                           placeholder: (context, url) => Center(
@@ -1119,16 +1339,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         controller: _aadharNumberController,
                         label: 'Aadhar Number',
                       ),
+                      _buildDocumentRow(
+                        label: 'Aadhar Card',
+                        docType: 'aadhar',
+                        url: data['aadhar_card_url']?.toString(),
+                        isUploading: _isUploadingAadhar,
+                      ),
                       _buildEditTextField(
                         controller: _panNumberController,
                         label: 'PAN Number',
+                      ),
+                      _buildDocumentRow(
+                        label: 'PAN Card',
+                        docType: 'pan',
+                        url: data['pan_card_url']?.toString(),
+                        isUploading: _isUploadingPan,
                       ),
                     ]
                   : [
                       _buildDetailItem('Date of Birth', data['dob']),
                       _buildDetailItem('Gender', data['gender']),
                       _buildDetailItem('Aadhar Number', data['aadhar_number']),
+                      _buildDocumentRow(
+                        label: 'Aadhar Card',
+                        docType: 'aadhar',
+                        url: data['aadhar_card_url']?.toString(),
+                        isUploading: _isUploadingAadhar,
+                      ),
                       _buildDetailItem('PAN Number', data['pan_number']),
+                      _buildDocumentRow(
+                        label: 'PAN Card',
+                        docType: 'pan',
+                        url: data['pan_card_url']?.toString(),
+                        isUploading: _isUploadingPan,
+                      ),
                     ],
               onEdit: () => _startEditing('Identity', data),
               onSave: () => _saveSection('Identity', data),
@@ -1251,10 +1495,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 .toList(),
                           ),
                         ),
-                      const Text(
-                        'Resume can be updated from the main profile view.',
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
+                      _isUploadingResume
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Uploading resume...',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : TextButton.icon(
+                              onPressed: _uploadResume,
+                              icon: const Icon(Icons.upload_file, size: 18),
+                              label: Text(
+                                data['resume_url'] != null &&
+                                        data['resume_url'].toString().isNotEmpty
+                                    ? 'Update Resume (PDF)'
+                                    : 'Upload Resume (PDF)',
+                              ),
+                            ),
                     ]
                   : [
                       if (languageSkills.isNotEmpty) ...[
@@ -1292,51 +1565,112 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const SizedBox(height: 16),
                       ],
                       if (data['resume_url'] != null &&
-                          data['resume_url'].toString().isNotEmpty)
-                        InkWell(
-                          onTap: () => _openDocument('resume'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).scaffoldBackgroundColor,
+                          data['resume_url'].toString().isNotEmpty) ...[
+                        Row(
+                          children: [
+                            InkWell(
+                              onTap: () =>
+                                  _openDocument('resume', data['resume_url']),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Theme.of(context).dividerColor,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.description,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 20,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'View Resume',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        (Theme.of(
-                                          context,
-                                        ).textTheme.bodyLarge?.color ??
-                                        Colors.black),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).scaffoldBackgroundColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Theme.of(context).dividerColor,
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.description,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'View Resume',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            (Theme.of(
+                                              context,
+                                            ).textTheme.bodyLarge?.color ??
+                                            Colors.black),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _isUploadingResume
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : IconButton(
+                                    onPressed: _uploadResume,
+                                    icon: Icon(
+                                      Icons.upload_file,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                    tooltip: 'Update Resume',
+                                  ),
+                          ],
+                        ),
+                        if (data['resume_updated_at'] != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Last updated: ${_formatDateTime(data['resume_updated_at'])}',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        )
-                      else
-                        const Text(
-                          'No resume uploaded',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
-                        ),
+                      ] else ...[
+                        _isUploadingResume
+                            ? const Row(
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Uploading resume...',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : TextButton.icon(
+                                onPressed: _uploadResume,
+                                icon: const Icon(Icons.upload_file, size: 18),
+                                label: const Text('Upload Resume (PDF)'),
+                              ),
+                      ],
                     ],
               onEdit: () => _startEditing('Skills & Documents', data),
               onSave: () => _saveSection('Skills & Documents', data),
@@ -1485,12 +1819,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             final d = s.value ?? {};
             return (
               d['tenth_mark'],
+              d['tenth_board'],
+              d['tenth_institution'],
+              d['tenth_year_pass'],
               d['twelfth_mark'],
+              d['twelfth_board'],
+              d['twelfth_institution'],
+              d['twelfth_year_pass'],
               d['diploma_mark'],
+              d['diploma_institution'],
+              d['diploma_university'],
+              d['diploma_year_pass'],
               d['ug_cgpa'],
+              d['ug_institution'],
+              d['ug_university'],
+              d['ug_year_pass'],
               d['pg_cgpa'],
+              d['pg_institution'],
+              d['pg_university'],
+              d['pg_year_pass'],
               d['current_backlogs'],
               d['history_of_backlogs'],
+              d['gap_years'],
+              d['gap_reason'],
             );
           }),
         );
@@ -1518,6 +1869,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _buildEditTextField(
                         controller: _tenthInstitutionController,
                         label: 'Institution',
+                      ),
+                      _buildEditTextField(
+                        controller: _tenthYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
                       ),
                     ]
                   : [
@@ -1560,6 +1916,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         controller: _twelfthInstitutionController,
                         label: 'Institution',
                       ),
+                      _buildEditTextField(
+                        controller: _twelfthYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
+                      ),
                     ]
                   : [
                       _buildDetailItem(
@@ -1582,41 +1943,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
 
             // Diploma
-            if (data['diploma_mark'] != null && data['diploma_mark'] > 0)
-              _buildSectionCard(
-                'Diploma (If applicable)',
-                _editingSection == 'Diploma (If applicable)'
-                    ? [
-                        _buildEditTextField(
-                          controller: _diplomaMarkController,
-                          label: 'Percentage',
-                          type: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
+            _buildSectionCard(
+              'Diploma',
+              _editingSection == 'Diploma'
+                  ? [
+                      _buildEditTextField(
+                        controller: _diplomaMarkController,
+                        label: 'Percentage',
+                        type: const TextInputType.numberWithOptions(
+                          decimal: true,
                         ),
-                        _buildEditTextField(
-                          controller: _diplomaInstitutionController,
-                          label: 'Institution',
-                        ),
-                      ]
-                    : [
-                        _buildDetailItem(
-                          'Mark',
-                          '${_formatValue(data['diploma_mark'])}%',
-                        ),
-                        _buildDetailItem(
-                          'Institution',
-                          data['diploma_institution'],
-                        ),
-                        _buildDetailItem(
-                          'Year of Passing',
-                          data['diploma_year_pass'],
-                        ),
-                      ],
-                onEdit: () => _startEditing('Diploma (If applicable)', data),
-                onSave: () => _saveSection('Diploma (If applicable)', data),
-                onCancel: _cancelEditing,
-              ),
+                      ),
+                      _buildEditTextField(
+                        controller: _diplomaInstitutionController,
+                        label: 'Institution Name',
+                      ),
+                      _buildEditTextField(
+                        controller: _diplomaUniversityController,
+                        label: 'University Name',
+                      ),
+                      _buildEditTextField(
+                        controller: _diplomaYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
+                      ),
+                    ]
+                  : [
+                      _buildDetailItem(
+                        'Mark',
+                        '${_formatValue(data['diploma_mark'])}%',
+                      ),
+                      _buildDetailItem(
+                        'Institution',
+                        data['diploma_institution'],
+                      ),
+                      _buildDetailItem(
+                        'University',
+                        data['diploma_university'],
+                      ),
+                      _buildDetailItem(
+                        'Year of Passing',
+                        data['diploma_year_pass'],
+                      ),
+                    ],
+              onEdit: () => _startEditing('Diploma', data),
+              onSave: () => _saveSection('Diploma', data),
+              onCancel: _cancelEditing,
+            ),
 
             // UG
             _buildSectionCard(
@@ -1630,61 +2003,39 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           decimal: true,
                         ),
                       ),
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          'Semester GPAs',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                      _buildEditTextField(
+                        controller: _ugInstitutionController,
+                        label: 'Institution Name',
+                      ),
+                      _buildEditTextField(
+                        controller: _ugUniversityController,
+                        label: 'University Name',
+                      ),
+                      _buildEditTextField(
+                        controller: _ugYearPassController,
+                        label: 'Year of Passing',
+                        type: TextInputType.number,
+                      ),
+                      for (int i = 0; i < 10; i++)
+                        _buildEditTextField(
+                          controller: _ugSemControllers[i],
+                          label: 'Semester ${i + 1} GPA',
+                          type: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
                         ),
-                      ),
-                      Wrap(
-                        spacing: 8,
-                        children: List.generate(
-                          8,
-                          (i) => SizedBox(
-                            width: 70,
-                            child: _buildEditTextField(
-                              controller: _ugSemControllers[i],
-                              label: 'S${i + 1}',
-                              type: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                     ]
                   : [
                       _buildDetailItem('CGPA', data['ug_cgpa']),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Semester GPAs',
-                        style: TextStyle(
-                          color:
-                              (Theme.of(context).textTheme.bodyMedium?.color ??
-                              Colors.grey),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      _buildDetailItem('Institution', data['ug_institution']),
+                      _buildDetailItem('University', data['ug_university']),
+                      _buildDetailItem('Year of Passing', data['ug_year_pass']),
+                      for (int i = 1; i <= 10; i++)
+                        _buildDetailItem(
+                          'Semester $i GPA',
+                          data['ug_gpa_s$i'],
+                          alwaysShow: false,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildGpaBadge('S1', data['ug_gpa_s1']),
-                          _buildGpaBadge('S2', data['ug_gpa_s2']),
-                          _buildGpaBadge('S3', data['ug_gpa_s3']),
-                          _buildGpaBadge('S4', data['ug_gpa_s4']),
-                          _buildGpaBadge('S5', data['ug_gpa_s5']),
-                          _buildGpaBadge('S6', data['ug_gpa_s6']),
-                          _buildGpaBadge('S7', data['ug_gpa_s7']),
-                          _buildGpaBadge('S8', data['ug_gpa_s8']),
-                        ],
-                      ),
                     ],
               onEdit: () => _startEditing('Undergraduate (UG)', data),
               onSave: () => _saveSection('Undergraduate (UG)', data),
@@ -1705,59 +2056,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             decimal: true,
                           ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            'Semester GPAs',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                        _buildEditTextField(
+                          controller: _pgInstitutionController,
+                          label: 'Institution Name',
+                        ),
+                        _buildEditTextField(
+                          controller: _pgUniversityController,
+                          label: 'University Name',
+                        ),
+                        _buildEditTextField(
+                          controller: _pgYearPassController,
+                          label: 'Year of Passing',
+                          type: TextInputType.number,
+                        ),
+                        for (int i = 0; i < 8; i++)
+                          _buildEditTextField(
+                            controller: _pgSemControllers[i],
+                            label: 'Semester ${i + 1} GPA',
+                            type: const TextInputType.numberWithOptions(
+                              decimal: true,
                             ),
                           ),
-                        ),
-                        Wrap(
-                          spacing: 8,
-                          children: List.generate(
-                            4,
-                            (i) => SizedBox(
-                              width: 70,
-                              child: _buildEditTextField(
-                                controller: _pgSemControllers[i],
-                                label: 'S${i + 1}',
-                                type: const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                       ]
                     : [
                         _buildDetailItem('CGPA', data['pg_cgpa']),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Semester GPAs',
-                          style: TextStyle(
-                            color:
-                                (Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color ??
-                                Colors.grey),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        _buildDetailItem('Institution', data['pg_institution']),
+                        _buildDetailItem('University', data['pg_university']),
+                        _buildDetailItem(
+                          'Year of Passing',
+                          data['pg_year_pass'],
+                        ),
+                        for (int i = 1; i <= 8; i++)
+                          _buildDetailItem(
+                            'Semester $i GPA',
+                            data['pg_gpa_s$i'],
+                            alwaysShow: false,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildGpaBadge('S1', data['pg_gpa_s1']),
-                            _buildGpaBadge('S2', data['pg_gpa_s2']),
-                            _buildGpaBadge('S3', data['pg_gpa_s3']),
-                            _buildGpaBadge('S4', data['pg_gpa_s4']),
-                          ],
-                        ),
                       ],
                 onEdit: () => _startEditing('Postgraduate (PG)', data),
                 onSave: () => _saveSection('Postgraduate (PG)', data),
@@ -1973,37 +2307,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildGpaBadge(String semester, dynamic value) {
-    final displayValue = _formatValue(value);
-    final bool isEmpty =
-        displayValue == 'N/A' ||
-        displayValue.isEmpty ||
-        (value is num && value == 0);
-
-    return Chip(
-      label: Text(
-        '$semester: ${isEmpty ? 'N/A' : displayValue}',
-        style: TextStyle(
-          fontSize: 13,
-          color: isEmpty
-              ? (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey)
-                    .withValues(alpha: 0.5)
-              : (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
-          fontWeight: isEmpty ? FontWeight.normal : FontWeight.w500,
-        ),
-      ),
-      backgroundColor: isEmpty
-          ? Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.5)
-          : Theme.of(context).scaffoldBackgroundColor,
-      side: BorderSide(
-        color: isEmpty
-            ? Theme.of(context).dividerColor.withValues(alpha: 0.5)
-            : Theme.of(context).dividerColor,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );
   }
 

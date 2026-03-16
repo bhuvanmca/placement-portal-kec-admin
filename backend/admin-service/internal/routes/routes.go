@@ -17,6 +17,12 @@ func SetupRoutes(app *fiber.App) {
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(database.DB)
 	app.Get("/api/v1/settings", systemSettingsHandler.GetSettings)
 
+	// Public Admin Auth Routes (no auth needed for forgot/reset password)
+	adminAuthHandler := handlers.NewAdminAuthHandler(database.DB)
+	adminAuth := app.Group("/api/v1/admin/auth")
+	adminAuth.Post("/forgot-password", adminAuthHandler.AdminForgotPassword)
+	adminAuth.Post("/reset-password", adminAuthHandler.AdminResetPassword)
+
 	api := app.Group("/api/v1", middleware.Protected)
 
 	// --- Protected but available to all logged-in users ---
@@ -34,6 +40,9 @@ func SetupRoutes(app *fiber.App) {
 
 	// --- Admin Only ---
 	admin := api.Group("/admin", middleware.AdminOnly)
+
+	// Dashboard
+	admin.Get("/dashboard/stats", handlers.GetDashboardStats)
 
 	// Student Management
 	admin.Post("/students/bulk-upload", handlers.BulkUploadStudents)

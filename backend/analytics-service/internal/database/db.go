@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -24,8 +25,8 @@ func Connect() (*pgxpool.Pool, error) {
 	}
 
 	// Performance tuning for production
-	config.MaxConns = 50
-	config.MinConns = 5
+	config.MaxConns = 10
+	config.MinConns = 2
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
 
@@ -35,13 +36,22 @@ func Connect() (*pgxpool.Pool, error) {
 		return err
 	}
 
-	pool, err := pgxpool.NewWithConfig(context.Background(), config)
-	if err != nil {
-		return nil, fmt.Errorf("unable to connect to database: %w", err)
+	var pool *pgxpool.Pool
+
+	// Retry loop for initial connection
+	for i := 0; i < 10; i++ {
+		pool, err = pgxpool.NewWithConfig(context.Background(), config)
+		if err == nil {
+			if err = pool.Ping(context.Background()); err == nil {
+				break
+			}
+		}
+		log.Printf("Waiting for database... retry %d/10", i+1)
+		time.Sleep(2 * time.Second)
 	}
 
-	if err := pool.Ping(context.Background()); err != nil {
-		return nil, fmt.Errorf("unable to ping database: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to database after retries: %w", err)
 	}
 
 	DB = pool

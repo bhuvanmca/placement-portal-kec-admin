@@ -29,7 +29,7 @@ func (r *UserRepository) UpdateDocumentPath(ctx context.Context, userID int64, d
 		query = `INSERT INTO student_documents (user_id, pan_card_url, pan_card_updated_at) VALUES ($1, $2, NOW())
                  ON CONFLICT (user_id) DO UPDATE SET pan_card_url = $2, pan_card_updated_at = NOW()`
 	case "profile_pic":
-		query = `UPDATE users SET profile_photo_url = $2 WHERE id = $1`
+		query = `UPDATE users SET profile_photo_url = $2, updated_at = NOW() WHERE id = $1`
 	default:
 		return fmt.Errorf("invalid document type")
 	}

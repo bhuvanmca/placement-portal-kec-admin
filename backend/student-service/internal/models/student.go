@@ -21,6 +21,11 @@ type User struct {
 
 // UpdateProfileInput defines what a student can edit
 type UpdateProfileInput struct {
+	FirstName            string            `json:"first_name"`
+	MiddleName           string            `json:"middle_name"`
+	LastName             string            `json:"last_name"`
+	FatherName           string            `json:"father_name"`
+	MotherName           string            `json:"mother_name"`
 	MobileNumber         string            `json:"mobile_number"`
 	Dob                  string            `json:"dob"`
 	Gender               string            `json:"gender"`
@@ -39,17 +44,21 @@ type UpdateProfileInput struct {
 	TwelfthYearPass      int               `json:"twelfth_year_pass"`
 	TwelfthInstitution   string            `json:"twelfth_institution"`
 	DiplomaMark          float64           `json:"diploma_mark"`
+	DiplomaBoard         string            `json:"diploma_board"`
 	DiplomaYearPass      int               `json:"diploma_year_pass"`
 	DiplomaInstitution   string            `json:"diploma_institution"`
+	DiplomaUniversity    string            `json:"diploma_university"`
 	UgCgpa               float64           `json:"ug_cgpa"`
 	PgCgpa               float64           `json:"pg_cgpa"`
 	UgDegreeName         string            `json:"ug_degree_name"`
 	UgSpecialisation     string            `json:"ug_specialisation"`
 	UgInstitution        string            `json:"ug_institution"`
+	UgUniversity         string            `json:"ug_university"`
 	UgYearPass           int               `json:"ug_year_pass"`
 	PgDegreeName         string            `json:"pg_degree_name"`
 	PgSpecialisation     string            `json:"pg_specialisation"`
 	PgInstitution        string            `json:"pg_institution"`
+	PgUniversity         string            `json:"pg_university"`
 	PgYearPass           int               `json:"pg_year_pass"`
 	UgGpaS1              float64           `json:"ug_gpa_s1"`
 	UgGpaS2              float64           `json:"ug_gpa_s2"`
@@ -75,6 +84,8 @@ type UpdateProfileInput struct {
 	GapReason            string            `json:"gap_reason"`
 	ResumeURL            string            `json:"resume_url"`
 	ProfilePhotoURL      string            `json:"profile_photo_url"`
+	AadharCardURL        string            `json:"aadhar_card_url"`
+	PanCardURL           string            `json:"pan_card_url"`
 	PanNumber            string            `json:"pan_number"`
 	AadharNumber         string            `json:"aadhar_number"`
 }
@@ -86,6 +97,9 @@ type CreateStudentInput struct {
 	RegisterNumber string `json:"register_number" validate:"required"`
 	BatchYear      int    `json:"batch_year" validate:"required"`
 	Department     string `json:"department" validate:"required"`
+	StudentType    string `json:"student_type"`
+	Gender         string `json:"gender"`
+	MobileNumber   string `json:"mobile_number"`
 	Password       string `json:"password"`
 }
 
@@ -96,6 +110,11 @@ type StudentFullProfile struct {
 	IsBlocked            bool              `json:"is_blocked"`
 	LastLogin            *time.Time        `json:"last_login"`
 	FullName             string            `json:"full_name"`
+	FirstName            string            `json:"first_name"`
+	MiddleName           string            `json:"middle_name"`
+	LastName             string            `json:"last_name"`
+	FatherName           string            `json:"father_name"`
+	MotherName           string            `json:"mother_name"`
 	RegisterNumber       string            `json:"register_number"`
 	Department           string            `json:"department"`
 	DepartmentType       string            `json:"department_type"`
@@ -119,14 +138,18 @@ type StudentFullProfile struct {
 	TwelfthYearPass      int               `json:"twelfth_year_pass"`
 	TwelfthInstitution   string            `json:"twelfth_institution"`
 	DiplomaMark          float64           `json:"diploma_mark"`
+	DiplomaBoard         string            `json:"diploma_board"`
 	DiplomaYearPass      int               `json:"diploma_year_pass"`
 	DiplomaInstitution   string            `json:"diploma_institution"`
+	DiplomaUniversity    string            `json:"diploma_university"`
 	UgCgpa               float64           `json:"ug_cgpa"`
 	PgCgpa               float64           `json:"pg_cgpa"`
 	UgYearPass           int               `json:"ug_year_pass"`
 	UgInstitution        string            `json:"ug_institution"`
+	UgUniversity         string            `json:"ug_university"`
 	PgYearPass           int               `json:"pg_year_pass"`
 	PgInstitution        string            `json:"pg_institution"`
+	PgUniversity         string            `json:"pg_university"`
 	UgGpaS1              float64           `json:"ug_gpa_s1"`
 	UgGpaS2              float64           `json:"ug_gpa_s2"`
 	UgGpaS3              float64           `json:"ug_gpa_s3"`
@@ -151,6 +174,8 @@ type StudentFullProfile struct {
 	GapReason            string            `json:"gap_reason"`
 	ResumeURL            string            `json:"resume_url"`
 	ProfilePhotoURL      string            `json:"profile_photo_url"`
+	AadharCardURL        string            `json:"aadhar_card_url"`
+	PanCardURL           string            `json:"pan_card_url"`
 	PanNumber            string            `json:"pan_number"`
 	AadharNumber         string            `json:"aadhar_number"`
 	ResumeUpdatedAt      *time.Time        `json:"resume_updated_at"`

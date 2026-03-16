@@ -22,7 +22,7 @@ func (r *UserRepository) BulkCreateStudents(ctx context.Context, students [][]st
 	count := 0
 
 	// 1. Insert User
-	stmtUser := `INSERT INTO users (email, password_hash, role, is_active) VALUES ($1, $2, 'student', true) RETURNING id`
+	stmtUser := `INSERT INTO users (email, password_hash, role, is_active, name) VALUES ($1, $2, 'student', true, $3) RETURNING id`
 
 	// 2. Insert Profile
 	// 2. Insert Profile
@@ -49,7 +49,7 @@ func (r *UserRepository) BulkCreateStudents(ctx context.Context, students [][]st
 		}
 
 		email := row[0]
-		// name := row[1] // Unused in stmtProfile
+		name := row[1]
 		regNo := row[2]
 		dept := row[3]
 		batchYear, err := strconv.Atoi(row[4])
@@ -61,7 +61,7 @@ func (r *UserRepository) BulkCreateStudents(ctx context.Context, students [][]st
 		hashedPass, _ := bcrypt.GenerateFromPassword([]byte(rawPass), bcrypt.DefaultCost)
 
 		var userID int64
-		err = tx.QueryRow(ctx, stmtUser, email, string(hashedPass)).Scan(&userID)
+		err = tx.QueryRow(ctx, stmtUser, email, string(hashedPass), name).Scan(&userID)
 		if err != nil {
 			return count, fmt.Errorf("failed to insert user %s: %w", email, err)
 		}
@@ -183,23 +183,26 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
             coalesce(sp.address_line_1, ''), coalesce(sp.address_line_2, ''), coalesce(sp.state, ''),
             coalesce(sp.pan_number, ''), coalesce(sp.aadhar_number, ''),
             coalesce(sp.social_links, '{}'::jsonb), coalesce(sp.language_skills, '[]'::jsonb),
+            coalesce(sp.first_name, ''), coalesce(sp.middle_name, ''), coalesce(sp.last_name, ''),
+            coalesce(sp.father_name, ''), coalesce(sp.mother_name, ''),
             
             -- Schooling
             coalesce(sch.tenth_mark,0), coalesce(sch.tenth_board,''), coalesce(sch.tenth_year_pass,0), coalesce(sch.tenth_institution,''),
             coalesce(sch.twelfth_mark,0), coalesce(sch.twelfth_board,''), coalesce(sch.twelfth_year_pass,0), coalesce(sch.twelfth_institution,''),
-            coalesce(sch.diploma_mark,0), coalesce(sch.diploma_year_pass,0), coalesce(sch.diploma_institution,''),
+            coalesce(sch.diploma_mark,0), coalesce(sch.diploma_board,''), coalesce(sch.diploma_year_pass,0), coalesce(sch.diploma_institution,''), coalesce(sch.diploma_university,''),
             
             -- Backlogs
             coalesce(sch.current_backlogs,0), coalesce(sch.history_of_backlogs,0),
             coalesce(sch.gap_years,0), coalesce(sch.gap_reason, ''),
 
             -- UG Degree (Score Only)
-            coalesce(d_ug.year_pass, 0), coalesce(d_ug.cgpa, 0), coalesce(d_ug.semester_gpas, '{}'::jsonb),
+            coalesce(d_ug.year_pass, 0), coalesce(d_ug.institution, ''), coalesce(d_ug.university, ''), coalesce(d_ug.cgpa, 0), coalesce(d_ug.semester_gpas, '{}'::jsonb),
 
             -- PG Degree (Score Only)
-            coalesce(d_pg.year_pass, 0), coalesce(d_pg.cgpa, 0), coalesce(d_pg.semester_gpas, '{}'::jsonb),
+            coalesce(d_pg.year_pass, 0), coalesce(d_pg.institution, ''), coalesce(d_pg.university, ''), coalesce(d_pg.cgpa, 0), coalesce(d_pg.semester_gpas, '{}'::jsonb),
 
             coalesce(sd.resume_url, ''), coalesce(u.profile_photo_url, ''),
+            coalesce(sd.aadhar_card_url, ''), coalesce(sd.pan_card_url, ''),
             sd.resume_updated_at
         FROM users u
         JOIN student_personal sp ON u.id = sp.user_id
@@ -252,21 +255,24 @@ func (r *UserRepository) GetStudentByRegisterNumber(ctx context.Context, regNo s
 		&s.AddressLine1, &s.AddressLine2, &s.State,
 		&s.PanNumber, &s.AadharNumber,
 		&socialLinksBytes, &languageSkillsBytes,
+		&s.FirstName, &s.MiddleName, &s.LastName,
+		&s.FatherName, &s.MotherName,
 
 		&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 		&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-		&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution,
+		&s.DiplomaMark, &s.DiplomaBoard, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 		&s.CurrentBacklogs, &s.HistoryBacklogs,
 		&s.GapYears, &s.GapReason,
 
 		// UG (Score Only)
-		&s.UgYearPass, &s.UgCgpa, &ugSemesterGpasBytes,
+		&s.UgYearPass, &s.UgInstitution, &s.UgUniversity, &s.UgCgpa, &ugSemesterGpasBytes,
 
 		// PG (Score Only)
-		&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes,
+		&s.PgYearPass, &s.PgInstitution, &s.PgUniversity, &s.PgCgpa, &pgSemesterGpasBytes,
 
 		&s.ResumeURL, &s.ProfilePhotoURL,
+		&s.AadharCardURL, &s.PanCardURL,
 		&s.ResumeUpdatedAt,
 	)
 	if err != nil {
@@ -559,23 +565,26 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
             COALESCE(sp.address_line_1, ''), COALESCE(sp.address_line_2, ''), COALESCE(sp.state, ''),
             COALESCE(sp.pan_number, ''), COALESCE(sp.aadhar_number, ''),
             COALESCE(sp.social_links, '{}'::jsonb), COALESCE(sp.language_skills, '{}'::jsonb),
+            COALESCE(sp.first_name, ''), COALESCE(sp.middle_name, ''), COALESCE(sp.last_name, ''),
+            COALESCE(sp.father_name, ''), COALESCE(sp.mother_name, ''),
 
             -- Schooling
             COALESCE(sch.tenth_mark, 0), COALESCE(sch.tenth_board, ''), COALESCE(sch.tenth_year_pass, 0), COALESCE(sch.tenth_institution, ''),
             COALESCE(sch.twelfth_mark, 0), COALESCE(sch.twelfth_board, ''), COALESCE(sch.twelfth_year_pass, 0), COALESCE(sch.twelfth_institution, ''),
-            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''),
+            COALESCE(sch.diploma_mark, 0), COALESCE(sch.diploma_board, ''), COALESCE(sch.diploma_year_pass, 0), COALESCE(sch.diploma_institution, ''), COALESCE(sch.diploma_university, ''),
             
             -- Backlogs
             COALESCE(sch.current_backlogs, 0), COALESCE(sch.history_of_backlogs, 0),
             COALESCE(sch.gap_years, 0), COALESCE(sch.gap_reason, ''),
 
             -- UG Degree (Score Only)
-            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb), COALESCE(d_ug.institution, ''),
+            COALESCE(d_ug.year_pass, 0), COALESCE(d_ug.cgpa, 0.0), COALESCE(d_ug.semester_gpas, '{}'::jsonb), COALESCE(d_ug.institution, ''), COALESCE(d_ug.university, ''),
 
             -- PG Degree (Score Only)
-            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb), COALESCE(d_pg.institution, ''),
+            COALESCE(d_pg.year_pass, 0), COALESCE(d_pg.cgpa, 0.0), COALESCE(d_pg.semester_gpas, '{}'::jsonb), COALESCE(d_pg.institution, ''), COALESCE(d_pg.university, ''),
 
             COALESCE(sd.resume_url, ''), COALESCE(u.profile_photo_url, ''),
+            COALESCE(sd.aadhar_card_url, ''), COALESCE(sd.pan_card_url, ''),
             sd.resume_updated_at
         FROM users u
         JOIN student_personal sp ON u.id = sp.user_id
@@ -615,18 +624,21 @@ func (r *UserRepository) GetStudents(ctx context.Context, department string, bat
 			&s.AddressLine1, &s.AddressLine2, &s.State,
 			&s.PanNumber, &s.AadharNumber,
 			&socialLinksBytes, &languageSkillsBytes,
+			&s.FirstName, &s.MiddleName, &s.LastName,
+			&s.FatherName, &s.MotherName,
 
 			&s.TenthMark, &s.TenthBoard, &s.TenthYearPass, &s.TenthInstitution,
 			&s.TwelfthMark, &s.TwelfthBoard, &s.TwelfthYearPass, &s.TwelfthInstitution,
-			&s.DiplomaMark, &s.DiplomaYearPass, &s.DiplomaInstitution,
+			&s.DiplomaMark, &s.DiplomaBoard, &s.DiplomaYearPass, &s.DiplomaInstitution, &s.DiplomaUniversity,
 
 			&s.CurrentBacklogs, &s.HistoryBacklogs,
 			&s.GapYears, &s.GapReason,
 
-			&s.UgYearPass, &s.UgCgpa, &ugSemesterGpasBytes, &s.UgInstitution,
-			&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes, &s.PgInstitution,
+			&s.UgYearPass, &s.UgCgpa, &ugSemesterGpasBytes, &s.UgInstitution, &s.UgUniversity,
+			&s.PgYearPass, &s.PgCgpa, &pgSemesterGpasBytes, &s.PgInstitution, &s.PgUniversity,
 
 			&s.ResumeURL, &s.ProfilePhotoURL,
+			&s.AadharCardURL, &s.PanCardURL,
 			&s.ResumeUpdatedAt,
 		)
 
@@ -733,10 +745,32 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID int64, passw
 	return err
 }
 
-// UpdateUserProfile updates name and profile photo for any user
+// UpdateUserProfile updates name and/or profile photo for any user.
+// Empty strings are skipped — only non-empty values are updated.
 func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, name, photoURL string) error {
-	query := `UPDATE users SET name = $1, profile_photo_url = $2 WHERE id = $3`
-	_, err := r.DB.Exec(ctx, query, name, photoURL, userID)
+	setClauses := []string{}
+	args := []interface{}{}
+	argIdx := 1
+
+	if name != "" {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		args = append(args, name)
+		argIdx++
+	}
+	if photoURL != "" {
+		setClauses = append(setClauses, fmt.Sprintf("profile_photo_url = $%d", argIdx))
+		args = append(args, photoURL)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return nil // nothing to update
+	}
+
+	setClauses = append(setClauses, "updated_at = NOW()")
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(setClauses, ", "), argIdx)
+	args = append(args, userID)
+	_, err := r.DB.Exec(ctx, query, args...)
 	return err
 }
 

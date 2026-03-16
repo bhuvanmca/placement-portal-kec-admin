@@ -191,14 +191,6 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
 		argCounter++
 	}
 
-	// Filter by Search Term
-	if val, ok := filters["search"]; ok && val != "" {
-		searchTerm := fmt.Sprintf("%%%v%%", val)
-		query += fmt.Sprintf(" AND (pd.company_name ILIKE $%d OR pd.job_description ILIKE $%d OR EXISTS (SELECT 1 FROM job_roles jr WHERE jr.drive_id = pd.id AND jr.role_name ILIKE $%d))", argCounter, argCounter, argCounter)
-		args = append(args, searchTerm)
-		argCounter++
-	}
-
 	// Always sort by created_at DESC (Most recent first)
 	query += ` ORDER BY pd.created_at DESC`
 

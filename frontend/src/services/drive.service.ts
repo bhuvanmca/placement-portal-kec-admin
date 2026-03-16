@@ -121,6 +121,10 @@ export interface Drive {
   drive_type: string;
   company_category: string;
   spoc_id: number;
+  spoc_name?: string;
+  spoc_designation?: string;
+  offer_type: string;
+  allow_placed_candidates: boolean;
   roles: JobRole[];
   min_cgpa: number;
   tenth_percentage?: number;
@@ -135,10 +139,11 @@ export interface Drive {
   eligible_gender: string;
   rounds: Round[];
   attachments: Attachment[];
+  excluded_student_ids?: number[];
   drive_date: string;
   deadline_date: string;
   status: string;
-  applicant_count?: number; 
+  applicant_count?: number;
   user_status?: string;
 }
 

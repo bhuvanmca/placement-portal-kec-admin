@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/student_service.dart';
 import '../utils/constants.dart';
 import '../widgets/app_button.dart';
 
-class ResetPasswordScreen extends StatefulWidget {
+class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String email;
 
   const ResetPasswordScreen({super.key, required this.email});
 
   @override
-  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
-class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _otpController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -36,11 +38,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await StudentService().resetPassword(
-        widget.email,
-        _otpController.text.trim(),
-        _passwordController.text,
-      );
+      await ref
+          .read(studentServiceProvider)
+          .resetPassword(
+            widget.email,
+            _otpController.text.trim(),
+            _passwordController.text,
+          );
 
       if (!mounted) return;
 
@@ -75,7 +79,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         title: const Text('Reset Password'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        foregroundColor: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+        foregroundColor:
+            (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -106,7 +111,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   Text(
                     'Check your email (${widget.email}) for the OTP',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                      color:
+                          (Theme.of(context).textTheme.bodyMedium?.color ??
+                          Colors.grey),
                     ),
                     textAlign: TextAlign.center,
                   ),

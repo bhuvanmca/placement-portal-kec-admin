@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import 'api_client.dart';
@@ -59,6 +60,7 @@ class AuthService {
         if (data['token'] != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', data['token']);
+          await prefs.setString('role', data['role'] ?? 'student');
           await prefs.setBool(
             'is_profile_complete',
             data['is_profile_complete'] ?? false,
@@ -108,6 +110,19 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await prefs.remove('role');
     await prefs.remove('is_profile_complete');
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
+  }
+
+  Future<String> getRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('role') ?? 'student';
+  }
+
+  bool isAdmin(String role) {
+    return role == 'admin' || role == 'coordinator' || role == 'super_admin';
   }
 }

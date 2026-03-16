@@ -9,6 +9,11 @@ export interface Student {
   
   // Personal
   full_name: string;
+  first_name?: string;
+  middle_name?: string;
+  last_name?: string;
+  father_name?: string;
+  mother_name?: string;
   register_number: string;
   department: string;
   department_type?: string;
@@ -42,6 +47,7 @@ export interface Student {
   diploma_mark?: number;
   diploma_year_pass?: number;
   diploma_institution?: string;
+  diploma_university?: string;
 
   // Degrees
   ug_cgpa?: number; // from 'ug_cgpa'
@@ -49,8 +55,10 @@ export interface Student {
 
   ug_year_pass?: number;
   ug_institution?: string;
+  ug_university?: string;
   pg_year_pass?: number;
   pg_institution?: string;
+  pg_university?: string;
 
   current_backlogs?: number;
   history_of_backlogs?: number;
@@ -60,6 +68,8 @@ export interface Student {
   // Documents
   resume_url?: string;
   profile_photo_url?: string;
+  aadhar_card_url?: string;
+  pan_card_url?: string;
   resume_updated_at?: string;
 
   // Computed / Extra

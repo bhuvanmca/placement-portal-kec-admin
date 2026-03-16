@@ -19,13 +19,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   // Store file names for UI display
   String? _resumeName;
   String? _photoName;
+  String? _aadharDocName;
+  String? _panDocName;
 
   final _aadharController = TextEditingController();
   final _panController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
-  final StudentService _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
 
   @override
   void initState() {
@@ -38,6 +40,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     }
     if (state.profilePhotoUrl != null && state.profilePhotoUrl!.isNotEmpty) {
       _photoName = "Uploaded (from Profile Pic screen)";
+    }
+    if (state.aadharDocUrl != null && state.aadharDocUrl!.isNotEmpty) {
+      _aadharDocName = "Uploaded";
+    }
+    if (state.panDocUrl != null && state.panDocUrl!.isNotEmpty) {
+      _panDocName = "Uploaded";
     }
 
     // Identity Numbers State
@@ -64,10 +72,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         final file = result.files.single;
 
         // Upload immediately
-        final url = await _studentService.uploadFile(
-          file.path!,
-          type == 'photo' ? 'profile_pic' : type,
-        );
+        // Map internal type names to backend-expected types:
+        // Backend accepts: resume, aadhar, pan, profile_pic
+        String uploadType = type;
+        if (type == 'photo') {
+          uploadType = 'profile_pic';
+        } else if (type == 'aadhar_doc') {
+          uploadType = 'aadhar';
+        } else if (type == 'pan_doc') {
+          uploadType = 'pan';
+        }
+
+        final url = await _studentService.uploadFile(file.path!, uploadType);
 
         // Update provider with URL
         if (type == 'resume') {
@@ -76,6 +92,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         } else if (type == 'photo') {
           ref.read(onboardingProvider.notifier).updateProfilePhoto(url);
           setState(() => _photoName = file.name);
+        } else if (type == 'aadhar_doc') {
+          ref
+              .read(onboardingProvider.notifier)
+              .updateDocuments(aadharDocUrl: url);
+          setState(() => _aadharDocName = file.name);
+        } else if (type == 'pan_doc') {
+          ref.read(onboardingProvider.notifier).updateDocuments(panDocUrl: url);
+          setState(() => _panDocName = file.name);
         }
 
         if (mounted) {
@@ -116,6 +140,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
 
       // Construct payload
       final Map<String, dynamic> payload = {
+        // Basic Information
+        'first_name': state.firstName ?? '',
+        'middle_name': state.middleName ?? '',
+        'last_name': state.lastName ?? '',
+        'father_name': state.fatherName ?? '',
+        'mother_name': state.motherName ?? '',
         'mobile_number': state.mobileNumber ?? '',
         'dob': state.dob ?? '',
         'gender': state.gender ?? '',
@@ -126,8 +156,24 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         // Academics
         'tenth_mark': state.tenthMark ?? 0.0,
         'twelfth_mark': state.twelfthMark ?? 0.0,
+        'diploma_mark': state.diplomaMark ?? 0.0,
         'ug_cgpa': state.ugCgpa ?? 0.0,
         'pg_cgpa': state.pgCgpa ?? 0.0,
+        'tenth_year_pass': state.tenthYearPass ?? 0,
+        'twelfth_year_pass': state.twelfthYearPass ?? 0,
+        'diploma_year_pass': state.diplomaYearPass ?? 0,
+        'ug_year_pass': state.ugYearPass ?? 0,
+        'pg_year_pass': state.pgYearPass ?? 0,
+        'tenth_board': state.tenthBoard ?? '',
+        'tenth_institution': state.tenthInstitution ?? '',
+        'twelfth_board': state.twelfthBoard ?? '',
+        'twelfth_institution': state.twelfthInstitution ?? '',
+        'diploma_institution': state.diplomaInstitution ?? '',
+        'diploma_university': state.diplomaUniversity ?? '',
+        'ug_institution': state.ugInstitution ?? '',
+        'ug_university': state.ugUniversity ?? '',
+        'pg_institution': state.pgInstitution ?? '',
+        'pg_university': state.pgUniversity ?? '',
         'social_links': state.socialLinks ?? {},
         'placement_willingness': state.placementWillingness ?? 'Interested',
         // Documents & Identity
@@ -135,6 +181,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'resume_url': state.resumeUrl ?? '',
         'aadhar_number': state.aadharNumber ?? '',
         'pan_number': state.panNumber ?? '',
+        'aadhar_card_url': state.aadharDocUrl ?? '',
+        'pan_card_url': state.panDocUrl ?? '',
       };
 
       await _studentService.updateProfile(payload);
@@ -195,7 +243,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                   Text(
                     fileName,
                     style: TextStyle(
-                      color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                      color:
+                          (Theme.of(context).textTheme.bodyMedium?.color ??
+                          Colors.grey),
                       fontSize: 12,
                     ),
                     maxLines: 1,
@@ -244,14 +294,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                 'Almost done!',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                  color:
+                      (Theme.of(context).textTheme.bodyLarge?.color ??
+                      Colors.black),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Please provide your identity numbers and upload essential documents.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                  color:
+                      (Theme.of(context).textTheme.bodyMedium?.color ??
+                      Colors.grey),
                 ),
               ),
               const SizedBox(height: 24),
@@ -268,7 +322,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                            color:
+                                (Theme.of(context).textTheme.bodyLarge?.color ??
+                                Colors.black),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -328,7 +384,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                            color:
+                                (Theme.of(context).textTheme.bodyLarge?.color ??
+                                Colors.black),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -342,6 +400,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                           'Profile Photo',
                           _photoName,
                           () => _pickFile('photo'),
+                        ),
+                        _buildUploadCard(
+                          'Aadhar Card Document',
+                          _aadharDocName,
+                          () => _pickFile('aadhar_doc'),
+                        ),
+                        _buildUploadCard(
+                          'PAN Card Document',
+                          _panDocName,
+                          () => _pickFile('pan_doc'),
                         ),
                       ],
                     ),

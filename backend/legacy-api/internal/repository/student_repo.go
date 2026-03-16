@@ -465,9 +465,14 @@ func (r *StudentRepository) ApplyFieldUpdate(studentID int64, fieldName string, 
 
 	// Schooling Table Fields
 	case "tenth_mark", "twelfth_mark", "diploma_mark", "current_backlogs", "history_of_backlogs", "gap_years":
-		// Numeric casting might be needed if values are strings but columns are int/float
-		// However, PostgreSQL driver often handles string-to-number if safe.
-		// Let's assume newValue is string rep of number.
+		query = fmt.Sprintf("UPDATE student_schooling SET %s = $1 WHERE user_id = $2", fieldName)
+		args = []interface{}{newValue, studentID}
+
+	case "tenth_year_pass", "twelfth_year_pass", "diploma_year_pass":
+		query = fmt.Sprintf("UPDATE student_schooling SET %s = $1 WHERE user_id = $2", fieldName)
+		args = []interface{}{newValue, studentID}
+
+	case "tenth_board", "tenth_institution", "twelfth_board", "twelfth_institution", "diploma_institution":
 		query = fmt.Sprintf("UPDATE student_schooling SET %s = $1 WHERE user_id = $2", fieldName)
 		args = []interface{}{newValue, studentID}
 
@@ -480,8 +485,16 @@ func (r *StudentRepository) ApplyFieldUpdate(studentID int64, fieldName string, 
 		query = "UPDATE student_degrees SET cgpa = $1 WHERE user_id = $2 AND degree_level = 'UG'"
 		args = []interface{}{newValue, studentID}
 
+	case "ug_year_pass":
+		query = "UPDATE student_degrees SET year_pass = $1 WHERE user_id = $2 AND degree_level = 'UG'"
+		args = []interface{}{newValue, studentID}
+
 	case "pg_cgpa":
 		query = "UPDATE student_degrees SET cgpa = $1 WHERE user_id = $2 AND degree_level = 'PG'"
+		args = []interface{}{newValue, studentID}
+
+	case "pg_year_pass":
+		query = "UPDATE student_degrees SET year_pass = $1 WHERE user_id = $2 AND degree_level = 'PG'"
 		args = []interface{}{newValue, studentID}
 
 	default:

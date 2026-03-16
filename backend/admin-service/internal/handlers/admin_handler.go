@@ -8,13 +8,35 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
 	"github.com/placement-portal-kec/admin-service/internal/services"
 	"github.com/placement-portal-kec/admin-service/internal/utils"
-	"github.com/gofiber/fiber/v2"
 )
+
+// GetDashboardStats returns aggregated counts in a single query
+func GetDashboardStats(c *fiber.Ctx) error {
+	var totalStudents, totalDrives, pendingRequests int64
+
+	err := database.DB.QueryRow(c.Context(), `
+		SELECT
+			(SELECT COUNT(*) FROM users WHERE role = 'student'),
+			(SELECT COUNT(*) FROM placement_drives),
+			(SELECT COUNT(*) FROM student_change_requests WHERE status = 'pending')
+	`).Scan(&totalStudents, &totalDrives, &pendingRequests)
+
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch dashboard stats"})
+	}
+
+	return c.JSON(fiber.Map{
+		"total_students":   totalStudents,
+		"total_drives":     totalDrives,
+		"pending_requests": pendingRequests,
+	})
+}
 
 // BulkUploadStudents
 // @Summary Bulk Upload Students
@@ -445,10 +467,19 @@ func ListStudents(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch students"})
 	}
 
-	// Presign Profile Photo URLs
+	// Transform all document URLs to browser-accessible URLs
 	for i := range students {
 		if students[i].ProfilePhotoURL != "" {
 			students[i].ProfilePhotoURL = utils.GenerateSignedProfileURL(students[i].ProfilePhotoURL)
+		}
+		if students[i].ResumeURL != "" {
+			students[i].ResumeURL = utils.GenerateSignedDocumentURL(students[i].ResumeURL)
+		}
+		if students[i].AadharCardURL != "" {
+			students[i].AadharCardURL = utils.GenerateSignedDocumentURL(students[i].AadharCardURL)
+		}
+		if students[i].PanCardURL != "" {
+			students[i].PanCardURL = utils.GenerateSignedDocumentURL(students[i].PanCardURL)
 		}
 	}
 
@@ -481,9 +512,18 @@ func GetStudentDetails(c *fiber.Ctx) error {
 	repo := repository.NewUserRepository(database.DB)
 	userProfile, err := repo.GetStudentByRegisterNumber(c.Context(), param)
 	if err == nil {
-		// Presign Profile Photo URL
+		// Transform all document URLs to browser-accessible URLs
 		if userProfile.ProfilePhotoURL != "" {
 			userProfile.ProfilePhotoURL = utils.GenerateSignedProfileURL(userProfile.ProfilePhotoURL)
+		}
+		if userProfile.ResumeURL != "" {
+			userProfile.ResumeURL = utils.GenerateSignedDocumentURL(userProfile.ResumeURL)
+		}
+		if userProfile.AadharCardURL != "" {
+			userProfile.AadharCardURL = utils.GenerateSignedDocumentURL(userProfile.AadharCardURL)
+		}
+		if userProfile.PanCardURL != "" {
+			userProfile.PanCardURL = utils.GenerateSignedDocumentURL(userProfile.PanCardURL)
 		}
 		return c.JSON(userProfile)
 	}

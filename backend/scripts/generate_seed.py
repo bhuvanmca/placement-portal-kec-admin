@@ -84,26 +84,26 @@ def generate_seed():
         history_backlogs = backlogs + random.choice([0, 0, 1, 2])
         
         sql_statements.append(f"    -- Student {i}: {name}")
-        sql_statements.append(f"    INSERT INTO users (name, email, password_hash, role, profile_photo_url, is_active) ")
+        sql_statements.append(f"    INSERT INTO public.users (name, email, password_hash, role, profile_photo_url, is_active) ")
         sql_statements.append(f"    VALUES ('{name}', '{email}', '{password_hash}', 'student', '{profile_photo_url}', TRUE) ")
         sql_statements.append(f"    RETURNING id INTO new_user_id;")
         
-        sql_statements.append(f"    INSERT INTO student_personal (user_id, register_number, batch_year, department, gender, mobile_number) ")
+        sql_statements.append(f"    INSERT INTO student.student_personal (user_id, register_number, batch_year, department, gender, mobile_number) ")
         sql_statements.append(f"    VALUES (new_user_id, '{reg_no}', {batch}, '{dept_code}', '{gender}', '{phone}');")
         
-        sql_statements.append(f"    INSERT INTO student_schooling (user_id, tenth_mark, tenth_board, tenth_year_pass, twelfth_mark, twelfth_board, twelfth_year_pass, current_backlogs, history_of_backlogs)")
+        sql_statements.append(f"    INSERT INTO student.student_schooling (user_id, tenth_mark, tenth_board, tenth_year_pass, twelfth_mark, twelfth_board, twelfth_year_pass, current_backlogs, history_of_backlogs)")
         sql_statements.append(f"    VALUES (new_user_id, {tenth_mark}, 'State Board', {batch-6}, {twelfth_mark}, 'State Board', {batch-4}, {backlogs}, {history_backlogs});")
         
-        sql_statements.append(f"    INSERT INTO student_degrees (user_id, degree_level, year_pass, cgpa, institution)")
+        sql_statements.append(f"    INSERT INTO student.student_degrees (user_id, degree_level, department_id, year_pass, cgpa, institution)")
         if not is_pg:
             # UG Student (B.E/B.Tech)
-            sql_statements.append(f"    VALUES (new_user_id, 'UG', {batch}, {ug_cgpa}, 'Kongu Engineering College');")
+            sql_statements.append(f"    VALUES (new_user_id, 'UG', (SELECT id FROM public.departments WHERE code = '{dept_code}'), {batch}, {ug_cgpa}, 'Kongu Engineering College');")
         else:
             # PG Student (MCA/MBA/M.E)
             pg_cgpa = round(random.uniform(6.8, 9.5), 2)
-            sql_statements.append(f"    VALUES (new_user_id, 'UG', {batch-2}, {ug_cgpa}, 'Other Institution');")
-            sql_statements.append(f"    INSERT INTO student_degrees (user_id, degree_level, year_pass, cgpa, institution)")
-            sql_statements.append(f"    VALUES (new_user_id, 'PG', {batch}, {pg_cgpa}, 'Kongu Engineering College');")
+            sql_statements.append(f"    VALUES (new_user_id, 'UG', (SELECT id FROM public.departments WHERE code = '{dept_code}'), {batch-2}, {ug_cgpa}, 'Other Institution');")
+            sql_statements.append(f"    INSERT INTO student.student_degrees (user_id, degree_level, department_id, year_pass, cgpa, institution)")
+            sql_statements.append(f"    VALUES (new_user_id, 'PG', (SELECT id FROM public.departments WHERE code = '{dept_code}'), {batch}, {pg_cgpa}, 'Kongu Engineering College');")
             
         sql_statements.append("")
             

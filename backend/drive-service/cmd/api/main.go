@@ -10,11 +10,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/placement-portal-kec/drive-service/internal/handlers"
 	"github.com/placement-portal-kec/drive-service/internal/repository"
 	"github.com/placement-portal-kec/drive-service/internal/routes"
 	"github.com/placement-portal-kec/drive-service/internal/services"
+	"github.com/placement-portal-kec/drive-service/internal/utils"
 )
 
 func main() {
@@ -29,38 +32,53 @@ func main() {
 		log.Fatalf("Unable to parse database URL: %v", err)
 	}
 
-	config.MaxConns = 50
+	config.MaxConns = 25
 	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
 
-	db, err := pgxpool.NewWithConfig(context.Background(), config)
+	// persistence search_path for ALL connections in the pool
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, "SET search_path TO drive, public")
+		return err
+	}
+
+	var db *pgxpool.Pool
+
+	// Retry loop for initial connection
+	for i := 0; i < 10; i++ {
+		db, err = pgxpool.NewWithConfig(context.Background(), config)
+		if err == nil {
+			if err = db.Ping(context.Background()); err == nil {
+				break
+			}
+		}
+		log.Printf("Waiting for database... retry %d/10", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
+		log.Fatalf("Unable to connect to database after retries: %v", err)
 	}
 	defer db.Close()
 
-	if err := db.Ping(context.Background()); err != nil {
-		log.Fatalf("Database ping failed: %v", err)
-	}
-
-	// [FIX] Explicitly set search_path to resolve 500 errors
-	_, err = db.Exec(context.Background(), "SET search_path TO drive, public")
-	if err != nil {
-		log.Printf("Warning: Failed to set search_path: %v", err)
-	}
-
-	log.Println("Connected to Database for Drive Service (with explicit search_path)")
+	log.Println("Connected to Database for Drive Service (with persistent search_path)")
 
 	// Initialize Redis Cache
 	services.InitRedis()
+
+	// Ensure S3 bucket exists with public read policy
+	if err := utils.InitBucket(); err != nil {
+		log.Printf("Warning: Failed to initialize S3 bucket: %v", err)
+	}
 
 	driveRepo := repository.NewDriveRepository(db)
 	driveHandler := handlers.NewDriveHandler(driveRepo)
 
 	// 3. Initialize Fiber App
 	app := fiber.New(fiber.Config{
-		AppName: "Placement Portal - Drive Service",
+		AppName:   "Placement Portal - Drive Service",
+		BodyLimit: 50 * 1024 * 1024, // 50MB for file uploads
 	})
 
 	// Prometheus Monitoring
@@ -69,9 +87,16 @@ func main() {
 	app.Use(prometheus.Middleware)
 
 	// 4. Middlewares
+	app.Use(recover.New())
 	app.Use(logger.New())
+
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:3000"
+	}
+
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000", // Update with frontend origin
+		AllowOrigins:     allowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowCredentials: true,
 	}))

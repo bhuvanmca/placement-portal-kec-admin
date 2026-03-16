@@ -17,7 +17,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o chat-service ./cmd/api
 FROM alpine:3.21
 
 WORKDIR /app
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates curl
 
 COPY --from=builder /app/chat-service .
 

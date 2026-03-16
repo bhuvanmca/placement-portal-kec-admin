@@ -17,9 +17,11 @@ func SetupRoutes(app *fiber.App, h *handlers.StudentHandler) {
 	api.Get("/student/profile", h.GetMyProfile)
 	api.Put("/student/profile", h.UpdateProfile)
 	api.Put("/student/password", h.ChangePassword)
+	api.Get("/student/profile-photo", h.StreamMyProfilePhoto)
 
 	// Documents
 	api.Get("/student/documents/:type", h.GetDocumentURL)
+	api.Get("/student/documents/:type/stream", h.StreamMyDocument)
 	api.Post("/student/upload", h.UploadDocument)
 
 	// Generic User Actions
@@ -36,6 +38,7 @@ func SetupRoutes(app *fiber.App, h *handlers.StudentHandler) {
 	admin := api.Group("/admin", middleware.AdminOnly)
 	admin.Post("/students", h.CreateStudent)
 	admin.Get("/students/:student_id/documents/:type", h.GetStudentDocumentURL)
+	admin.Get("/students/:student_id/documents/:type/stream", h.StreamStudentDocument)
 
 	// Admin: Request Management
 	admin.Get("/requests", h.GetPendingRequests)

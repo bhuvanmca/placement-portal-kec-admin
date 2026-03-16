@@ -15,7 +15,7 @@ class RequestsScreen extends ConsumerStatefulWidget {
 }
 
 class _RequestsScreenState extends ConsumerState<RequestsScreen> {
-  final StudentService _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
   late ScrollController _scrollController;
 
   bool _isLoadingMarkUpdates = true;
@@ -146,8 +146,8 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
       ),
       body: Column(
         children: [
-          AnimatedBuilder(
-            animation: _scrollController,
+          ListenableBuilder(
+            listenable: _scrollController,
             builder: (context, _) {
               double page = 0.0;
               if (_scrollController.hasClients) {

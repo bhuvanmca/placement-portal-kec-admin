@@ -1,6 +1,6 @@
 export const APP_CONFIG = {
   NAME: 'KEC Placement Portal',
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://app.api-kecdrives.com/api',
+  API_BASE_URL: process.env.NEXT_PUBLIC_API_URL,
   DESCRIPTION: 'Placement Portal Admin Dashboard',
 };
 

@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/placement-portal-kec/auth-service/internal/routes"
@@ -27,7 +28,7 @@ func main() {
 		log.Fatalf("Unable to parse database URL: %v", err)
 	}
 
-	config.MaxConns = 50
+	config.MaxConns = 20
 	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30
@@ -38,15 +39,24 @@ func main() {
 		return err
 	}
 
-	db, err := pgxpool.NewWithConfig(context.Background(), config)
+	var db *pgxpool.Pool
+
+	// Retry loop for initial connection
+	for i := 0; i < 10; i++ {
+		db, err = pgxpool.NewWithConfig(context.Background(), config)
+		if err == nil {
+			if err = db.Ping(context.Background()); err == nil {
+				break
+			}
+		}
+		log.Printf("Waiting for database... retry %d/10", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
+		log.Fatalf("Unable to connect to database after retries: %v", err)
 	}
 	defer db.Close()
-
-	if err := db.Ping(context.Background()); err != nil {
-		log.Fatalf("Database ping failed: %v", err)
-	}
 
 	log.Println("Connected to Database for Auth Service (with persistent search_path)")
 
@@ -61,9 +71,16 @@ func main() {
 	app.Use(prometheus.Middleware)
 
 	// 3. Middlewares
+	app.Use(recover.New())
 	app.Use(logger.New())
+
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:3000"
+	}
+
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000", // Update with frontend origin
+		AllowOrigins:     allowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowCredentials: true,
 	}))

@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/student_service.dart';
 
 class ProfileNotifier extends AsyncNotifier<Map<String, dynamic>> {
-  final StudentService _studentService = StudentService();
+  StudentService get _studentService => ref.read(studentServiceProvider);
 
   @override
   Future<Map<String, dynamic>> build() async {

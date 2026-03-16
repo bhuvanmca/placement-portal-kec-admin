@@ -101,7 +101,7 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 LinearProgressIndicator(
-                  value: 0.75,
+                  value: 0.60,
                   backgroundColor: Theme.of(context).dividerColor,
                   color: Theme.of(context).colorScheme.primary,
                   minHeight: 4,
@@ -112,14 +112,18 @@ class _AddressScreenState extends ConsumerState<AddressScreen> {
                   'About You',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                    color:
+                        (Theme.of(context).textTheme.bodyLarge?.color ??
+                        Colors.black),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Please provide your address and personal details.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                    color:
+                        (Theme.of(context).textTheme.bodyMedium?.color ??
+                        Colors.grey),
                   ),
                 ),
                 const SizedBox(height: 24),

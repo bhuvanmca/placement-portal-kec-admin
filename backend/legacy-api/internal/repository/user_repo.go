@@ -733,10 +733,32 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID int64, passw
 	return err
 }
 
-// UpdateUserProfile updates name and profile photo for any user
+// UpdateUserProfile updates name and/or profile photo for any user.
+// Empty strings are skipped — only non-empty values are updated.
 func (r *UserRepository) UpdateUserProfile(ctx context.Context, userID int64, name, photoURL string) error {
-	query := `UPDATE users SET name = $1, profile_photo_url = $2 WHERE id = $3`
-	_, err := r.DB.Exec(ctx, query, name, photoURL, userID)
+	setClauses := []string{}
+	args := []interface{}{}
+	argIdx := 1
+
+	if name != "" {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIdx))
+		args = append(args, name)
+		argIdx++
+	}
+	if photoURL != "" {
+		setClauses = append(setClauses, fmt.Sprintf("profile_photo_url = $%d", argIdx))
+		args = append(args, photoURL)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return nil // nothing to update
+	}
+
+	setClauses = append(setClauses, "updated_at = NOW()")
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(setClauses, ", "), argIdx)
+	args = append(args, userID)
+	_, err := r.DB.Exec(ctx, query, args...)
 	return err
 }
 

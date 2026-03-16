@@ -352,7 +352,12 @@ func (r *ChatRepository) GetGroupsByUser(ctx context.Context, userID int64) ([]m
 			err := r.DB.QueryRow(ctx, otherUserQuery, id, userID).Scan(&otherID, &otherName, &otherPhoto, &otherRole, &otherBranch, &lastSeen)
 			if err == nil {
 				group["name"] = otherName
-				group["image"] = otherPhoto
+				if otherPhoto != nil && *otherPhoto != "" {
+					signed := utils.GenerateSignedProfileURL(*otherPhoto)
+					group["image"] = signed
+				} else {
+					group["image"] = otherPhoto
+				}
 				group["role"] = otherRole
 				group["branch"] = otherBranch
 				group["other_user_id"] = otherID

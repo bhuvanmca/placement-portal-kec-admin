@@ -1,10 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'api_client.dart';
+
+final studentServiceProvider = Provider<StudentService>(
+  (ref) => StudentService(ref.read(apiClientProvider)),
+);
 
 class StudentService {
   final String baseUrl = AppConstants.apiBaseUrl;
+  final ApiClient _apiClient;
+
+  StudentService(this._apiClient);
 
   // Helper to get token
   Future<String?> _getToken() async {
@@ -15,7 +24,7 @@ class StudentService {
   // Fetch Student Profile
   Future<Map<String, dynamic>> getProfile() async {
     final token = await _getToken();
-    final response = await http.get(
+    final response = await _apiClient.get(
       Uri.parse('$baseUrl/v1/student/profile'),
       headers: {
         'Authorization': 'Bearer $token',
@@ -74,7 +83,7 @@ class StudentService {
   // Update Profile
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> data) async {
     final token = await _getToken();
-    final response = await http.put(
+    final response = await _apiClient.put(
       Uri.parse('$baseUrl/v1/student/profile'),
       headers: {
         'Authorization': 'Bearer $token',
@@ -94,7 +103,7 @@ class StudentService {
   // Get presigned URL for document
   Future<String> getDocumentURL(String documentType) async {
     final token = await _getToken();
-    final response = await http.get(
+    final response = await _apiClient.get(
       Uri.parse('$baseUrl/v1/student/documents/$documentType'),
       headers: {
         'Authorization': 'Bearer $token',
@@ -113,7 +122,7 @@ class StudentService {
 
   // Forgot Password - Send OTP
   Future<void> forgotPassword(String email) async {
-    final response = await http.post(
+    final response = await _apiClient.post(
       Uri.parse('$baseUrl/v1/auth/forgot-password'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
@@ -131,7 +140,7 @@ class StudentService {
     String otp,
     String newPassword,
   ) async {
-    final response = await http.post(
+    final response = await _apiClient.post(
       Uri.parse('$baseUrl/v1/auth/reset-password'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
@@ -154,7 +163,7 @@ class StudentService {
     String confirmPassword,
   ) async {
     final token = await _getToken();
-    final response = await http.put(
+    final response = await _apiClient.put(
       Uri.parse('$baseUrl/v1/student/password'),
       headers: {
         'Authorization': 'Bearer $token',
@@ -176,7 +185,7 @@ class StudentService {
   // Get My Requests
   Future<List<dynamic>> getRequests() async {
     final token = await _getToken();
-    final response = await http.get(
+    final response = await _apiClient.get(
       Uri.parse('$baseUrl/v1/student/requests'),
       headers: {
         'Authorization': 'Bearer $token',
@@ -195,11 +204,11 @@ class StudentService {
     }
   }
 
-  // Get My Drive Requests (request-to-attend)
+  // Get My Drive Applications
   Future<List<dynamic>> getDriveRequests() async {
     final token = await _getToken();
-    final response = await http.get(
-      Uri.parse('$baseUrl/v1/student/drive-requests'),
+    final response = await _apiClient.get(
+      Uri.parse('$baseUrl/v1/drives/applications'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -211,18 +220,20 @@ class StudentService {
       if (decoded is List) {
         return decoded;
       }
+      if (decoded is Map && decoded['data'] is List) {
+        return decoded['data'];
+      }
       return [];
     } else {
-      throw Exception('Failed to load drive requests');
+      throw Exception('Failed to load drive applications');
     }
   }
 
   // Delete/Clear a mark/personal update request
   Future<void> deleteChangeRequest(int requestId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await _getToken();
 
-    final response = await http.delete(
+    final response = await _apiClient.delete(
       Uri.parse('$baseUrl/v1/student/requests/$requestId'),
       headers: {'Authorization': 'Bearer $token'},
     );
@@ -233,19 +244,21 @@ class StudentService {
     }
   }
 
-  // Delete/Clear a drive request
+  // Withdraw from a drive (opt-out)
   Future<void> deleteDriveRequest(int driveId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await _getToken();
 
-    final response = await http.delete(
-      Uri.parse('$baseUrl/v1/student/drive-requests/$driveId'),
-      headers: {'Authorization': 'Bearer $token'},
+    final response = await _apiClient.post(
+      Uri.parse('$baseUrl/v1/drives/$driveId/opt-out'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
     );
 
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to delete drive request');
+      throw Exception(error['error'] ?? 'Failed to withdraw from drive');
     }
   }
 }

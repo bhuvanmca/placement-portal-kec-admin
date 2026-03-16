@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
 	"github.com/placement-portal-kec/admin-service/internal/utils"
-	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -292,7 +292,23 @@ func CreateStudent(c *fiber.Ctx) error {
 
 	repo := repository.NewStudentRepository(database.DB)
 	if err := repo.CreateStudent(c.Context(), &user, input); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create student. RegNo or Email might already exist.", "details": err.Error()})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "duplicate key") || strings.Contains(errMsg, "unique constraint") {
+			if strings.Contains(errMsg, "email") {
+				return c.Status(409).JSON(fiber.Map{"error": "A student with this email already exists."})
+			}
+			if strings.Contains(errMsg, "register_number") {
+				return c.Status(409).JSON(fiber.Map{"error": "A student with this register number already exists."})
+			}
+			return c.Status(409).JSON(fiber.Map{"error": "Student with this Email or Register Number already exists."})
+		}
+		if strings.Contains(errMsg, "foreign key") || strings.Contains(errMsg, "violates foreign key") {
+			if strings.Contains(errMsg, "department") {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid department code. Please select a valid department."})
+			}
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid reference data. Please check department and batch values."})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create student.", "details": errMsg})
 	}
 
 	// Generate OTP for password setup

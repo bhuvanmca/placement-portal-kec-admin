@@ -28,6 +28,7 @@ func SetupDriveRoutes(router fiber.Router, driveHandler *handlers.DriveHandler) 
 	adminGroup.Get("/:id", driveHandler.GetDriveByID)
 	adminGroup.Put("/:id", driveHandler.UpdateDrive)        // Full update
 	adminGroup.Patch("/:id", driveHandler.PatchDriveStatus) // Status only
+	adminGroup.Post("/bulk-delete", driveHandler.BulkDeleteDrives) // Bulk delete
 	adminGroup.Delete("/:id", driveHandler.DeleteDrive)     // Soft delete
 
 	// Applicant Management

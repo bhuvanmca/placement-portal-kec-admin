@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/placement-portal-kec/student-service/internal/database"
 	"github.com/placement-portal-kec/student-service/internal/handlers"
 	"github.com/placement-portal-kec/student-service/internal/repository"
@@ -33,6 +34,11 @@ func main() {
 	// Initialize Redis Cache
 	services.InitRedis()
 
+	// Ensure S3 bucket exists with public read policy
+	if err := utils.InitBucket(); err != nil {
+		log.Printf("Warning: Failed to initialize S3 bucket: %v", err)
+	}
+
 	// Initialize Repositories
 	studentRepo := repository.NewStudentRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
@@ -52,13 +58,28 @@ func main() {
 	prometheus.RegisterAt(app, "/metrics")
 	app.Use(prometheus.Middleware)
 
-	app.Use(cors.New())
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:3000"
+	}
+
+	app.Use(recover.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     allowedOrigins,
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowCredentials: true,
+	}))
 	app.Use(logger.New(logger.Config{
 		Format: "${time} | ${status} | ${latency} | ${ip} | ${method} | ${path} | ${error}\n",
 	}))
 
 	// Setup Routes
 	routes.SetupRoutes(app, studentHandler)
+
+	// Health check
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "Student Service is running"})
+	})
 
 	// Start Server
 	port := os.Getenv("PORT")

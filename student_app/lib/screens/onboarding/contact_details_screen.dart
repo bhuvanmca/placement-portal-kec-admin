@@ -62,7 +62,7 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
         backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/onboarding/welcome'),
+          onPressed: () => context.go('/onboarding/basic-info'),
         ),
         title: const Text('Contact Details'),
       ),
@@ -76,7 +76,7 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
               children: [
                 // Progress Indicator
                 LinearProgressIndicator(
-                  value: 0.25,
+                  value: 0.30,
                   backgroundColor: Theme.of(context).dividerColor,
                   color: Theme.of(context).colorScheme.primary,
                   minHeight: 4,
@@ -87,14 +87,18 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                   'What\'s your mobile number?',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                    color:
+                        (Theme.of(context).textTheme.bodyLarge?.color ??
+                        Colors.black),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'We\'ll use this to contact you about placement updates.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+                    color:
+                        (Theme.of(context).textTheme.bodyMedium?.color ??
+                        Colors.grey),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -148,7 +152,9 @@ class _ContactDetailsScreenState extends ConsumerState<ContactDetailsScreen> {
                   'Social Profiles (Optional)',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: (Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black),
+                    color:
+                        (Theme.of(context).textTheme.bodyLarge?.color ??
+                        Colors.black),
                   ),
                 ),
                 const SizedBox(height: 16),

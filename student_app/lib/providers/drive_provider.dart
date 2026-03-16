@@ -13,6 +13,7 @@ class PaginatedDriveState {
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
+  final String? error;
 
   PaginatedDriveState({
     this.drives = const [],
@@ -21,6 +22,7 @@ class PaginatedDriveState {
     this.isLoading = false,
     this.isLoadingMore = false,
     this.hasMore = true,
+    this.error,
   });
 
   PaginatedDriveState copyWith({
@@ -30,6 +32,8 @@ class PaginatedDriveState {
     bool? isLoading,
     bool? isLoadingMore,
     bool? hasMore,
+    String? error,
+    bool clearError = false,
   }) {
     return PaginatedDriveState(
       drives: drives ?? this.drives,
@@ -38,6 +42,7 @@ class PaginatedDriveState {
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -55,7 +60,13 @@ class PaginatedDriveNotifier extends Notifier<PaginatedDriveState> {
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(isLoading: true, page: 1, drives: [], hasMore: true);
+    state = state.copyWith(
+      isLoading: true,
+      page: 1,
+      drives: [],
+      hasMore: true,
+      clearError: true,
+    );
     await _fetchPage(1);
   }
 
@@ -93,17 +104,19 @@ class PaginatedDriveNotifier extends Notifier<PaginatedDriveState> {
         hasMore: updatedDrives.length < total,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, isLoadingMore: false);
+      state = state.copyWith(
+        isLoading: false,
+        isLoadingMore: false,
+        error: e.toString(),
+      );
     }
   }
 }
 
 final driveListProvider =
-    NotifierProvider.autoDispose<PaginatedDriveNotifier, PaginatedDriveState>(
-      () {
-        return PaginatedDriveNotifier();
-      },
-    );
+    NotifierProvider<PaginatedDriveNotifier, PaginatedDriveState>(() {
+      return PaginatedDriveNotifier();
+    });
 
 // --- Filter Logic ---
 
@@ -169,32 +182,24 @@ final driveFilterProvider = NotifierProvider<DriveFilterNotifier, DriveFilter>(
 // --- Computed Provider ---
 
 // --- Helper Logic ---
+// Section is determined purely by backend status so that
+// a newly-posted 'open' drive always appears in the 'Upcoming' tab.
 String getDriveSection(dynamic drive) {
   final status = drive['status'];
-  if (status == 'cancelled') return 'Cancelled';
-  if (status == 'on_hold') return 'On Hold';
-  // Explicit completed status takes precedence, or we auto-move
-  if (status == 'completed') return 'Completed';
-
-  final dateStr = drive['drive_date'];
-  if (dateStr == null) return 'Upcoming'; // Safe fallback
-
-  final now = DateTime.now();
-  final driveDate = DateTime.parse(dateStr);
-  final completionThreshold = driveDate.add(const Duration(hours: 24));
-
-  // 1. Completed: > 24h after drive date
-  if (now.isAfter(completionThreshold)) {
-    return 'Completed';
+  switch (status) {
+    case 'open':
+      return 'Upcoming';
+    case 'closed':
+      return 'Closed';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'on_hold':
+      return 'On Hold';
+    default:
+      return 'Upcoming';
   }
-
-  // 2. Upcoming: Future date
-  if (driveDate.isAfter(now)) {
-    return 'Upcoming';
-  }
-
-  // 3. Ongoing: Started but not yet 24h past
-  return 'Ongoing';
 }
 
 // --- Computed Provider ---
@@ -209,11 +214,23 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
     return const AsyncValue.loading();
   }
 
+  if (paginatedState.error != null && paginatedState.drives.isEmpty) {
+    return AsyncValue.error(paginatedState.error!, StackTrace.current);
+  }
+
   final drives = paginatedState.drives;
   final results = drives.where((drive) {
     // 1. Status/Section Filter (Tabs)
     final currentSection = getDriveSection(drive);
-    bool matchesSection = (currentSection == filter.status); // Tab selection
+    final isEligible = drive['is_eligible'] == true;
+
+    bool matchesSection;
+    if (filter.status == 'Not Eligible') {
+      // Show all ineligible drives regardless of status section
+      matchesSection = !isEligible;
+    } else {
+      matchesSection = (currentSection == filter.status); // Tab selection
+    }
 
     // 2. Search Filter
     final company = (drive['company_name'] ?? '').toString().toLowerCase();
@@ -256,17 +273,21 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
 
       // 3a. Status Filter (Strict Open Logic)
       if (statusFilters.isNotEmpty) {
-        final deadline = DateTime.parse(drive['deadline_date']);
-        final isDeadlineFuture = deadline.isAfter(DateTime.now());
-        final backendStatus = drive['status'];
+        if (drive['deadline_date'] == null) {
+          matchesModalFilters = false;
+        } else {
+          final deadline = DateTime.parse(drive['deadline_date']).toLocal();
+          final isDeadlineFuture = deadline.isAfter(DateTime.now());
+          final backendStatus = drive['status'];
 
-        bool isOpen = (backendStatus == 'open' && isDeadlineFuture);
-        bool isClosed = !isOpen; // Simplification as requested
+          bool isOpen = (backendStatus == 'open' && isDeadlineFuture);
+          bool isClosed = !isOpen;
 
-        bool matches = false;
-        if (statusFilters.contains('Open') && isOpen) matches = true;
-        if (statusFilters.contains('Closed') && isClosed) matches = true;
-        if (!matches) matchesModalFilters = false;
+          bool matches = false;
+          if (statusFilters.contains('Open') && isOpen) matches = true;
+          if (statusFilters.contains('Closed') && isClosed) matches = true;
+          if (!matches) matchesModalFilters = false;
+        }
       }
 
       // 3b. Salary Filter (One of the roles must match)
@@ -328,18 +349,20 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   if (paginatedState.isLoading && drives.isEmpty) {
     return {
       'Upcoming': 0,
-      'Ongoing': 0,
+      'Closed': 0,
       'Completed': 0,
       'Cancelled': 0,
       'On Hold': 0,
+      'Not Eligible': 0,
     };
   }
 
   int upcoming = 0;
-  int ongoing = 0;
+  int closed = 0;
   int completed = 0;
   int cancelled = 0;
   int onHold = 0;
+  int notEligible = 0;
 
   for (var drive in drives) {
     final section = getDriveSection(drive);
@@ -347,8 +370,8 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
       case 'Upcoming':
         upcoming++;
         break;
-      case 'Ongoing':
-        ongoing++;
+      case 'Closed':
+        closed++;
         break;
       case 'Completed':
         completed++;
@@ -360,13 +383,17 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
         onHold++;
         break;
     }
+    if (drive['is_eligible'] != true) {
+      notEligible++;
+    }
   }
 
   return {
     'Upcoming': upcoming,
-    'Ongoing': ongoing,
+    'Closed': closed,
     'Completed': completed,
     'Cancelled': cancelled,
     'On Hold': onHold,
+    'Not Eligible': notEligible,
   };
 });

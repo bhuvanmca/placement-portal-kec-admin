@@ -22,7 +22,7 @@ func ConnectDB(connString string) {
 	}
 
 	// Performance tuning for production
-	config.MaxConns = 50
+	config.MaxConns = 25
 	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = time.Minute * 30

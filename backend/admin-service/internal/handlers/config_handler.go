@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"strconv"
+	"strings"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
-	"github.com/gofiber/fiber/v2"
 )
 
 // GetDepartments returns all departments
@@ -40,7 +41,17 @@ func AddDepartment(c *fiber.Ctx) error {
 
 	repo := repository.NewConfigRepository(database.DB)
 	if err := repo.CreateDepartment(c.Context(), input); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create department", "details": err.Error()})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "departments_code_key") {
+			return c.Status(409).JSON(fiber.Map{"error": "Department code '" + input.Code + "' already exists"})
+		}
+		if strings.Contains(errMsg, "departments_name_key") {
+			return c.Status(409).JSON(fiber.Map{"error": "Department name '" + input.Name + "' already exists"})
+		}
+		if strings.Contains(errMsg, "duplicate key") || strings.Contains(errMsg, "23505") {
+			return c.Status(409).JSON(fiber.Map{"error": "Department code or name already exists"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create department", "details": errMsg})
 	}
 	return c.Status(201).JSON(fiber.Map{"message": "Department added successfully"})
 }
@@ -114,7 +125,11 @@ func AddBatch(c *fiber.Ctx) error {
 
 	repo := repository.NewConfigRepository(database.DB)
 	if err := repo.CreateBatch(c.Context(), input.Year); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create batch", "details": err.Error()})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "duplicate key") || strings.Contains(errMsg, "23505") || strings.Contains(errMsg, "batches_year_key") {
+			return c.Status(409).JSON(fiber.Map{"error": "Batch year " + strconv.Itoa(input.Year) + " already exists"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create batch", "details": errMsg})
 	}
 	return c.Status(201).JSON(fiber.Map{"message": "Batch added successfully"})
 }

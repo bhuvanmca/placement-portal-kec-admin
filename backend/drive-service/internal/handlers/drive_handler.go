@@ -100,19 +100,25 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 	// D. Convert Dates & Save
 	driveDate, err := time.Parse(time.RFC3339, input.DriveDate)
 	if err != nil {
-		// Fallback to simple date
-		driveDate, err = time.Parse("2006-01-02", input.DriveDate)
+		driveDate, err = time.Parse(time.RFC3339Nano, input.DriveDate)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive Date format"})
+			// Fallback to simple date
+			driveDate, err = time.Parse("2006-01-02", input.DriveDate)
+			if err != nil {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid Drive Date format"})
+			}
 		}
 	}
 
 	deadline, err := time.Parse(time.RFC3339, input.DeadlineDate)
 	if err != nil {
-		// Try simplified date if ISO fails
-		deadline, err = time.Parse("2006-01-02T15:04", input.DeadlineDate)
+		deadline, err = time.Parse(time.RFC3339Nano, input.DeadlineDate)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "Invalid Deadline format"})
+			// Try simplified date if ISO fails
+			deadline, err = time.Parse("2006-01-02T15:04", input.DeadlineDate)
+			if err != nil {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid Deadline format"})
+			}
 		}
 	}
 
@@ -142,18 +148,27 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 		MaxBacklogsAllowed:  input.MaxBacklogsAllowed,
 		EligibleBatches:     input.EligibleBatches,
 		EligibleDepartments: input.EligibleDepartments,
+		EligibleGender:      input.EligibleGender,
 		Rounds:              input.Rounds,
 		Attachments:         input.Attachments,
-		Status:              "open", // Default status switched to open as requested
+		ExcludedStudentIDs:  input.ExcludedStudentIDs,
+		Status:              input.Status,
 		DeadlineDate:        deadline,
 		DriveDate:           driveDate,
 	}
 
+	// Default status to "open" if empty or invalid
+	if drive.Status != "draft" {
+		drive.Status = "open"
+	}
+
 	repo := h.repo
-	if err := repo.CreateDrive(c.Context(), drive); err != nil {
+	driveID, err := repo.CreateDrive(c.Context(), drive)
+	if err != nil {
 		fmt.Printf("Error creating drive in DB: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to create drive", "details": err.Error()})
 	}
+	drive.ID = driveID
 
 	// E. Send Notification to Eligible Students (Async)
 	go func(d models.PlacementDrive) {
@@ -193,6 +208,30 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 		}
 	}(drive)
 
+	// F. Send Email Notification to Eligible Students (Async)
+	go func(d models.PlacementDrive) {
+		emails, err := repo.GetEligibleStudentEmails(context.Background(), d)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to fetch eligible emails: %v\n", err)
+			return
+		}
+
+		if len(emails) == 0 {
+			fmt.Println("Email: No eligible students with emails found.")
+			return
+		}
+
+		driveDate := d.DriveDate.Format("02 Jan 2006")
+		deadline := d.DeadlineDate.Format("02 Jan 2006, 3:04 PM")
+
+		err = utils.SendDriveNotificationEmails(emails, d.CompanyName, d.JobDescription, driveDate, deadline)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to send emails: %v\n", err)
+		} else {
+			fmt.Printf("Email Sent: Drive notification sent to %d eligible students.\n", len(emails))
+		}
+	}(drive)
+
 	// F. Send WhatsApp Broadcast (Async) - DISABLED (Unimplemented/Token errors)
 	/*
 		go func(d models.PlacementDrive) {
@@ -207,26 +246,24 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 	return c.Status(201).JSON(drive)
 }
 
-// Helper: Convert drive attachments to presigned URLs
+// Helper: Convert drive attachment URLs to publicly accessible URLs via Caddy proxy.
+// Since the bucket has a public read policy, plain URLs work without signatures.
 func (h *DriveHandler) convertAttachmentsToPresigned(drives []models.PlacementDrive) []models.PlacementDrive {
 	for i := range drives {
 		for j := range drives[i].Attachments {
-			s3Key := drives[i].Attachments[j].URL
+			storedURL := drives[i].Attachments[j].URL
 
-			// Extract S3 key from stored URL
-			bucket, key := utils.ExtractBucketAndKeyFromURL(s3Key) // s3Key variable name is misleading, it holds URL here.
-
+			bucket, key := utils.ExtractBucketAndKeyFromURL(storedURL)
 			if bucket == "" {
 				bucket = utils.GetBucketName()
 			}
 
-			// Generate presigned URL (5-minute expiry)
 			if key != "" {
-				presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
-				if err == nil {
-					drives[i].Attachments[j].URL = presignedURL
-				}
+				drives[i].Attachments[j].URL = utils.GetPublicURL(bucket, key)
 			}
+		}
+		if drives[i].LogoURL != "" {
+			drives[i].LogoURL = utils.GenerateSignedProfileURL(drives[i].LogoURL)
 		}
 	}
 	return drives
@@ -279,8 +316,8 @@ func (h *DriveHandler) GetDrivesForStudent(c *fiber.Ctx) error {
 	// Get drives and total count
 	drives, err := repo.GetEligibleDrives(c.Context(), userID, filters)
 	if err != nil {
-		fmt.Printf("Error fetching eligible drives: %v\n", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch drives"})
+		fmt.Printf("Error fetching eligible drives for user %d: %v\n", userID, err)
+		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch drives", "details": err.Error()})
 	}
 
 	total, err := repo.GetEligibleDrivesCount(c.Context(), userID, filters)
@@ -486,16 +523,14 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 		}
 	}
 
-	// Update Fields
+	// Update Fields — Frontend sends full object, so apply all fields unconditionally.
+	// This ensures fields can be cleared (e.g. job_description set to "") and
+	// zero-values (e.g. min_cgpa = 0) are properly saved.
 	if input.CompanyName != "" {
 		drive.CompanyName = input.CompanyName
 	}
-	if input.JobDescription != "" {
-		drive.JobDescription = input.JobDescription
-	}
-	if input.Website != "" {
-		drive.Website = input.Website
-	}
+	drive.JobDescription = input.JobDescription
+	drive.Website = input.Website
 	if input.LogoURL != "" {
 		drive.LogoURL = input.LogoURL
 	}
@@ -517,23 +552,16 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 	if input.OfferType != "" {
 		drive.OfferType = input.OfferType
 	}
-	// For booleans in Update, standard procedure assumes input represents the final desired state
 	drive.AllowPlacedCandidates = input.AllowPlacedCandidates
 
 	if len(input.Roles) > 0 {
 		drive.Roles = input.Roles
 	}
 
-	if input.MinCgpa != 0 {
-		drive.MinCgpa = input.MinCgpa
-	}
-	// MaxBacklogsAllowed can be 0, so if input is provided (assuming full update), we take it?
-	// But CreateDriveInput makes it indistinguishable.
-	// For "Update", we'll assume unconditional for now, OR rely on pointer if I changed it (I didn't).
-	// Risk: Partial update wipes it. But standard Frontend sends all.
+	drive.MinCgpa = input.MinCgpa
 	drive.MaxBacklogsAllowed = input.MaxBacklogsAllowed
 
-	// [FIX] Missing Eligibility Fields
+	// Pointer fields: update if provided (nil means "don't change")
 	if input.TenthPercentage != nil {
 		drive.TenthPercentage = input.TenthPercentage
 	}
@@ -547,9 +575,6 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 		drive.PGMinCGPA = input.PGMinCGPA
 	}
 
-	// UseAggregate is boolean. If we want to allow disabling it, false is valid.
-	// But unconditional assignment wipes it if missing (false).
-	// We'll trust the frontend sends the full object for boolean.
 	drive.UseAggregate = input.UseAggregate
 
 	if input.AggregatePercentage != nil {
@@ -562,9 +587,15 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 	if len(input.EligibleDepartments) > 0 {
 		drive.EligibleDepartments = input.EligibleDepartments
 	}
+	if input.EligibleGender != "" {
+		drive.EligibleGender = input.EligibleGender
+	}
 	if len(input.Rounds) > 0 {
 		drive.Rounds = input.Rounds
 	}
+
+	// Update excluded student IDs
+	drive.ExcludedStudentIDs = input.ExcludedStudentIDs
 
 	// Attachments Logic:
 	// If input.Attachments is provided (from JSON part), it contains the list of *kept* existing attachments.
@@ -699,6 +730,34 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 			} else {
 				fmt.Printf("Notification Sent: Successfully sent to %d/%d devices.\n", successCount, len(tokens))
 			}
+		}
+	}(*drive)
+
+	// G. Send Email Notification to Eligible Students on Update (Async)
+	go func(d models.PlacementDrive) {
+		emails, err := repo.GetEligibleStudentEmails(context.Background(), d)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to fetch eligible emails for update: %v\n", err)
+			return
+		}
+		if len(emails) == 0 {
+			return
+		}
+
+		driveDate := ""
+		if !d.DriveDate.IsZero() {
+			driveDate = d.DriveDate.Format("02 Jan 2006")
+		}
+		deadline := ""
+		if !d.DeadlineDate.IsZero() {
+			deadline = d.DeadlineDate.Format("02 Jan 2006, 3:04 PM")
+		}
+
+		summary := fmt.Sprintf("The drive by %s has been updated. Please check the app for the latest details.", d.CompanyName)
+		if err := utils.SendDriveUpdateEmails(emails, d.CompanyName, summary, driveDate, deadline); err != nil {
+			fmt.Printf("Email Error: Failed to send update emails: %v\n", err)
+		} else {
+			fmt.Printf("Email Sent: Drive update notification sent to %d eligible students.\n", len(emails))
 		}
 	}(*drive)
 
@@ -1218,13 +1277,21 @@ func (h *DriveHandler) ApplyForDrive(c *fiber.Ctx) error {
 	success, message, err := repo.ApplyForDrive(c.Context(), studentID, driveID, input.RoleIDs, false)
 
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Internal Server Error: " + err.Error()})
+		errMsg := "Failed to process application"
+		if message != "" {
+			errMsg = message
+		}
+		fmt.Printf("ApplyForDrive Error for student %d, drive %d: %s: %v\n", studentID, driveID, errMsg, err)
+		return c.Status(500).JSON(fiber.Map{"error": errMsg, "message": errMsg})
 	}
 
 	if !success {
 		// Return 400 Bad Request if logic failed (e.g., Low CGPA, Deadline passed)
 		return c.Status(400).JSON(fiber.Map{"success": false, "message": message})
 	}
+
+	// Invalidate cached drive listings so the student sees updated application_status
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
 
 	return c.JSON(fiber.Map{"success": true, "message": message})
 }
@@ -1256,8 +1323,13 @@ func (h *DriveHandler) OptOutDrive(c *fiber.Ctx) error {
 
 	repo := h.repo
 	if err := repo.WithdrawApplication(c.Context(), studentID, driveID, input.Reason); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to withdraw: " + err.Error()})
+		errMsg := err.Error()
+		fmt.Printf("OptOutDrive Error for student %d, drive %d: %v\n", studentID, driveID, err)
+		return c.Status(500).JSON(fiber.Map{"error": errMsg, "message": errMsg})
 	}
+
+	// Invalidate cached drive listings so the student sees updated application_status
+	services.InvalidateCacheByPrefix(c.Context(), "api:student:drives:")
 
 	return c.JSON(fiber.Map{"success": true, "message": "Successfully withdrawn from drive"})
 }
@@ -1307,7 +1379,24 @@ func (h *DriveHandler) GetDriveByID(c *fiber.Ctx) error {
 
 	drive, err := h.repo.GetDriveByID(c.Context(), id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Drive not found"})
+		if err.Error() == "no rows in result set" {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Drive not found"})
+		}
+		fmt.Printf("GetDriveByID error for id %d: %v\n", id, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch drive"})
+	}
+
+	if drive.LogoURL != "" {
+		drive.LogoURL = utils.GenerateSignedProfileURL(drive.LogoURL)
+	}
+	for j := range drive.Attachments {
+		bucket, key := utils.ExtractBucketAndKeyFromURL(drive.Attachments[j].URL)
+		if bucket == "" {
+			bucket = utils.GetBucketName()
+		}
+		if key != "" {
+			drive.Attachments[j].URL = utils.GetPublicURL(bucket, key)
+		}
 	}
 
 	return c.JSON(drive)
@@ -1324,6 +1413,12 @@ func (h *DriveHandler) GetDriveApplicants(c *fiber.Ctx) error {
 	if err != nil {
 		fmt.Printf("Get Applicants Error: %v\n", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch applicants"})
+	}
+
+	for i := range applicants {
+		if applicants[i].ResumeURL != "" {
+			applicants[i].ResumeURL = utils.GenerateSignedProfileURL(applicants[i].ResumeURL)
+		}
 	}
 
 	return c.JSON(applicants)

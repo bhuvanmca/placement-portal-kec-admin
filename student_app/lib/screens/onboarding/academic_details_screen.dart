@@ -19,8 +19,25 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _tenthMarkController = TextEditingController();
   final _twelfthMarkController = TextEditingController();
+  final _diplomaMarkController = TextEditingController();
   final _ugController = TextEditingController();
   final _pgController = TextEditingController();
+  final _tenthYearController = TextEditingController();
+  final _twelfthYearController = TextEditingController();
+  final _diplomaYearController = TextEditingController();
+  final _ugYearController = TextEditingController();
+  final _pgYearController = TextEditingController();
+  final _tenthBoardController = TextEditingController();
+  final _tenthInstitutionController = TextEditingController();
+  final _twelfthBoardController = TextEditingController();
+  final _twelfthInstitutionController = TextEditingController();
+  final _diplomaInstitutionController = TextEditingController();
+  final _diplomaBoardController = TextEditingController();
+  final _diplomaUniversityController = TextEditingController();
+  final _ugInstitutionController = TextEditingController();
+  final _ugUniversityController = TextEditingController();
+  final _pgInstitutionController = TextEditingController();
+  final _pgUniversityController = TextEditingController();
 
   bool _isLoading = true;
   String _departmentType = 'UG';
@@ -36,19 +53,48 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
     if (state.twelfthMark != null) {
       _twelfthMarkController.text = state.twelfthMark.toString();
     }
+    if (state.diplomaMark != null && state.diplomaMark! > 0) {
+      _diplomaMarkController.text = state.diplomaMark.toString();
+    }
     if (state.ugCgpa != null) {
       _ugController.text = state.ugCgpa.toString();
     }
     if (state.pgCgpa != null && state.pgCgpa! > 0) {
       _pgController.text = state.pgCgpa.toString();
     }
+    if (state.tenthYearPass != null && state.tenthYearPass! > 0) {
+      _tenthYearController.text = state.tenthYearPass.toString();
+    }
+    if (state.twelfthYearPass != null && state.twelfthYearPass! > 0) {
+      _twelfthYearController.text = state.twelfthYearPass.toString();
+    }
+    if (state.diplomaYearPass != null && state.diplomaYearPass! > 0) {
+      _diplomaYearController.text = state.diplomaYearPass.toString();
+    }
+    if (state.ugYearPass != null && state.ugYearPass! > 0) {
+      _ugYearController.text = state.ugYearPass.toString();
+    }
+    if (state.pgYearPass != null && state.pgYearPass! > 0) {
+      _pgYearController.text = state.pgYearPass.toString();
+    }
+    _tenthBoardController.text = state.tenthBoard ?? '';
+    _tenthInstitutionController.text = state.tenthInstitution ?? '';
+    _twelfthBoardController.text = state.twelfthBoard ?? '';
+    _twelfthInstitutionController.text = state.twelfthInstitution ?? '';
+    _diplomaInstitutionController.text = state.diplomaInstitution ?? '';
+    _diplomaBoardController.text = state.diplomaBoard ?? '';
+    _diplomaUniversityController.text = state.diplomaUniversity ?? '';
+    _ugInstitutionController.text = state.ugInstitution ?? '';
+    _ugUniversityController.text = state.ugUniversity ?? '';
+    _pgInstitutionController.text = state.pgInstitution ?? '';
+    _pgUniversityController.text = state.pgUniversity ?? '';
 
     _loadProfile();
   }
 
   Future<void> _loadProfile() async {
     try {
-      final profile = await StudentService().getProfile();
+      final profile = await ref.read(studentServiceProvider).getProfile();
       if (mounted) {
         setState(() {
           _departmentType = profile['department_type'] ?? 'UG';
@@ -68,8 +114,25 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   void dispose() {
     _tenthMarkController.dispose();
     _twelfthMarkController.dispose();
+    _diplomaMarkController.dispose();
     _ugController.dispose();
     _pgController.dispose();
+    _tenthYearController.dispose();
+    _twelfthYearController.dispose();
+    _diplomaYearController.dispose();
+    _ugYearController.dispose();
+    _pgYearController.dispose();
+    _tenthBoardController.dispose();
+    _tenthInstitutionController.dispose();
+    _twelfthBoardController.dispose();
+    _twelfthInstitutionController.dispose();
+    _diplomaInstitutionController.dispose();
+    _diplomaBoardController.dispose();
+    _diplomaUniversityController.dispose();
+    _ugInstitutionController.dispose();
+    _ugUniversityController.dispose();
+    _pgInstitutionController.dispose();
+    _pgUniversityController.dispose();
     super.dispose();
   }
 
@@ -80,24 +143,60 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
 
       final tenth = double.tryParse(_tenthMarkController.text) ?? 0.0;
       final twelfth = double.tryParse(_twelfthMarkController.text) ?? 0.0;
+      final diploma = double.tryParse(_diplomaMarkController.text) ?? 0.0;
       final ug = double.tryParse(_ugController.text) ?? 0.0;
       final pg = _departmentType == 'PG'
           ? double.tryParse(_pgController.text)
           : null;
 
+      final tenthYear = int.tryParse(_tenthYearController.text);
+      final twelfthYear = int.tryParse(_twelfthYearController.text);
+      final diplomaYear = int.tryParse(_diplomaYearController.text);
+      final ugYear = int.tryParse(_ugYearController.text);
+      final pgYear = _departmentType == 'PG'
+          ? int.tryParse(_pgYearController.text)
+          : null;
+
       ref
           .read(onboardingProvider.notifier)
-          .updateAcademic(tenth, twelfth, ug, pg);
+          .updateAcademic(
+            tenth,
+            twelfth,
+            ug,
+            pg,
+            diploma: diploma,
+            tenthYearPass: tenthYear,
+            twelfthYearPass: twelfthYear,
+            diplomaYearPass: diplomaYear,
+            ugYearPass: ugYear,
+            pgYearPass: pgYear,
+            tenthBoard: _tenthBoardController.text,
+            tenthInstitution: _tenthInstitutionController.text,
+            twelfthBoard: _twelfthBoardController.text,
+            twelfthInstitution: _twelfthInstitutionController.text,
+            diplomaInstitution: _diplomaInstitutionController.text,
+            diplomaBoard: _diplomaBoardController.text,
+            diplomaUniversity: _diplomaUniversityController.text,
+            ugInstitution: _ugInstitutionController.text,
+            ugUniversity: _ugUniversityController.text,
+            pgInstitution: _pgInstitutionController.text,
+            pgUniversity: _pgUniversityController.text,
+          );
       context.go('/onboarding/address');
     }
   }
 
-  InputDecoration _inputDecoration(String label, String hint, IconData icon) {
+  InputDecoration _inputDecoration(
+    String label,
+    String hint,
+    IconData icon, {
+    String? suffixText,
+  }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
       prefixIcon: Icon(icon),
-      suffixText: '%',
+      suffixText: suffixText ?? '%',
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
       ),
@@ -112,6 +211,43 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
           width: 2,
         ),
       ),
+    );
+  }
+
+  Widget _yearField(TextEditingController controller, String label) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(4),
+      ],
+      decoration: _inputDecoration(
+        label,
+        '2024',
+        Icons.calendar_today_outlined,
+        suffixText: '',
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) return null; // optional
+        final year = int.tryParse(value);
+        if (year == null || year < 1990 || year > 2040) {
+          return 'Enter valid year';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _nameField(
+    TextEditingController controller,
+    String label,
+    String hint,
+    IconData icon,
+  ) {
+    return TextFormField(
+      controller: controller,
+      decoration: _inputDecoration(label, hint, icon, suffixText: ''),
     );
   }
 
@@ -138,7 +274,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       LinearProgressIndicator(
-                        value: 0.5,
+                        value: 0.45,
                         backgroundColor: Theme.of(context).dividerColor,
                         color: Theme.of(context).colorScheme.primary,
                         minHeight: 4,
@@ -189,6 +325,22 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 12),
+                      _yearField(_tenthYearController, '10th Year of Passing'),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _tenthBoardController,
+                        '10th Board',
+                        'CBSE / State Board',
+                        Icons.account_balance_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _tenthInstitutionController,
+                        '10th Institution',
+                        'School name',
+                        Icons.school_outlined,
+                      ),
                       const SizedBox(height: 16),
                       // 12th
                       TextFormField(
@@ -207,13 +359,84 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                           Icons.school_outlined,
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) return 'Required';
+                          if (value == null || value.isEmpty) return null;
                           final num = double.tryParse(value);
                           if (num == null || num < 0 || num > 100) {
                             return 'Enter valid percentage';
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 12),
+                      _yearField(
+                        _twelfthYearController,
+                        '12th Year of Passing',
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _twelfthBoardController,
+                        '12th Board',
+                        'CBSE / State Board',
+                        Icons.account_balance_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _twelfthInstitutionController,
+                        '12th Institution',
+                        'School name',
+                        Icons.school_outlined,
+                      ),
+                      const SizedBox(height: 16),
+                      // Diploma
+                      TextFormField(
+                        controller: _diplomaMarkController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d{0,2}'),
+                          ),
+                        ],
+                        decoration: _inputDecoration(
+                          'Diploma Percentage',
+                          '85.00',
+                          Icons.engineering_outlined,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return null;
+                          final num = double.tryParse(value);
+                          if (num == null || num < 0 || num > 100) {
+                            return 'Enter valid percentage';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _yearField(
+                        _diplomaYearController,
+                        'Diploma Year of Passing',
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _diplomaInstitutionController,
+                        'Diploma Institution',
+                        'College name',
+                        Icons.school_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _diplomaBoardController,
+                        'Diploma Board',
+                        'AICTE / State Board',
+                        Icons.account_balance_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _diplomaUniversityController,
+                        'Diploma University',
+                        'University name',
+                        Icons.account_balance_outlined,
                       ),
                       const SizedBox(height: 24),
                       Text(
@@ -254,6 +477,22 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                           '8.50',
                           Icons.school_outlined,
                         ).copyWith(suffixText: 'CGPA'),
+                      ),
+                      const SizedBox(height: 12),
+                      _yearField(_ugYearController, 'UG Year of Passing'),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _ugInstitutionController,
+                        'UG Institution',
+                        'College name',
+                        Icons.school_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _nameField(
+                        _ugUniversityController,
+                        'UG University',
+                        'University name',
+                        Icons.account_balance_outlined,
                       ),
                       const SizedBox(height: 24),
 
@@ -296,6 +535,22 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                             '8.50',
                             Icons.school,
                           ).copyWith(suffixText: 'CGPA'),
+                        ),
+                        const SizedBox(height: 12),
+                        _yearField(_pgYearController, 'PG Year of Passing'),
+                        const SizedBox(height: 12),
+                        _nameField(
+                          _pgInstitutionController,
+                          'PG Institution',
+                          'College name',
+                          Icons.school_outlined,
+                        ),
+                        const SizedBox(height: 12),
+                        _nameField(
+                          _pgUniversityController,
+                          'PG University',
+                          'University name',
+                          Icons.account_balance_outlined,
                         ),
                         const SizedBox(height: 24),
                       ],

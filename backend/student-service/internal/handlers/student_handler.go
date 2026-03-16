@@ -3,12 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/student-service/internal/database"
 	"github.com/placement-portal-kec/student-service/internal/models"
@@ -56,18 +59,17 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 
 	currentProfile, err := h.studentRepo.GetStudentFullProfile(c.Context(), userID)
 
-	isFirstOnboarding := false
-	missingPersonal := currentProfile == nil || currentProfile.MobileNumber == "" || currentProfile.Dob == ""
-	missingAcademic := currentProfile == nil || currentProfile.TenthMark == 0
-
-	if err != nil || missingPersonal || missingAcademic {
-		isFirstOnboarding = true
-	}
+	// First onboarding: only when the profile row doesn't exist at all.
+	// Previously this also triggered when any field was missing (DOB, TenthMark),
+	// which caused data loss when editing a single section (e.g., academics)
+	// because all other fields would be overwritten with zero values.
+	isFirstOnboarding := currentProfile == nil && err != nil
 
 	if isFirstOnboarding {
 		if err := h.studentRepo.UpdateStudentProfile(c.Context(), userID, input); err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to create profile", "details": err.Error()})
 		}
+		services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", userID))
 		return c.JSON(fiber.Map{"message": "Profile created successfully"})
 	}
 
@@ -146,12 +148,217 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Error checking permissions"})
 	}
 
+	// Merge input with current profile to preserve fields not in the request.
+	// The Flutter app sends only the section being edited (e.g., just mobile_number
+	// for "Contact Details"). Without merging, all other fields would be overwritten
+	// with zero values, causing data loss across unrelated sections.
+	//
+	// To allow setting numeric fields to 0 (e.g., clearing backlogs), we parse
+	// the raw body to see which keys were explicitly sent.
+	sentFields := map[string]bool{}
+	if body := c.Body(); len(body) > 0 {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err == nil {
+			for k := range raw {
+				sentFields[k] = true
+			}
+		}
+	}
+
+	if input.MobileNumber == "" {
+		input.MobileNumber = currentProfile.MobileNumber
+	}
+	if input.Dob == "" {
+		input.Dob = currentProfile.Dob
+	}
+	if input.Gender == "" {
+		input.Gender = currentProfile.Gender
+	}
+	if input.AddressLine1 == "" {
+		input.AddressLine1 = currentProfile.AddressLine1
+	}
+	if input.AddressLine2 == "" {
+		input.AddressLine2 = currentProfile.AddressLine2
+	}
+	if input.State == "" {
+		input.State = currentProfile.State
+	}
+	if input.PlacementWillingness == "" {
+		input.PlacementWillingness = currentProfile.PlacementWillingness
+	}
+	if input.SocialLinks == nil {
+		input.SocialLinks = currentProfile.SocialLinks
+	}
+	// Ensure SocialLinks is never nil (prevents NOT NULL constraint violations)
+	if input.SocialLinks == nil {
+		input.SocialLinks = map[string]string{}
+	}
+	if input.LanguageSkills == nil {
+		input.LanguageSkills = currentProfile.LanguageSkills
+	}
+	// Ensure LanguageSkills is never nil (prevents NOT NULL constraint violations)
+	if input.LanguageSkills == nil {
+		input.LanguageSkills = []string{}
+	}
+	if input.PanNumber == "" {
+		input.PanNumber = currentProfile.PanNumber
+	}
+	if input.AadharNumber == "" {
+		input.AadharNumber = currentProfile.AadharNumber
+	}
+	// Schooling
+	if input.TenthMark == 0 {
+		input.TenthMark = currentProfile.TenthMark
+	}
+	if input.TenthBoard == "" {
+		input.TenthBoard = currentProfile.TenthBoard
+	}
+	if input.TenthYearPass == 0 {
+		input.TenthYearPass = currentProfile.TenthYearPass
+	}
+	if input.TenthInstitution == "" {
+		input.TenthInstitution = currentProfile.TenthInstitution
+	}
+	if input.TwelfthMark == 0 {
+		input.TwelfthMark = currentProfile.TwelfthMark
+	}
+	if input.TwelfthBoard == "" {
+		input.TwelfthBoard = currentProfile.TwelfthBoard
+	}
+	if input.TwelfthYearPass == 0 {
+		input.TwelfthYearPass = currentProfile.TwelfthYearPass
+	}
+	if input.TwelfthInstitution == "" {
+		input.TwelfthInstitution = currentProfile.TwelfthInstitution
+	}
+	if input.DiplomaMark == 0 {
+		input.DiplomaMark = currentProfile.DiplomaMark
+	}
+	if input.DiplomaYearPass == 0 {
+		input.DiplomaYearPass = currentProfile.DiplomaYearPass
+	}
+	if input.DiplomaInstitution == "" {
+		input.DiplomaInstitution = currentProfile.DiplomaInstitution
+	}
+	if input.DiplomaUniversity == "" {
+		input.DiplomaUniversity = currentProfile.DiplomaUniversity
+	}
+	if input.CurrentBacklogs == 0 && !sentFields["current_backlogs"] {
+		input.CurrentBacklogs = currentProfile.CurrentBacklogs
+	}
+	if input.HistoryBacklogs == 0 && !sentFields["history_of_backlogs"] {
+		input.HistoryBacklogs = currentProfile.HistoryBacklogs
+	}
+	if input.GapYears == 0 && !sentFields["gap_years"] {
+		input.GapYears = currentProfile.GapYears
+	}
+	if input.GapReason == "" && !sentFields["gap_reason"] {
+		input.GapReason = currentProfile.GapReason
+	}
+	// Degrees
+	if input.UgCgpa == 0 {
+		input.UgCgpa = currentProfile.UgCgpa
+	}
+	if input.UgYearPass == 0 {
+		input.UgYearPass = currentProfile.UgYearPass
+	}
+	if input.UgInstitution == "" {
+		input.UgInstitution = currentProfile.UgInstitution
+	}
+	if input.UgUniversity == "" {
+		input.UgUniversity = currentProfile.UgUniversity
+	}
+	if input.PgCgpa == 0 {
+		input.PgCgpa = currentProfile.PgCgpa
+	}
+	if input.PgYearPass == 0 {
+		input.PgYearPass = currentProfile.PgYearPass
+	}
+	if input.PgInstitution == "" {
+		input.PgInstitution = currentProfile.PgInstitution
+	}
+	if input.PgUniversity == "" {
+		input.PgUniversity = currentProfile.PgUniversity
+	}
+	// UG Semester GPAs
+	if input.UgGpaS1 == 0 {
+		input.UgGpaS1 = currentProfile.UgGpaS1
+	}
+	if input.UgGpaS2 == 0 {
+		input.UgGpaS2 = currentProfile.UgGpaS2
+	}
+	if input.UgGpaS3 == 0 {
+		input.UgGpaS3 = currentProfile.UgGpaS3
+	}
+	if input.UgGpaS4 == 0 {
+		input.UgGpaS4 = currentProfile.UgGpaS4
+	}
+	if input.UgGpaS5 == 0 {
+		input.UgGpaS5 = currentProfile.UgGpaS5
+	}
+	if input.UgGpaS6 == 0 {
+		input.UgGpaS6 = currentProfile.UgGpaS6
+	}
+	if input.UgGpaS7 == 0 {
+		input.UgGpaS7 = currentProfile.UgGpaS7
+	}
+	if input.UgGpaS8 == 0 {
+		input.UgGpaS8 = currentProfile.UgGpaS8
+	}
+	if input.UgGpaS9 == 0 {
+		input.UgGpaS9 = currentProfile.UgGpaS9
+	}
+	if input.UgGpaS10 == 0 {
+		input.UgGpaS10 = currentProfile.UgGpaS10
+	}
+	// PG Semester GPAs
+	if input.PgGpaS1 == 0 {
+		input.PgGpaS1 = currentProfile.PgGpaS1
+	}
+	if input.PgGpaS2 == 0 {
+		input.PgGpaS2 = currentProfile.PgGpaS2
+	}
+	if input.PgGpaS3 == 0 {
+		input.PgGpaS3 = currentProfile.PgGpaS3
+	}
+	if input.PgGpaS4 == 0 {
+		input.PgGpaS4 = currentProfile.PgGpaS4
+	}
+	if input.PgGpaS5 == 0 {
+		input.PgGpaS5 = currentProfile.PgGpaS5
+	}
+	if input.PgGpaS6 == 0 {
+		input.PgGpaS6 = currentProfile.PgGpaS6
+	}
+	if input.PgGpaS7 == 0 {
+		input.PgGpaS7 = currentProfile.PgGpaS7
+	}
+	if input.PgGpaS8 == 0 {
+		input.PgGpaS8 = currentProfile.PgGpaS8
+	}
+
 	if err := h.studentRepo.UpdateStudentProfile(c.Context(), userID, input); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update profile", "details": err.Error()})
 	}
 
 	// Invalidate cached profile
 	services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", userID))
+
+	// Send profile update confirmation email (async)
+	go func() {
+		user, err := h.userRepo.GetUserByID(c.Context(), userID)
+		if err != nil {
+			fmt.Printf("Email Error: Failed to fetch user %d for profile update email: %v\n", userID, err)
+			return
+		}
+		name := ""
+		if user.Name != nil {
+			name = *user.Name
+		}
+		if err := utils.SendProfileUpdateEmail(user.Email, name); err != nil {
+			fmt.Printf("Email Error: Failed to send profile update email to %s: %v\n", user.Email, err)
+		}
+	}()
 
 	return c.JSON(fiber.Map{"message": "Profile updated successfully. Some changes may require approval."})
 }
@@ -165,6 +372,15 @@ func (h *StudentHandler) GetMyProfile(c *fiber.Ctx) error {
 	if services.GetCache(c.Context(), cacheKey, &cachedProfile) {
 		if cachedProfile.ProfilePhotoURL != "" {
 			cachedProfile.ProfilePhotoURL = utils.GenerateSignedProfileURL(cachedProfile.ProfilePhotoURL)
+		}
+		if cachedProfile.ResumeURL != "" {
+			cachedProfile.ResumeURL = utils.GenerateSignedDocumentURL(cachedProfile.ResumeURL)
+		}
+		if cachedProfile.AadharCardURL != "" {
+			cachedProfile.AadharCardURL = utils.GenerateSignedDocumentURL(cachedProfile.AadharCardURL)
+		}
+		if cachedProfile.PanCardURL != "" {
+			cachedProfile.PanCardURL = utils.GenerateSignedDocumentURL(cachedProfile.PanCardURL)
 		}
 		return c.JSON(cachedProfile)
 	}
@@ -180,6 +396,15 @@ func (h *StudentHandler) GetMyProfile(c *fiber.Ctx) error {
 
 	if profile.ProfilePhotoURL != "" {
 		profile.ProfilePhotoURL = utils.GenerateSignedProfileURL(profile.ProfilePhotoURL)
+	}
+	if profile.ResumeURL != "" {
+		profile.ResumeURL = utils.GenerateSignedDocumentURL(profile.ResumeURL)
+	}
+	if profile.AadharCardURL != "" {
+		profile.AadharCardURL = utils.GenerateSignedDocumentURL(profile.AadharCardURL)
+	}
+	if profile.PanCardURL != "" {
+		profile.PanCardURL = utils.GenerateSignedDocumentURL(profile.PanCardURL)
 	}
 	return c.JSON(profile)
 }
@@ -256,7 +481,23 @@ func (h *StudentHandler) CreateStudent(c *fiber.Ctx) error {
 
 	user := models.User{Email: input.Email, PasswordHash: string(hashedPassword), Role: "student", IsActive: true}
 	if err := h.studentRepo.CreateStudent(c.Context(), &user, input); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to create student.", "details": err.Error()})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "duplicate key") || strings.Contains(errMsg, "unique constraint") {
+			if strings.Contains(errMsg, "email") {
+				return c.Status(409).JSON(fiber.Map{"error": "A student with this email already exists."})
+			}
+			if strings.Contains(errMsg, "register_number") {
+				return c.Status(409).JSON(fiber.Map{"error": "A student with this register number already exists."})
+			}
+			return c.Status(409).JSON(fiber.Map{"error": "Student with this Email or Register Number already exists."})
+		}
+		if strings.Contains(errMsg, "foreign key") || strings.Contains(errMsg, "violates foreign key") {
+			if strings.Contains(errMsg, "department") {
+				return c.Status(400).JSON(fiber.Map{"error": "Invalid department code. Please select a valid department."})
+			}
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid reference data. Please check department and batch values."})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create student.", "details": errMsg})
 	}
 
 	otp := utils.GenerateOTP()
@@ -279,10 +520,9 @@ func (h *StudentHandler) CreateStudent(c *fiber.Ctx) error {
 
 func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 	userID := int64(c.Locals("user_id").(float64))
-	role := c.Locals("role").(string)
 	documentType := c.Params("type")
 
-	validTypes := map[string]string{"resume": "resume_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type"})
@@ -299,12 +539,13 @@ func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 	if documentURL == "" {
 		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
-	}
-	if role != "admin" && role != "student" {
-		return c.Status(403).JSON(fiber.Map{"error": "Unauthorized access"})
 	}
 
 	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
@@ -315,16 +556,16 @@ func (h *StudentHandler) GetDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate secure URL"})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate document URL"})
 	}
-	return c.JSON(fiber.Map{"url": presignedURL, "type": documentType, "expires_in": "5 minutes"})
+	return c.JSON(fiber.Map{"url": publicURL, "type": documentType})
 }
 
 func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
-	if role != "admin" && role != "super_admin" {
+	if role != "admin" && role != "super_admin" && role != "coordinator" {
 		return c.Status(403).JSON(fiber.Map{"error": "Admin access required"})
 	}
 
@@ -334,7 +575,7 @@ func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 	}
 
 	documentType := c.Params("type")
-	validTypes := map[string]string{"resume": "resume_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url", "profile_photo": "profile_photo_url"}
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
 	dbField, valid := validTypes[documentType]
 	if !valid {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type"})
@@ -354,6 +595,10 @@ func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 		documentURL = profile.ResumeURL
 	case "profile_photo_url":
 		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
 	}
 	if documentURL == "" {
 		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
@@ -367,11 +612,11 @@ func (h *StudentHandler) GetStudentDocumentURL(c *fiber.Ctx) error {
 		bucket = utils.GetBucketName()
 	}
 
-	presignedURL, err := utils.GetPresignedURL(bucket, key, 5)
+	publicURL, err := utils.GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate secure URL"})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to generate document URL"})
 	}
-	return c.JSON(fiber.Map{"url": presignedURL, "type": documentType, "student_id": studentID, "expires_in": "5 minutes"})
+	return c.JSON(fiber.Map{"url": publicURL, "type": documentType, "student_id": studentID})
 }
 
 // ---- Upload Handlers ----
@@ -389,8 +634,17 @@ func (h *StudentHandler) UploadDocument(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "File is required"})
 	}
-	if fileHeader.Size > 1024*1024 {
-		return c.Status(400).JSON(fiber.Map{"error": "File size exceeds 1MB limit"})
+
+	// Size limits: 5MB for resume, 2MB for identity documents
+	var maxSize int64
+	switch docType {
+	case "resume":
+		maxSize = 5 * 1024 * 1024
+	default:
+		maxSize = 2 * 1024 * 1024
+	}
+	if fileHeader.Size > maxSize {
+		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("File size exceeds %dMB limit", maxSize/(1024*1024))})
 	}
 
 	registerNumber, err := h.userRepo.GetRegisterNumber(c.Context(), userID)
@@ -414,7 +668,16 @@ func (h *StudentHandler) UploadDocument(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Database update failed"})
 	}
 
-	return c.JSON(fiber.Map{"message": "Upload successful", "register_number": registerNumber, "type": docType, "url": url})
+	// Invalidate cached profile so next fetch gets the new URL
+	services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", userID))
+
+	// For profile_pic, return a signed URL so the client can display it immediately
+	resultURL := url
+	if docType == "profile_pic" {
+		resultURL = utils.GenerateSignedProfileURL(url)
+	}
+
+	return c.JSON(fiber.Map{"message": "Upload successful", "register_number": registerNumber, "type": docType, "url": resultURL})
 }
 
 func (h *StudentHandler) UploadProfilePicture(c *fiber.Ctx) error {
@@ -654,4 +917,201 @@ func (h *StudentHandler) ReviewRequest(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid action"})
 	}
 	return c.JSON(fiber.Map{"message": "Request reviewed successfully"})
+}
+
+// StreamMyProfilePhoto securely serves the authenticated user's profile photo.
+// Only the user who owns the photo can access it via this endpoint.
+func (h *StudentHandler) StreamMyProfilePhoto(c *fiber.Ctx) error {
+	userID := int64(c.Locals("user_id").(float64))
+
+	user, err := h.userRepo.GetUserByID(c.Context(), userID)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.ProfilePhotoURL == nil || *user.ProfilePhotoURL == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "No profile photo uploaded"})
+	}
+
+	bucket, key := utils.ExtractBucketAndKeyFromURL(*user.ProfilePhotoURL)
+	if bucket == "" || key == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Invalid photo path"})
+	}
+
+	// Clean query params from key
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	client := utils.GetS3Client()
+	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Profile photo not found in storage"})
+	}
+	defer result.Body.Close()
+
+	if result.ContentType != nil {
+		c.Set("Content-Type", *result.ContentType)
+	} else {
+		c.Set("Content-Type", "image/jpeg")
+	}
+	c.Set("Cache-Control", "private, max-age=3600")
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to read photo"})
+	}
+
+	return c.Send(body)
+}
+
+// StreamMyDocument securely serves the authenticated user's own document (resume or profile_photo).
+func (h *StudentHandler) StreamMyDocument(c *fiber.Ctx) error {
+	userID := int64(c.Locals("user_id").(float64))
+	documentType := c.Params("type")
+
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
+	dbField, valid := validTypes[documentType]
+	if !valid {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume', 'profile_photo', 'aadhar', or 'pan'"})
+	}
+
+	profile, err := h.studentRepo.GetStudentFullProfile(c.Context(), userID)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User profile not found"})
+	}
+
+	var documentURL string
+	switch dbField {
+	case "resume_url":
+		documentURL = profile.ResumeURL
+	case "profile_photo_url":
+		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
+	}
+	if documentURL == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
+	}
+
+	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
+	if bucket == "" || key == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Invalid document path"})
+	}
+
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	client := utils.GetS3Client()
+	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not found in storage"})
+	}
+	defer result.Body.Close()
+
+	if documentType == "resume" {
+		c.Set("Content-Type", "application/pdf")
+	} else if result.ContentType != nil && *result.ContentType != "application/octet-stream" {
+		c.Set("Content-Type", *result.ContentType)
+	} else {
+		c.Set("Content-Type", "image/jpeg")
+	}
+	c.Set("Content-Disposition", "inline")
+	c.Set("Cache-Control", "private, max-age=3600")
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to read document"})
+	}
+
+	return c.Send(body)
+}
+
+// StreamStudentDocument streams a student's document (profile_photo or resume) for admin/coordinator/super_admin.
+func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	if role != "admin" && role != "super_admin" && role != "coordinator" {
+		return c.Status(403).JSON(fiber.Map{"error": "Admin access required"})
+	}
+
+	studentID, err := c.ParamsInt("student_id")
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid student ID"})
+	}
+
+	documentType := c.Params("type")
+	validTypes := map[string]string{"resume": "resume_url", "profile_photo": "profile_photo_url", "aadhar": "aadhar_card_url", "pan": "pan_card_url"}
+	dbField, valid := validTypes[documentType]
+	if !valid {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid document type. Use 'resume', 'profile_photo', 'aadhar', or 'pan'"})
+	}
+
+	profile, err := h.studentRepo.GetStudentFullProfile(c.Context(), int64(studentID))
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return c.Status(404).JSON(fiber.Map{"error": "Student not found"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch student profile"})
+	}
+
+	var documentURL string
+	switch dbField {
+	case "resume_url":
+		documentURL = profile.ResumeURL
+	case "profile_photo_url":
+		documentURL = profile.ProfilePhotoURL
+	case "aadhar_card_url":
+		documentURL = profile.AadharCardURL
+	case "pan_card_url":
+		documentURL = profile.PanCardURL
+	}
+	if documentURL == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not uploaded yet"})
+	}
+
+	bucket, key := utils.ExtractBucketAndKeyFromURL(documentURL)
+	if bucket == "" || key == "" {
+		return c.Status(404).JSON(fiber.Map{"error": "Invalid document path"})
+	}
+
+	if idx := strings.Index(key, "?"); idx != -1 {
+		key = key[:idx]
+	}
+
+	client := utils.GetS3Client()
+	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Document not found in storage"})
+	}
+	defer result.Body.Close()
+
+	// Force correct content type for known document types
+	if documentType == "resume" {
+		c.Set("Content-Type", "application/pdf")
+	} else if result.ContentType != nil && *result.ContentType != "application/octet-stream" {
+		c.Set("Content-Type", *result.ContentType)
+	} else {
+		c.Set("Content-Type", "image/jpeg")
+	}
+	c.Set("Content-Disposition", "inline")
+	c.Set("Cache-Control", "private, max-age=3600")
+
+	body, err := io.ReadAll(result.Body)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to read document"})
+	}
+
+	return c.Send(body)
 }

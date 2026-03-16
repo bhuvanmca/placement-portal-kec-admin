@@ -116,6 +116,7 @@ type CreateDriveInput struct {
 	MaxBacklogsAllowed  int      `json:"max_backlogs_allowed"`
 	EligibleBatches     []int    `json:"eligible_batches"`
 	EligibleDepartments []string `json:"eligible_departments"`
+	EligibleGender      string   `json:"eligible_gender"`
 
 	// Rounds & Attachments
 	Rounds             []Round      `json:"rounds"`

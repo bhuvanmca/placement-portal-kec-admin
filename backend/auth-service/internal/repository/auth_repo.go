@@ -67,24 +67,29 @@ func (r *AuthRepository) ResetPassword(ctx context.Context, email, passwordHash 
 	return err
 }
 
-// SaveOTP saves OTP securely (if keeping simple table or redis. Assuming previous implementation used password_resets)
+// SaveOTP saves OTP to the password_resets table with 10 minute expiry
 func (r *AuthRepository) SaveOTP(ctx context.Context, email, otp string) error {
 	query := `
-		INSERT INTO auth.password_resets (email, otp, expires_at) 
+		INSERT INTO auth.password_resets (email, otp_code, expires_at) 
 		VALUES ($1, $2, NOW() + INTERVAL '10 minutes')
-		ON CONFLICT (email) DO UPDATE SET otp = EXCLUDED.otp, expires_at = EXCLUDED.expires_at
+		ON CONFLICT (email) DO UPDATE SET otp_code = EXCLUDED.otp_code, expires_at = EXCLUDED.expires_at
 	`
-	// Wait, we need to create auth.password_resets in the schema.
 	_, err := r.DB.Exec(ctx, query, email, otp)
 	return err
 }
 
-// VerifyOTP verifies token TTL
+// VerifyOTP verifies OTP is valid and not expired
 func (r *AuthRepository) VerifyOTP(ctx context.Context, email, otp string) (bool, error) {
 	var count int
-	query := `SELECT count(*) FROM auth.password_resets WHERE email = $1 AND otp = $2 AND expires_at > NOW()`
+	query := `SELECT count(*) FROM auth.password_resets WHERE email = $1 AND otp_code = $2 AND expires_at > NOW()`
 	err := r.DB.QueryRow(ctx, query, email, otp).Scan(&count)
 	return count > 0, err
+}
+
+// DeleteOTP removes the OTP record after successful password reset
+func (r *AuthRepository) DeleteOTP(ctx context.Context, email string) error {
+	_, err := r.DB.Exec(ctx, `DELETE FROM auth.password_resets WHERE email = $1`, email)
+	return err
 }
 
 // GetUserPermissions fetches permissions specifically from admin.role_permissions

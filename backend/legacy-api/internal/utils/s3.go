@@ -61,6 +61,30 @@ func GetBucketName() string {
 	return os.Getenv("GARAGE_BUCKET")
 }
 
+// GetBrowserAccessibleURL constructs a URL accessible from the browser
+// by routing through Caddy's /storage/* reverse proxy to Garage.
+func GetBrowserAccessibleURL(bucketName, objectKey string) (string, error) {
+	if bucketName == "" {
+		bucketName = os.Getenv("GARAGE_BUCKET")
+	}
+	if bucketName == "" {
+		return "", fmt.Errorf("GARAGE_BUCKET env var is not set")
+	}
+	if objectKey == "" {
+		return "", fmt.Errorf("object key is empty")
+	}
+
+	publicDomain := os.Getenv("PUBLIC_DOMAIN")
+	if publicDomain == "" {
+		return "", fmt.Errorf("PUBLIC_DOMAIN env var is not set")
+	}
+	if publicDomain[len(publicDomain)-1] == '/' {
+		publicDomain = publicDomain[:len(publicDomain)-1]
+	}
+
+	return fmt.Sprintf("%s/storage/%s/%s", publicDomain, bucketName, objectKey), nil
+}
+
 // GetChatBucketName returns the chat-specific bucket name
 func GetChatBucketName() string {
 	bucket := os.Getenv("GARAGE_CHAT_BUCKET")
@@ -124,17 +148,22 @@ func InitBucket() error {
 	return nil
 }
 
-// getPublicURL generates a public URL for accessing uploaded files
-// For Garage: http://host:3900/bucket/path
+// getPublicURL generates a browser-accessible URL for uploaded files.
+// Uses PUBLIC_DOMAIN to construct a URL routed through Caddy's /storage/* proxy.
+// Falls back to GARAGE_PUBLIC_URL if PUBLIC_DOMAIN is not set.
 func getPublicURL(bucket, path string) string {
-	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
-	// Ensure no trailing slash in publicURL
-	if len(publicURL) > 0 && publicURL[len(publicURL)-1] == '/' {
-		publicURL = publicURL[:len(publicURL)-1]
-	}
 	// Ensure no leading slash in path
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
+	}
+	// Prefer browser-accessible URL via Caddy proxy
+	if url, err := GetBrowserAccessibleURL(bucket, path); err == nil {
+		return url
+	}
+	// Fallback to raw GARAGE_PUBLIC_URL
+	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
+	if len(publicURL) > 0 && publicURL[len(publicURL)-1] == '/' {
+		publicURL = publicURL[:len(publicURL)-1]
 	}
 	return fmt.Sprintf("%s/%s/%s", publicURL, bucket, path)
 }
@@ -202,10 +231,11 @@ func UploadToS3(file multipart.File, fileHeader *multipart.FileHeader, path stri
 
 	// Upload
 	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      aws.String(bucketName),
-		Key:         aws.String(path), // e.g. "24MCR029/resume.pdf"
-		Body:        bytes.NewReader(buf.Bytes()),
-		ContentType: aws.String(contentType),
+		Bucket:             aws.String(bucketName),
+		Key:                aws.String(path), // e.g. "24MCR029/resume.pdf"
+		Body:               bytes.NewReader(buf.Bytes()),
+		ContentType:        aws.String(contentType),
+		ContentDisposition: aws.String("inline"),
 	})
 
 	if err != nil {
@@ -428,8 +458,9 @@ func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, e
 	)
 
 	presignResult, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(bucketName),
-		Key:    aws.String(objectKey),
+		Bucket:                     aws.String(bucketName),
+		Key:                        aws.String(objectKey),
+		ResponseContentDisposition: aws.String("inline"),
 	}, func(opts *s3.PresignOptions) {
 		opts.Expires = time.Duration(expiryMinutes) * time.Minute
 	})
@@ -441,19 +472,43 @@ func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, e
 	return presignResult.URL, nil
 }
 
-// GenerateSignedProfileURL takes a stored DB URL, cleans it, and returns a Presigned URL
+// isInternalStorageURL checks whether a URL belongs to our Garage storage.
+// External URLs (e.g. Logo.dev, third-party CDNs) are returned false.
+func isInternalStorageURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" || u.Scheme == "" {
+		return true // relative path or unparseable — treat as internal
+	}
+	host := u.Host
+	for _, endpoint := range []string{
+		os.Getenv("PUBLIC_DOMAIN"),
+		os.Getenv("GARAGE_PUBLIC_URL"),
+	} {
+		if endpoint == "" {
+			continue
+		}
+		if parsed, err := url.Parse(endpoint); err == nil && parsed.Host == host {
+			return true
+		}
+	}
+	if ge := os.Getenv("GARAGE_ENDPOINT"); ge != "" && host == ge {
+		return true
+	}
+	if strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "127.0.0.1") || strings.HasPrefix(host, "garage") {
+		return true
+	}
+	return false
+}
+
+// GenerateSignedProfileURL takes a stored DB URL and returns a browser-accessible URL
 func GenerateSignedProfileURL(originalURL string) string {
 	if originalURL == "" {
 		return ""
 	}
 
-	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
-	endpoint := os.Getenv("GARAGE_ENDPOINT")
-
-	if !strings.Contains(originalURL, publicURL) && !strings.Contains(originalURL, endpoint) {
-		if strings.HasPrefix(originalURL, "http://") || strings.HasPrefix(originalURL, "https://") {
-			return originalURL
-		}
+	// External URLs (e.g. Logo.dev) should not be transformed
+	if !isInternalStorageURL(originalURL) {
+		return originalURL
 	}
 
 	bucket, key := ExtractBucketAndKeyFromURL(originalURL)
@@ -466,30 +521,20 @@ func GenerateSignedProfileURL(originalURL string) string {
 		key = key[:idx]
 	}
 
-	// Generate for 60 minutes
-	signedURL, err := GetPresignedURL(bucket, key, 60)
+	publicURL, err := GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
-		fmt.Printf("Error signing profile URL: %v\n", err)
+		fmt.Printf("Error generating profile URL: %v\n", err)
 		return originalURL
 	}
-	return signedURL
+	return publicURL
 }
 
-// GenerateSignedDocumentURL takes a stored DB URL, cleans it, and returns a Presigned URL for documents
+// GenerateSignedDocumentURL takes a stored DB URL and returns a browser-accessible URL for documents
 func GenerateSignedDocumentURL(originalURL string) string {
 	if originalURL == "" {
 		return ""
 	}
 
-	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
-	endpoint := os.Getenv("GARAGE_ENDPOINT")
-
-	if !strings.Contains(originalURL, publicURL) && !strings.Contains(originalURL, endpoint) {
-		if strings.HasPrefix(originalURL, "http://") || strings.HasPrefix(originalURL, "https://") {
-			return originalURL
-		}
-	}
-
 	bucket, key := ExtractBucketAndKeyFromURL(originalURL)
 	if bucket == "" || key == "" {
 		return originalURL
@@ -500,13 +545,12 @@ func GenerateSignedDocumentURL(originalURL string) string {
 		key = key[:idx]
 	}
 
-	// Generate for 60 minutes
-	signedURL, err := GetPresignedURL(bucket, key, 60)
+	publicURL, err := GetBrowserAccessibleURL(bucket, key)
 	if err != nil {
-		fmt.Printf("Error signing document URL: %v\n", err)
+		fmt.Printf("Error generating document URL: %v\n", err)
 		return originalURL
 	}
-	return signedURL
+	return publicURL
 }
 
 // SanitizeFileName replaces non-alphanumeric characters with underscores
@@ -586,10 +630,11 @@ func UploadToS3Bucket(file multipart.File, fileHeader *multipart.FileHeader, pat
 
 	// Upload
 	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      aws.String(bucketName),
-		Key:         aws.String(path),
-		Body:        bytes.NewReader(buf.Bytes()),
-		ContentType: aws.String(contentType),
+		Bucket:             aws.String(bucketName),
+		Key:                aws.String(path),
+		Body:               bytes.NewReader(buf.Bytes()),
+		ContentType:        aws.String(contentType),
+		ContentDisposition: aws.String("inline"),
 	})
 
 	if err != nil {

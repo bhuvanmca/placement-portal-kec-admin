@@ -5,14 +5,12 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../utils/formatters.dart';
 import '../../providers/drive_provider.dart';
-import '../services/drive_service.dart';
-import '../services/api_client.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../providers/auth_provider.dart';
 
 class DriveDetailScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> drive;
@@ -58,8 +56,8 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     }
 
     try {
-      final driveService = DriveService(ref.read(apiClientProvider));
-      await driveService.requestToAttend(
+      final driveService = ref.read(driveServiceProvider);
+      await driveService.applyForDrive(
         widget.drive['id'],
         roleIds: _selectedRoleIds.isNotEmpty ? _selectedRoleIds : null,
       );
@@ -290,35 +288,74 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Opening document...'),
-            duration: Duration(seconds: 1), // Short duration
+            content: Text('Downloading document...'),
+            duration: Duration(seconds: 3),
           ),
         );
       }
 
       final validUrl = AppConstants.sanitizeUrl(url);
-      final token = await ref.read(authServiceProvider).getToken();
-
-      final response = await http.get(
-        Uri.parse(validUrl),
-        headers: token != null ? {'Authorization': 'Bearer $token'} : null,
-      );
-
-      if (response.statusCode != 200) {
-        throw 'Failed to download (Status: ${response.statusCode})';
+      String downloadUrl = validUrl;
+      if (!downloadUrl.startsWith('http://') &&
+          !downloadUrl.startsWith('https://')) {
+        downloadUrl = 'https://$downloadUrl';
       }
 
-      final tempDir = await getTemporaryDirectory();
-      // Use logical filename logic equivalent to profile screen if needed,
-      // but here we trust fileName from backend or derive from url/header
-      final file = File('${tempDir.path}/$fileName');
+      final client = http.Client();
+      try {
+        final request = http.Request('GET', Uri.parse(downloadUrl));
+        // Only add auth header for API endpoints, NOT for storage URLs.
+        // Garage S3 API rejects non-S3 Authorization headers with 400.
+        final isStorageUrl = downloadUrl.contains('/storage/');
+        if (!isStorageUrl) {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('token');
+          if (token != null && token.isNotEmpty) {
+            request.headers['Authorization'] = 'Bearer $token';
+          }
+        }
 
-      await file.writeAsBytes(response.bodyBytes);
+        final streamedResponse = await client.send(request);
 
-      final result = await OpenFilex.open(file.path);
+        if (streamedResponse.statusCode != 200) {
+          throw 'Failed to download (Status: ${streamedResponse.statusCode})';
+        }
 
-      if (result.type != ResultType.done) {
-        throw result.message;
+        final tempDir = await getTemporaryDirectory();
+
+        // Ensure filename has a proper extension for the OS to pick the right app
+        String safeFileName = fileName;
+        if (!safeFileName.contains('.')) {
+          final contentType = streamedResponse.headers['content-type'] ?? '';
+          if (contentType.contains('pdf')) {
+            safeFileName = '$safeFileName.pdf';
+          } else if (contentType.contains('word') ||
+              contentType.contains('docx')) {
+            safeFileName = '$safeFileName.docx';
+          } else if (contentType.contains('image')) {
+            safeFileName = '$safeFileName.png';
+          } else if (contentType.contains('spreadsheet') ||
+              contentType.contains('xlsx')) {
+            safeFileName = '$safeFileName.xlsx';
+          } else {
+            safeFileName = '$safeFileName.pdf';
+          }
+        }
+
+        final file = File('${tempDir.path}/$safeFileName');
+
+        // Stream bytes directly to file
+        final sink = file.openWrite();
+        await streamedResponse.stream.pipe(sink);
+        await sink.close();
+
+        final result = await OpenFilex.open(file.path);
+
+        if (result.type != ResultType.done) {
+          throw result.message;
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
       if (mounted) {
@@ -416,6 +453,18 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                           color:
                               (Theme.of(context).textTheme.bodyMedium?.color ??
                               Colors.black87),
+                        ),
+                      ),
+                    )
+                  else
+                    _buildDetailCard(
+                      'Job Description',
+                      Text(
+                        'No description provided.',
+                        style: TextStyle(
+                          height: 1.5,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey[500],
                         ),
                       ),
                     ),
@@ -1167,7 +1216,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   }
 
   Widget _buildDetailRow(IconData icon, String label, String? value) {
-    if (value == null || value.isEmpty || value == '0' || value == '0.0') {
+    if (value == null || value.isEmpty) {
       return const SizedBox.shrink();
     }
     return Padding(
