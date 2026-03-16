@@ -876,10 +876,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFFEF2F2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFFECACA),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFFECACA), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -899,29 +896,35 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          ...reasons.map<Widget>((reason) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.close, size: 14, color: Color(0xFFEF4444)),
+          ...reasons.map<Widget>(
+            (reason) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: Color(0xFFEF4444),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        reason.toString(),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF991B1B),
-                          height: 1.4,
-                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      reason.toString(),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF991B1B),
+                        height: 1.4,
                       ),
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
