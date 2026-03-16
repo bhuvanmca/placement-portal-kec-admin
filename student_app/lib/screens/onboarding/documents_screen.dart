@@ -156,6 +156,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         // Academics
         'tenth_mark': state.tenthMark ?? 0.0,
         'twelfth_mark': state.twelfthMark ?? 0.0,
+        'diploma_mark': state.diplomaMark ?? 0.0,
         'ug_cgpa': state.ugCgpa ?? 0.0,
         'pg_cgpa': state.pgCgpa ?? 0.0,
         'tenth_year_pass': state.tenthYearPass ?? 0,

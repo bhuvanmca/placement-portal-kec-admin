@@ -234,11 +234,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _ugYearPassController.text = _formatValueRaw(data['ug_year_pass']);
       _ugInstitutionController.text = _formatValueRaw(data['ug_institution']);
       _ugUniversityController.text = _formatValueRaw(data['ug_university']);
+      for (int i = 0; i < 10; i++) {
+        _ugSemControllers[i].text = _formatValueRaw(data['ug_gpa_s${i + 1}']);
+      }
     } else if (section == 'Postgraduate (PG)') {
       _pgCgpaController.text = _formatValueRaw(data['pg_cgpa']);
       _pgYearPassController.text = _formatValueRaw(data['pg_year_pass']);
       _pgInstitutionController.text = _formatValueRaw(data['pg_institution']);
       _pgUniversityController.text = _formatValueRaw(data['pg_university']);
+      for (int i = 0; i < 8; i++) {
+        _pgSemControllers[i].text = _formatValueRaw(data['pg_gpa_s${i + 1}']);
+      }
     } else if (section == 'Backlogs & History') {
       _currentBacklogsController.text = _formatValueRaw(
         data['current_backlogs'],
@@ -318,12 +324,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             int.tryParse(_ugYearPassController.text) ?? 0;
         updateData['ug_institution'] = _ugInstitutionController.text;
         updateData['ug_university'] = _ugUniversityController.text;
+        for (int i = 0; i < 10; i++) {
+          updateData['ug_gpa_s${i + 1}'] =
+              double.tryParse(_ugSemControllers[i].text) ?? 0.0;
+        }
       } else if (section == 'Postgraduate (PG)') {
         updateData['pg_cgpa'] = double.tryParse(_pgCgpaController.text) ?? 0.0;
         updateData['pg_year_pass'] =
             int.tryParse(_pgYearPassController.text) ?? 0;
         updateData['pg_institution'] = _pgInstitutionController.text;
         updateData['pg_university'] = _pgUniversityController.text;
+        for (int i = 0; i < 8; i++) {
+          updateData['pg_gpa_s${i + 1}'] =
+              double.tryParse(_pgSemControllers[i].text) ?? 0.0;
+        }
       } else if (section == 'Backlogs & History') {
         updateData['current_backlogs'] =
             int.tryParse(_currentBacklogsController.text) ?? 0;
@@ -2002,12 +2016,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         label: 'Year of Passing',
                         type: TextInputType.number,
                       ),
+                      for (int i = 0; i < 10; i++)
+                        _buildEditTextField(
+                          controller: _ugSemControllers[i],
+                          label: 'Semester ${i + 1} GPA',
+                          type: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                        ),
                     ]
                   : [
                       _buildDetailItem('CGPA', data['ug_cgpa']),
                       _buildDetailItem('Institution', data['ug_institution']),
                       _buildDetailItem('University', data['ug_university']),
                       _buildDetailItem('Year of Passing', data['ug_year_pass']),
+                      for (int i = 1; i <= 10; i++)
+                        _buildDetailItem(
+                          'Semester $i GPA',
+                          data['ug_gpa_s$i'],
+                          alwaysShow: false,
+                        ),
                     ],
               onEdit: () => _startEditing('Undergraduate (UG)', data),
               onSave: () => _saveSection('Undergraduate (UG)', data),
@@ -2041,6 +2069,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           label: 'Year of Passing',
                           type: TextInputType.number,
                         ),
+                        for (int i = 0; i < 8; i++)
+                          _buildEditTextField(
+                            controller: _pgSemControllers[i],
+                            label: 'Semester ${i + 1} GPA',
+                            type: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                          ),
                       ]
                     : [
                         _buildDetailItem('CGPA', data['pg_cgpa']),
@@ -2050,6 +2086,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           'Year of Passing',
                           data['pg_year_pass'],
                         ),
+                        for (int i = 1; i <= 8; i++)
+                          _buildDetailItem(
+                            'Semester $i GPA',
+                            data['pg_gpa_s$i'],
+                            alwaysShow: false,
+                          ),
                       ],
                 onEdit: () => _startEditing('Postgraduate (PG)', data),
                 onSave: () => _saveSection('Postgraduate (PG)', data),
