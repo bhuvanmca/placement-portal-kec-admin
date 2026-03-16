@@ -222,7 +222,15 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
   final results = drives.where((drive) {
     // 1. Status/Section Filter (Tabs)
     final currentSection = getDriveSection(drive);
-    bool matchesSection = (currentSection == filter.status); // Tab selection
+    final isEligible = drive['is_eligible'] == true;
+
+    bool matchesSection;
+    if (filter.status == 'Not Eligible') {
+      // Show all ineligible drives regardless of status section
+      matchesSection = !isEligible;
+    } else {
+      matchesSection = (currentSection == filter.status); // Tab selection
+    }
 
     // 2. Search Filter
     final company = (drive['company_name'] ?? '').toString().toLowerCase();
@@ -345,6 +353,7 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
       'Completed': 0,
       'Cancelled': 0,
       'On Hold': 0,
+      'Not Eligible': 0,
     };
   }
 
@@ -353,6 +362,7 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   int completed = 0;
   int cancelled = 0;
   int onHold = 0;
+  int notEligible = 0;
 
   for (var drive in drives) {
     final section = getDriveSection(drive);
@@ -373,6 +383,9 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
         onHold++;
         break;
     }
+    if (drive['is_eligible'] != true) {
+      notEligible++;
+    }
   }
 
   return {
@@ -381,5 +394,6 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
     'Completed': completed,
     'Cancelled': cancelled,
     'On Hold': onHold,
+    'Not Eligible': notEligible,
   };
 });
