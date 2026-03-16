@@ -416,15 +416,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await _refresh();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label uploaded successfully')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label uploaded successfully')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label upload failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label upload failed: $e')));
       }
     } finally {
       if (mounted) {
@@ -462,9 +462,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 decoration: BoxDecoration(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Theme.of(context).dividerColor,
-                  ),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -479,7 +477,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       'View $label',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.bodyLarge?.color ??
+                        color:
+                            Theme.of(context).textTheme.bodyLarge?.color ??
                             Colors.black,
                       ),
                     ),
