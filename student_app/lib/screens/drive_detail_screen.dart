@@ -472,6 +472,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
                   _buildKeyDetails(drive),
                   _buildCompensation(drive),
                   _buildEligibility(drive),
+                  if (!_isEligible) _buildIneligibilityReasons(drive),
                   _buildRounds(drive),
                   _buildAttachments(drive),
                   _buildSpocDetails(drive),
@@ -859,6 +860,68 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
               'Depts',
               (drive['eligible_departments'] as List).join(', '),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIneligibilityReasons(Map<String, dynamic> drive) {
+    final List reasons = drive['ineligibility_reasons'] ?? [];
+    if (reasons.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFECACA),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline, size: 18, color: Color(0xFFDC2626)),
+              SizedBox(width: 8),
+              Text(
+                'Why You\'re Not Eligible',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFDC2626),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...reasons.map<Widget>((reason) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.close, size: 14, color: Color(0xFFEF4444)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        reason.toString(),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF991B1B),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
         ],
       ),
     );

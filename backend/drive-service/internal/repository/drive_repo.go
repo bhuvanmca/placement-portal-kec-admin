@@ -394,6 +394,31 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 		if err != nil {
 			return nil, err
 		}
+
+		// Compute ineligibility reasons for non-eligible drives
+		if !d.IsEligible {
+			var reasons []string
+			if ugCgpa < d.MinCgpa {
+				reasons = append(reasons, fmt.Sprintf("CGPA %.2f is below minimum %.2f", ugCgpa, d.MinCgpa))
+			}
+			if backlogs > d.MaxBacklogsAllowed {
+				reasons = append(reasons, fmt.Sprintf("%d backlogs exceeds maximum %d allowed", backlogs, d.MaxBacklogsAllowed))
+			}
+			if d.TenthPercentage != nil && *d.TenthPercentage > 0 && tenthMark < *d.TenthPercentage {
+				reasons = append(reasons, fmt.Sprintf("10th marks %.1f%% below required %.1f%%", tenthMark, *d.TenthPercentage))
+			}
+			if d.TwelfthPercentage != nil && *d.TwelfthPercentage > 0 && twelfthMark < *d.TwelfthPercentage {
+				reasons = append(reasons, fmt.Sprintf("12th marks %.1f%% below required %.1f%%", twelfthMark, *d.TwelfthPercentage))
+			}
+			if d.UGMinCGPA != nil && *d.UGMinCGPA > 0 && ugCgpa < *d.UGMinCGPA {
+				reasons = append(reasons, fmt.Sprintf("UG CGPA %.2f is below minimum %.2f", ugCgpa, *d.UGMinCGPA))
+			}
+			if deptType == "PG" && d.PGMinCGPA != nil && *d.PGMinCGPA > 0 && pgCgpa < *d.PGMinCGPA {
+				reasons = append(reasons, fmt.Sprintf("PG CGPA %.2f is below minimum %.2f", pgCgpa, *d.PGMinCGPA))
+			}
+			d.IneligibilityReasons = reasons
+		}
+
 		drives = append(drives, d)
 	}
 	return drives, nil

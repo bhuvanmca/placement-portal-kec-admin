@@ -57,10 +57,11 @@ type PlacementDrive struct {
 	UserStatus     string    `json:"user_status,omitempty"` // [NEW] For student response ('opted_in', etc.)
 
 	// User Context (If Applied)
-	UserAppliedRoleIDs []int64 `json:"user_applied_role_ids,omitempty"`
-	UserOptOutReason   string  `json:"user_opt_out_reason,omitempty"`
-	UserRemarks        string  `json:"user_remarks,omitempty"`
-	IsEligible         bool    `json:"is_eligible"`
+	UserAppliedRoleIDs   []int64  `json:"user_applied_role_ids,omitempty"`
+	UserOptOutReason     string   `json:"user_opt_out_reason,omitempty"`
+	UserRemarks          string   `json:"user_remarks,omitempty"`
+	IsEligible           bool     `json:"is_eligible"`
+	IneligibilityReasons []string `json:"ineligibility_reasons,omitempty"`
 }
 
 type JobRole struct {
