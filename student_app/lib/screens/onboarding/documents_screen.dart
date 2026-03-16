@@ -181,7 +181,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'aadhar_number': state.aadharNumber ?? '',
         'pan_number': state.panNumber ?? '',
         'aadhar_card_url': state.aadharDocUrl ?? '',
-        'pan_card_url': state.panDocUrl ?? ''
+        'pan_card_url': state.panDocUrl ?? '',
       };
 
       await _studentService.updateProfile(payload);

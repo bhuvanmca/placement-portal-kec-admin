@@ -235,7 +235,12 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
     );
   }
 
-  Widget _nameField(TextEditingController controller, String label, String hint, IconData icon) {
+  Widget _nameField(
+    TextEditingController controller,
+    String label,
+    String hint,
+    IconData icon,
+  ) {
     return TextFormField(
       controller: controller,
       decoration: _inputDecoration(label, hint, icon, suffixText: ''),
@@ -319,9 +324,19 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                       const SizedBox(height: 12),
                       _yearField(_tenthYearController, '10th Year of Passing'),
                       const SizedBox(height: 12),
-                      _nameField(_tenthBoardController, '10th Board', 'CBSE / State Board', Icons.account_balance_outlined),
+                      _nameField(
+                        _tenthBoardController,
+                        '10th Board',
+                        'CBSE / State Board',
+                        Icons.account_balance_outlined,
+                      ),
                       const SizedBox(height: 12),
-                      _nameField(_tenthInstitutionController, '10th Institution', 'School name', Icons.school_outlined),
+                      _nameField(
+                        _tenthInstitutionController,
+                        '10th Institution',
+                        'School name',
+                        Icons.school_outlined,
+                      ),
                       const SizedBox(height: 16),
                       // 12th
                       TextFormField(
@@ -354,9 +369,19 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                         '12th Year of Passing',
                       ),
                       const SizedBox(height: 12),
-                      _nameField(_twelfthBoardController, '12th Board', 'CBSE / State Board', Icons.account_balance_outlined),
+                      _nameField(
+                        _twelfthBoardController,
+                        '12th Board',
+                        'CBSE / State Board',
+                        Icons.account_balance_outlined,
+                      ),
                       const SizedBox(height: 12),
-                      _nameField(_twelfthInstitutionController, '12th Institution', 'School name', Icons.school_outlined),
+                      _nameField(
+                        _twelfthInstitutionController,
+                        '12th Institution',
+                        'School name',
+                        Icons.school_outlined,
+                      ),
                       const SizedBox(height: 16),
                       // Diploma
                       TextFormField(
@@ -389,9 +414,19 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                         'Diploma Year of Passing',
                       ),
                       const SizedBox(height: 12),
-                      _nameField(_diplomaInstitutionController, 'Diploma Institution', 'College name', Icons.school_outlined),
+                      _nameField(
+                        _diplomaInstitutionController,
+                        'Diploma Institution',
+                        'College name',
+                        Icons.school_outlined,
+                      ),
                       const SizedBox(height: 12),
-                      _nameField(_diplomaUniversityController, 'Diploma University', 'University name', Icons.account_balance_outlined),
+                      _nameField(
+                        _diplomaUniversityController,
+                        'Diploma University',
+                        'University name',
+                        Icons.account_balance_outlined,
+                      ),
                       const SizedBox(height: 24),
                       Text(
                         'UG Degree CGPA',
@@ -435,9 +470,19 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                       const SizedBox(height: 12),
                       _yearField(_ugYearController, 'UG Year of Passing'),
                       const SizedBox(height: 12),
-                      _nameField(_ugInstitutionController, 'UG Institution', 'College name', Icons.school_outlined),
+                      _nameField(
+                        _ugInstitutionController,
+                        'UG Institution',
+                        'College name',
+                        Icons.school_outlined,
+                      ),
                       const SizedBox(height: 12),
-                      _nameField(_ugUniversityController, 'UG University', 'University name', Icons.account_balance_outlined),
+                      _nameField(
+                        _ugUniversityController,
+                        'UG University',
+                        'University name',
+                        Icons.account_balance_outlined,
+                      ),
                       const SizedBox(height: 24),
 
                       if (_departmentType == 'PG') ...[
@@ -483,9 +528,19 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
                         const SizedBox(height: 12),
                         _yearField(_pgYearController, 'PG Year of Passing'),
                         const SizedBox(height: 12),
-                        _nameField(_pgInstitutionController, 'PG Institution', 'College name', Icons.school_outlined),
+                        _nameField(
+                          _pgInstitutionController,
+                          'PG Institution',
+                          'College name',
+                          Icons.school_outlined,
+                        ),
                         const SizedBox(height: 12),
-                        _nameField(_pgUniversityController, 'PG University', 'University name', Icons.account_balance_outlined),
+                        _nameField(
+                          _pgUniversityController,
+                          'PG University',
+                          'University name',
+                          Icons.account_balance_outlined,
+                        ),
                         const SizedBox(height: 24),
                       ],
 

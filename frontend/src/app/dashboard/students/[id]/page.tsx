@@ -671,25 +671,39 @@ export default function StudentProfilePage({
                         </div>
                       </div>
                     </div>
-                    {(student.pg_institution || student.pg_university || student.pg_year_pass) && (
+                    {(student.pg_institution ||
+                      student.pg_university ||
+                      student.pg_year_pass) && (
                       <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                         <div className="space-y-3">
                           {student.pg_institution && (
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-500 font-medium">Institution</span>
-                              <span className="text-sm font-semibold text-gray-700">{student.pg_institution}</span>
+                              <span className="text-sm text-gray-500 font-medium">
+                                Institution
+                              </span>
+                              <span className="text-sm font-semibold text-gray-700">
+                                {student.pg_institution}
+                              </span>
                             </div>
                           )}
                           {student.pg_university && (
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-500 font-medium">University</span>
-                              <span className="text-sm font-semibold text-gray-700">{student.pg_university}</span>
+                              <span className="text-sm text-gray-500 font-medium">
+                                University
+                              </span>
+                              <span className="text-sm font-semibold text-gray-700">
+                                {student.pg_university}
+                              </span>
                             </div>
                           )}
                           {student.pg_year_pass > 0 && (
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-500 font-medium">Year of Passing</span>
-                              <span className="text-sm font-semibold text-gray-700">{student.pg_year_pass}</span>
+                              <span className="text-sm text-gray-500 font-medium">
+                                Year of Passing
+                              </span>
+                              <span className="text-sm font-semibold text-gray-700">
+                                {student.pg_year_pass}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -707,7 +721,9 @@ export default function StudentProfilePage({
                     </h3>
                   </div>
 
-                  <div className={`grid grid-cols-2 ${student.department_type !== "PG" ? "lg:grid-cols-3" : ""} gap-4`}>
+                  <div
+                    className={`grid grid-cols-2 ${student.department_type !== "PG" ? "lg:grid-cols-3" : ""} gap-4`}
+                  >
                     <div className="p-4 bg-[#002147]/5 border border-[#002147]/10 rounded-xl flex flex-col items-center justify-center text-center">
                       <span className="text-[10px] font-black text-[#002147]/60 uppercase tracking-widest mb-1">
                         UG CGPA
@@ -747,25 +763,39 @@ export default function StudentProfilePage({
                       </>
                     )}
                   </div>
-                  {(student.ug_institution || student.ug_university || student.ug_year_pass) && (
+                  {(student.ug_institution ||
+                    student.ug_university ||
+                    student.ug_year_pass) && (
                     <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                       <div className="space-y-3">
                         {student.ug_institution && (
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-500 font-medium">Institution</span>
-                            <span className="text-sm font-semibold text-gray-700">{student.ug_institution}</span>
+                            <span className="text-sm text-gray-500 font-medium">
+                              Institution
+                            </span>
+                            <span className="text-sm font-semibold text-gray-700">
+                              {student.ug_institution}
+                            </span>
                           </div>
                         )}
                         {student.ug_university && (
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-500 font-medium">University</span>
-                            <span className="text-sm font-semibold text-gray-700">{student.ug_university}</span>
+                            <span className="text-sm text-gray-500 font-medium">
+                              University
+                            </span>
+                            <span className="text-sm font-semibold text-gray-700">
+                              {student.ug_university}
+                            </span>
                           </div>
                         )}
                         {student.ug_year_pass > 0 && (
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-500 font-medium">Year of Passing</span>
-                            <span className="text-sm font-semibold text-gray-700">{student.ug_year_pass}</span>
+                            <span className="text-sm text-gray-500 font-medium">
+                              Year of Passing
+                            </span>
+                            <span className="text-sm font-semibold text-gray-700">
+                              {student.ug_year_pass}
+                            </span>
                           </div>
                         )}
                       </div>
