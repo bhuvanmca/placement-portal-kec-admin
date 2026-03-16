@@ -429,10 +429,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Check if any fields in this section now have pending requests
         final pendingFields = _getPendingFieldsForSection(section);
         if (pendingFields.isNotEmpty) {
+          final fieldNames = pendingFields
+              .map((f) => f.replaceAll('_', ' '))
+              .map((f) => f[0].toUpperCase() + f.substring(1))
+              .join(', ');
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Update request sent for admin verification'),
-              backgroundColor: Color(0xFFF59E0B),
+            SnackBar(
+              content: Text('Requested: $fieldNames sent for admin approval'),
+              backgroundColor: const Color(0xFFF59E0B),
+              duration: const Duration(seconds: 4),
             ),
           );
         } else {

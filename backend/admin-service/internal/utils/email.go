@@ -305,3 +305,136 @@ func SendWelcomeEmail(toEmail, studentName, otp string) error {
 	msg := []byte(subject + mime + body)
 	return sendRawEmail([]string{toEmail}, msg)
 }
+
+// SendRequestStatusEmail notifies a student that their profile change request
+// has been approved or rejected by an admin.
+func SendRequestStatusEmail(toEmail, studentName, fieldName, oldValue, newValue, status, adminComment string) error {
+	safeName := html.EscapeString(studentName)
+	safeField := html.EscapeString(fieldName)
+	safeOld := html.EscapeString(oldValue)
+	safeNew := html.EscapeString(newValue)
+	safeComment := html.EscapeString(adminComment)
+
+	var statusColor, statusBg, statusIcon, statusText, detailSection string
+	if status == "approved" {
+		statusColor = "#059669"
+		statusBg = "#ecfdf5"
+		statusIcon = "✅"
+		statusText = "Approved"
+		detailSection = fmt.Sprintf(`
+			<div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 16px 20px; margin: 0 0 24px 0; border-radius: 4px;">
+				<p style="margin: 0 0 8px 0; color: #059669; font-size: 14px; font-weight: 600;">%s Update Approved</p>
+				<p style="margin: 0; color: #065f46; font-size: 14px; line-height: 1.6;">
+					Your requested change has been approved and applied to your profile.
+				</p>
+			</div>`, statusIcon)
+	} else {
+		statusColor = "#dc2626"
+		statusBg = "#fef2f2"
+		statusIcon = "❌"
+		statusText = "Rejected"
+		reasonHTML := ""
+		if safeComment != "" {
+			reasonHTML = fmt.Sprintf(`
+				<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 16px 20px; margin: 0 0 24px 0; border-radius: 4px;">
+					<p style="margin: 0 0 8px 0; color: #856404; font-size: 14px; font-weight: 600;">Admin Comment</p>
+					<p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">%s</p>
+				</div>`, safeComment)
+		}
+		detailSection = fmt.Sprintf(`
+			<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px 20px; margin: 0 0 24px 0; border-radius: 4px;">
+				<p style="margin: 0 0 8px 0; color: #dc2626; font-size: 14px; font-weight: 600;">%s Update Rejected</p>
+				<p style="margin: 0; color: #991b1b; font-size: 14px; line-height: 1.6;">
+					Your requested change was not approved. The original value remains unchanged.
+				</p>
+			</div>%s`, statusIcon, reasonHTML)
+	}
+
+	subject := fmt.Sprintf("Subject: Profile Update %s - Placement Portal\n", statusText)
+	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	body := fmt.Sprintf(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Update %s</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8f9fa;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%%%%" style="background-color: #f8f9fa; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #002147 0%%%%, #003d82 100%%%%); padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Placement Portal</h1>
+                            <p style="margin: 8px 0 0 0; color: #e0e7ff; font-size: 14px;">Kongu Engineering College</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="margin: 0 0 16px 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">Hello %s,</h2>
+                            <p style="margin: 0 0 24px 0; color: #6b7280; font-size: 16px; line-height: 1.6;">
+                                Your profile update request has been reviewed by the placement administrator.
+                            </p>
+                            
+                            <!-- Status Badge -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%%%%" style="margin: 0 0 24px 0;">
+                                <tr>
+                                    <td align="center" style="background-color: %s; border-radius: 8px; padding: 16px;">
+                                        <p style="margin: 0; color: %s; font-size: 20px; font-weight: 700;">%s %s</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Field Details -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%%%%" style="margin: 0 0 24px 0; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                                <tr style="background-color: #f9fafb;">
+                                    <td style="padding: 12px 16px; font-size: 13px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Field</td>
+                                    <td style="padding: 12px 16px; font-size: 14px; color: #1a1a1a; font-weight: 600;">%s</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 16px; font-size: 13px; color: #6b7280; font-weight: 600; border-top: 1px solid #e5e7eb;">Previous Value</td>
+                                    <td style="padding: 12px 16px; font-size: 14px; color: #6b7280; border-top: 1px solid #e5e7eb;">%s</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 16px; font-size: 13px; color: #6b7280; font-weight: 600; border-top: 1px solid #e5e7eb;">Requested Value</td>
+                                    <td style="padding: 12px 16px; font-size: 14px; color: %s; font-weight: 600; border-top: 1px solid #e5e7eb;">%s</td>
+                                </tr>
+                            </table>
+                            
+                            %s
+                            
+                            <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                                You can view all your requests in the Placement Portal app under the Requests section.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 8px 0; color: #9ca3af; font-size: 13px;">
+                                This is an automated message from Placement Portal
+                            </p>
+                            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                                © 2026 Kongu Engineering College. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `, statusText, safeName, statusBg, statusColor, statusIcon, statusText, safeField, safeOld, statusColor, safeNew, detailSection)
+
+	msg := []byte(subject + mime + body)
+	return sendRawEmail([]string{toEmail}, msg)
+}

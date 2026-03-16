@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"fmt"
-	"log" // Added for http.StatusInternalServerError
+	"log"
 	"strconv"
+	"strings"
 
+	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
+	"github.com/placement-portal-kec/admin-service/internal/utils"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -88,6 +91,39 @@ func (h *RequestHandler) ReviewRequest(c *fiber.Ctx) error {
 
 	adminID := int64(c.Locals("user_id").(float64))
 
+	// Helper to format field names for display (e.g., "tenth_mark" → "Tenth Mark")
+	formatFieldName := func(field string) string {
+		words := strings.Split(strings.ReplaceAll(field, "_", " "), " ")
+		for i, w := range words {
+			if len(w) > 0 {
+				words[i] = strings.ToUpper(w[:1]) + w[1:]
+			}
+		}
+		return strings.Join(words, " ")
+	}
+
+	// Helper to send status email (non-blocking, logs errors)
+	sendStatusEmail := func(req *models.StudentChangeRequest, status, adminComment string) {
+		go func() {
+			userRepo := repository.NewUserRepository(database.DB)
+			user, err := userRepo.GetUserByID(c.Context(), req.StudentID)
+			if err != nil {
+				log.Printf("WARNING: Could not fetch student %d email for request notification: %v", req.StudentID, err)
+				return
+			}
+			studentName := ""
+			if user.Name != nil {
+				studentName = *user.Name
+			}
+			fieldLabel := formatFieldName(req.FieldName)
+			if err := utils.SendRequestStatusEmail(user.Email, studentName, fieldLabel, req.OldValue, req.NewValue, status, adminComment); err != nil {
+				log.Printf("WARNING: Failed to send %s email for request %d to %s: %v", status, req.ID, user.Email, err)
+			} else {
+				log.Printf("Sent %s notification email for request %d to %s", status, req.ID, user.Email)
+			}
+		}()
+	}
+
 	switch input.Action {
 	case "approve":
 		req, err := h.Repo.GetRequestByID(id)
@@ -112,11 +148,16 @@ func (h *RequestHandler) ReviewRequest(c *fiber.Ctx) error {
 
 		log.Printf("Request APPROVED for Student %d", req.StudentID)
 
+		// 3. Send approval email notification
+		sendStatusEmail(req, "approved", "")
+
 	case "reject":
 		req, err := h.Repo.GetRequestByID(id)
-		if err == nil {
-			log.Printf("Request REJECTED for Student %d", req.StudentID)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Request not found"})
 		}
+
+		log.Printf("Request REJECTED for Student %d", req.StudentID)
 
 		if err := h.Repo.UpdateRequestStatus(id, "rejected", adminID, &input.RejectionReason); err != nil {
 			if len(err.Error()) > 8 && err.Error()[:8] == "CONFLICT" {
@@ -124,6 +165,9 @@ func (h *RequestHandler) ReviewRequest(c *fiber.Ctx) error {
 			}
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to update request status"})
 		}
+
+		// Send rejection email notification
+		sendStatusEmail(req, "rejected", input.RejectionReason)
 
 	default:
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid action"})

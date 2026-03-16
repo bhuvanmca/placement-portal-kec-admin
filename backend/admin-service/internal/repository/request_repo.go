@@ -87,12 +87,16 @@ func (r *RequestRepository) UpdateRequestStatus(id int64, status string, handled
 
 func (r *RequestRepository) GetRequestByID(id int64) (*models.StudentChangeRequest, error) {
 	var req models.StudentChangeRequest
-	query := `SELECT id, student_id, field_name, old_value, new_value, reason, status FROM student_change_requests WHERE id = $1`
+	var adminComment *string
+	query := `SELECT id, student_id, field_name, COALESCE(old_value, ''), COALESCE(new_value, ''), COALESCE(reason, ''), status, COALESCE(admin_comment, '') FROM student_change_requests WHERE id = $1`
 	err := r.DB.QueryRow(context.Background(), query, id).Scan(
-		&req.ID, &req.StudentID, &req.FieldName, &req.OldValue, &req.NewValue, &req.Reason, &req.Status,
+		&req.ID, &req.StudentID, &req.FieldName, &req.OldValue, &req.NewValue, &req.Reason, &req.Status, &adminComment,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if adminComment != nil {
+		req.AdminComment = *adminComment
 	}
 	return &req, nil
 }
