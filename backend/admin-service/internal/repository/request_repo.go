@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/placement-portal-kec/admin-service/internal/models"
 )
 
 type RequestRepository struct {
@@ -26,8 +26,8 @@ func (r *RequestRepository) CreateRequest(req *models.StudentChangeRequest) erro
 
 func (r *RequestRepository) GetPendingRequests() ([]models.StudentChangeRequest, error) {
 	query := `
-        SELECT r.id, r.student_id, r.field_name, r.old_value, r.new_value, r.reason, r.status, r.created_at,
-               COALESCE(u.name, 'Unknown'), sp.register_number 
+        SELECT r.id, r.student_id, r.field_name, COALESCE(r.old_value, ''), COALESCE(r.new_value, ''), COALESCE(r.reason, ''), r.status, r.created_at,
+               COALESCE(u.name, 'Unknown'), COALESCE(sp.register_number, '') 
         FROM student_change_requests r
         JOIN users u ON r.student_id = u.id
         LEFT JOIN student_personal sp ON u.id = sp.user_id
@@ -43,19 +43,11 @@ func (r *RequestRepository) GetPendingRequests() ([]models.StudentChangeRequest,
 	var requests []models.StudentChangeRequest
 	for rows.Next() {
 		var r models.StudentChangeRequest
-		// We need to handle potential NULLs if sp.register_number is null (left join).
-		// But Scan handles basic types. String scan from NULL usually errors unless *string.
-		// Let's assume register_number is present for students.
-		// Also `r.reason` might be null if old requests exist? No I created column without default but it's nullable by default.
-		var regNo *string
 		if err := rows.Scan(
 			&r.ID, &r.StudentID, &r.FieldName, &r.OldValue, &r.NewValue, &r.Reason, &r.Status, &r.CreatedAt,
-			&r.StudentName, &regNo,
+			&r.StudentName, &r.RegisterNumber,
 		); err != nil {
 			return nil, err
-		}
-		if regNo != nil {
-			r.RegisterNumber = *regNo
 		}
 		requests = append(requests, r)
 	}
