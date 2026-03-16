@@ -418,7 +418,9 @@ func ExtractBucketAndKeyFromURL(fileURL string) (string, string) {
 	return bucket, key
 }
 
-// GetPresignedURL generates a presigned URL for secure, temporary access to a private object
+// GetPresignedURL generates a presigned URL for secure, temporary access to a private object.
+// It signs using the internal Garage endpoint, then rewrites the base to the public Caddy proxy path
+// so browsers can access via PUBLIC_DOMAIN/storage/... → Caddy → Garage (with matching Host header).
 func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, error) {
 	if bucketName == "" {
 		bucketName = os.Getenv("GARAGE_BUCKET")
@@ -427,15 +429,18 @@ func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, e
 		return "", fmt.Errorf("GARAGE_BUCKET env var is not set")
 	}
 
-	// ... (rest of configuration is same, referencing Public URL)
-	publicURL := os.Getenv("GARAGE_PUBLIC_URL")
-	if publicURL == "" {
-		return "", fmt.Errorf("GARAGE_PUBLIC_URL env var is not set")
+	// Use internal Garage endpoint for signing — Caddy rewrites Host to this value
+	garageEndpoint := os.Getenv("GARAGE_ENDPOINT")
+	if garageEndpoint == "" {
+		return "", fmt.Errorf("GARAGE_ENDPOINT env var is not set")
 	}
 
-	if len(publicURL) > 0 && publicURL[len(publicURL)-1] == '/' {
-		publicURL = publicURL[:len(publicURL)-1]
+	useSSL := os.Getenv("GARAGE_USE_SSL") == "true"
+	scheme := "http://"
+	if useSSL {
+		scheme = "https://"
 	}
+	internalURL := scheme + garageEndpoint
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -452,7 +457,7 @@ func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, e
 
 	presignClient := s3.NewPresignClient(
 		s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String(publicURL)
+			o.BaseEndpoint = aws.String(internalURL)
 			o.UsePathStyle = true
 		}),
 	)
@@ -469,10 +474,22 @@ func GetPresignedURL(bucketName, objectKey string, expiryMinutes int) (string, e
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
 
-	return presignResult.URL, nil
+	// Rewrite internal endpoint to public Caddy proxy path
+	// e.g. http://garage:3900/bucket/key?sig=... → https://domain.com/storage/bucket/key?sig=...
+	publicDomain := os.Getenv("PUBLIC_DOMAIN")
+	if publicDomain == "" {
+		return presignResult.URL, nil // fallback: return raw presigned URL
+	}
+	if publicDomain[len(publicDomain)-1] == '/' {
+		publicDomain = publicDomain[:len(publicDomain)-1]
+	}
+
+	presignedURL := strings.Replace(presignResult.URL, internalURL, publicDomain+"/storage", 1)
+
+	return presignedURL, nil
 }
 
-// GenerateSignedProfileURL takes a stored DB URL and returns a browser-accessible URL
+// GenerateSignedProfileURL takes a stored DB URL and returns a presigned URL for browser access
 func GenerateSignedProfileURL(originalURL string) string {
 	if originalURL == "" {
 		return ""
@@ -488,15 +505,15 @@ func GenerateSignedProfileURL(originalURL string) string {
 		key = key[:idx]
 	}
 
-	publicURL, err := GetBrowserAccessibleURL(bucket, key)
+	presignedURL, err := GetPresignedURL(bucket, key, 60) // 1 hour expiry
 	if err != nil {
-		fmt.Printf("Error generating profile URL: %v\n", err)
+		fmt.Printf("Error generating presigned profile URL: %v\n", err)
 		return originalURL
 	}
-	return publicURL
+	return presignedURL
 }
 
-// GenerateSignedDocumentURL takes a stored DB URL and returns a browser-accessible URL for documents
+// GenerateSignedDocumentURL takes a stored DB URL and returns a presigned URL for browser access
 func GenerateSignedDocumentURL(originalURL string) string {
 	if originalURL == "" {
 		return ""
@@ -512,12 +529,12 @@ func GenerateSignedDocumentURL(originalURL string) string {
 		key = key[:idx]
 	}
 
-	publicURL, err := GetBrowserAccessibleURL(bucket, key)
+	presignedURL, err := GetPresignedURL(bucket, key, 60) // 1 hour expiry
 	if err != nil {
-		fmt.Printf("Error generating document URL: %v\n", err)
+		fmt.Printf("Error generating presigned document URL: %v\n", err)
 		return originalURL
 	}
-	return publicURL
+	return presignedURL
 }
 
 // SanitizeFileName replaces non-alphanumeric characters with underscores

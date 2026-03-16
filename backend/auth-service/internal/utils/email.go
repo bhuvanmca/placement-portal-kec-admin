@@ -1,9 +1,12 @@
 package utils
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net"
 	"net/smtp"
 	"os"
+	"time"
 )
 
 func SendOTPEmail(toEmail, otp string) error {
@@ -14,6 +17,7 @@ func SendOTPEmail(toEmail, otp string) error {
 	}
 	host := "smtp.gmail.com"
 	port := "587"
+	addr := host + ":" + port
 
 	subject := "Subject: Password Reset Request - Placement Portal\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
@@ -52,10 +56,50 @@ func SendOTPEmail(toEmail, otp string) error {
 `, otp)
 
 	msg := []byte(subject + mime + body)
-	auth := smtp.PlainAuth("", from, password, host)
-	addr := host + ":" + port
-	if err := smtp.SendMail(addr, auth, from, []string{toEmail}, msg); err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+
+	// Force IPv4 ("tcp4") to avoid IPv6 routing issues on networks without proper IPv6 connectivity
+	dialer := &net.Dialer{Timeout: 30 * time.Second}
+	conn, err := dialer.Dial("tcp4", addr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
-	return nil
+
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to create SMTP client: %w", err)
+	}
+	defer client.Close()
+
+	// STARTTLS
+	tlsConfig := &tls.Config{ServerName: host}
+	if err = client.StartTLS(tlsConfig); err != nil {
+		return fmt.Errorf("STARTTLS failed: %w", err)
+	}
+
+	// Authenticate
+	auth := smtp.PlainAuth("", from, password, host)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("SMTP auth failed: %w", err)
+	}
+
+	// Send
+	if err = client.Mail(from); err != nil {
+		return fmt.Errorf("MAIL FROM failed: %w", err)
+	}
+	if err = client.Rcpt(toEmail); err != nil {
+		return fmt.Errorf("RCPT TO failed: %w", err)
+	}
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("DATA failed: %w", err)
+	}
+	if _, err = w.Write(msg); err != nil {
+		return fmt.Errorf("failed to write message: %w", err)
+	}
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("failed to close message: %w", err)
+	}
+
+	return client.Quit()
 }
