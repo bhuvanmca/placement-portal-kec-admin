@@ -65,16 +65,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _twelfthYearPassController = TextEditingController();
   final _diplomaMarkController = TextEditingController();
   final _diplomaInstitutionController = TextEditingController();
+  final _diplomaUniversityController = TextEditingController();
   final _diplomaYearPassController = TextEditingController();
 
   final _ugCgpaController = TextEditingController();
   final _ugYearPassController = TextEditingController();
+  final _ugInstitutionController = TextEditingController();
+  final _ugUniversityController = TextEditingController();
   final List<TextEditingController> _ugSemControllers = List.generate(
     10,
     (_) => TextEditingController(),
   );
   final _pgCgpaController = TextEditingController();
   final _pgYearPassController = TextEditingController();
+  final _pgInstitutionController = TextEditingController();
+  final _pgUniversityController = TextEditingController();
   final List<TextEditingController> _pgSemControllers = List.generate(
     8,
     (_) => TextEditingController(),
@@ -134,14 +139,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _twelfthYearPassController.dispose();
     _diplomaMarkController.dispose();
     _diplomaInstitutionController.dispose();
+    _diplomaUniversityController.dispose();
     _diplomaYearPassController.dispose();
     _ugCgpaController.dispose();
     _ugYearPassController.dispose();
+    _ugInstitutionController.dispose();
+    _ugUniversityController.dispose();
     for (var c in _ugSemControllers) {
       c.dispose();
     }
     _pgCgpaController.dispose();
     _pgYearPassController.dispose();
+    _pgInstitutionController.dispose();
+    _pgUniversityController.dispose();
     for (var c in _pgSemControllers) {
       c.dispose();
     }
@@ -211,15 +221,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _diplomaInstitutionController.text = _formatValueRaw(
         data['diploma_institution'],
       );
+      _diplomaUniversityController.text = _formatValueRaw(
+        data['diploma_university'],
+      );
       _diplomaYearPassController.text = _formatValueRaw(
         data['diploma_year_pass'],
       );
     } else if (section == 'Undergraduate (UG)') {
       _ugCgpaController.text = _formatValueRaw(data['ug_cgpa']);
       _ugYearPassController.text = _formatValueRaw(data['ug_year_pass']);
+      _ugInstitutionController.text = _formatValueRaw(data['ug_institution']);
+      _ugUniversityController.text = _formatValueRaw(data['ug_university']);
     } else if (section == 'Postgraduate (PG)') {
       _pgCgpaController.text = _formatValueRaw(data['pg_cgpa']);
       _pgYearPassController.text = _formatValueRaw(data['pg_year_pass']);
+      _pgInstitutionController.text = _formatValueRaw(data['pg_institution']);
+      _pgUniversityController.text = _formatValueRaw(data['pg_university']);
     } else if (section == 'Backlogs & History') {
       _currentBacklogsController.text = _formatValueRaw(
         data['current_backlogs'],
@@ -290,16 +307,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         updateData['diploma_mark'] =
             double.tryParse(_diplomaMarkController.text) ?? 0.0;
         updateData['diploma_institution'] = _diplomaInstitutionController.text;
+        updateData['diploma_university'] = _diplomaUniversityController.text;
         updateData['diploma_year_pass'] =
             int.tryParse(_diplomaYearPassController.text) ?? 0;
       } else if (section == 'Undergraduate (UG)') {
         updateData['ug_cgpa'] = double.tryParse(_ugCgpaController.text) ?? 0.0;
         updateData['ug_year_pass'] =
             int.tryParse(_ugYearPassController.text) ?? 0;
+        updateData['ug_institution'] = _ugInstitutionController.text;
+        updateData['ug_university'] = _ugUniversityController.text;
       } else if (section == 'Postgraduate (PG)') {
         updateData['pg_cgpa'] = double.tryParse(_pgCgpaController.text) ?? 0.0;
         updateData['pg_year_pass'] =
             int.tryParse(_pgYearPassController.text) ?? 0;
+        updateData['pg_institution'] = _pgInstitutionController.text;
+        updateData['pg_university'] = _pgUniversityController.text;
       } else if (section == 'Backlogs & History') {
         updateData['current_backlogs'] =
             int.tryParse(_currentBacklogsController.text) ?? 0;
@@ -1768,7 +1790,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       _buildEditTextField(
                         controller: _diplomaInstitutionController,
-                        label: 'Institution',
+                        label: 'Institution Name',
+                      ),
+                      _buildEditTextField(
+                        controller: _diplomaUniversityController,
+                        label: 'University Name',
                       ),
                       _buildEditTextField(
                         controller: _diplomaYearPassController,
@@ -1784,6 +1810,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _buildDetailItem(
                         'Institution',
                         data['diploma_institution'],
+                      ),
+                      _buildDetailItem(
+                        'University',
+                        data['diploma_university'],
                       ),
                       _buildDetailItem(
                         'Year of Passing',
@@ -1808,6 +1838,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                       _buildEditTextField(
+                        controller: _ugInstitutionController,
+                        label: 'Institution Name',
+                      ),
+                      _buildEditTextField(
+                        controller: _ugUniversityController,
+                        label: 'University Name',
+                      ),
+                      _buildEditTextField(
                         controller: _ugYearPassController,
                         label: 'Year of Passing',
                         type: TextInputType.number,
@@ -1815,6 +1853,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ]
                   : [
                       _buildDetailItem('CGPA', data['ug_cgpa']),
+                      _buildDetailItem('Institution', data['ug_institution']),
+                      _buildDetailItem('University', data['ug_university']),
                       _buildDetailItem('Year of Passing', data['ug_year_pass']),
                     ],
               onEdit: () => _startEditing('Undergraduate (UG)', data),
@@ -1837,6 +1877,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
                         _buildEditTextField(
+                          controller: _pgInstitutionController,
+                          label: 'Institution Name',
+                        ),
+                        _buildEditTextField(
+                          controller: _pgUniversityController,
+                          label: 'University Name',
+                        ),
+                        _buildEditTextField(
                           controller: _pgYearPassController,
                           label: 'Year of Passing',
                           type: TextInputType.number,
@@ -1844,6 +1892,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ]
                     : [
                         _buildDetailItem('CGPA', data['pg_cgpa']),
+                        _buildDetailItem('Institution', data['pg_institution']),
+                        _buildDetailItem('University', data['pg_university']),
                         _buildDetailItem(
                           'Year of Passing',
                           data['pg_year_pass'],

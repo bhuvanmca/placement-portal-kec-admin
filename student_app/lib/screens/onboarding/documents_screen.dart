@@ -83,10 +83,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           uploadType = 'pan';
         }
 
-        final url = await _studentService.uploadFile(
-          file.path!,
-          uploadType,
-        );
+        final url = await _studentService.uploadFile(file.path!, uploadType);
 
         // Update provider with URL
         if (type == 'resume') {

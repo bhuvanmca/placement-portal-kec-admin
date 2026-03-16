@@ -227,6 +227,9 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	if input.DiplomaInstitution == "" {
 		input.DiplomaInstitution = currentProfile.DiplomaInstitution
 	}
+	if input.DiplomaUniversity == "" {
+		input.DiplomaUniversity = currentProfile.DiplomaUniversity
+	}
 	if input.CurrentBacklogs == 0 {
 		input.CurrentBacklogs = currentProfile.CurrentBacklogs
 	}
@@ -249,6 +252,9 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	if input.UgInstitution == "" {
 		input.UgInstitution = currentProfile.UgInstitution
 	}
+	if input.UgUniversity == "" {
+		input.UgUniversity = currentProfile.UgUniversity
+	}
 	if input.PgCgpa == 0 {
 		input.PgCgpa = currentProfile.PgCgpa
 	}
@@ -257,6 +263,9 @@ func (h *StudentHandler) UpdateProfile(c *fiber.Ctx) error {
 	}
 	if input.PgInstitution == "" {
 		input.PgInstitution = currentProfile.PgInstitution
+	}
+	if input.PgUniversity == "" {
+		input.PgUniversity = currentProfile.PgUniversity
 	}
 	// UG Semester GPAs
 	if input.UgGpaS1 == 0 {

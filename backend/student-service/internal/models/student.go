@@ -46,15 +46,18 @@ type UpdateProfileInput struct {
 	DiplomaMark          float64           `json:"diploma_mark"`
 	DiplomaYearPass      int               `json:"diploma_year_pass"`
 	DiplomaInstitution   string            `json:"diploma_institution"`
+	DiplomaUniversity    string            `json:"diploma_university"`
 	UgCgpa               float64           `json:"ug_cgpa"`
 	PgCgpa               float64           `json:"pg_cgpa"`
 	UgDegreeName         string            `json:"ug_degree_name"`
 	UgSpecialisation     string            `json:"ug_specialisation"`
 	UgInstitution        string            `json:"ug_institution"`
+	UgUniversity         string            `json:"ug_university"`
 	UgYearPass           int               `json:"ug_year_pass"`
 	PgDegreeName         string            `json:"pg_degree_name"`
 	PgSpecialisation     string            `json:"pg_specialisation"`
 	PgInstitution        string            `json:"pg_institution"`
+	PgUniversity         string            `json:"pg_university"`
 	PgYearPass           int               `json:"pg_year_pass"`
 	UgGpaS1              float64           `json:"ug_gpa_s1"`
 	UgGpaS2              float64           `json:"ug_gpa_s2"`
@@ -136,12 +139,15 @@ type StudentFullProfile struct {
 	DiplomaMark          float64           `json:"diploma_mark"`
 	DiplomaYearPass      int               `json:"diploma_year_pass"`
 	DiplomaInstitution   string            `json:"diploma_institution"`
+	DiplomaUniversity    string            `json:"diploma_university"`
 	UgCgpa               float64           `json:"ug_cgpa"`
 	PgCgpa               float64           `json:"pg_cgpa"`
 	UgYearPass           int               `json:"ug_year_pass"`
 	UgInstitution        string            `json:"ug_institution"`
+	UgUniversity         string            `json:"ug_university"`
 	PgYearPass           int               `json:"pg_year_pass"`
 	PgInstitution        string            `json:"pg_institution"`
+	PgUniversity         string            `json:"pg_university"`
 	UgGpaS1              float64           `json:"ug_gpa_s1"`
 	UgGpaS2              float64           `json:"ug_gpa_s2"`
 	UgGpaS3              float64           `json:"ug_gpa_s3"`
