@@ -390,9 +390,7 @@ export default function StudentsPage() {
     try {
       // Use the authenticated stream endpoint — avoids presigned URL expiry issues
       const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("token")
-          : null;
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
       const streamUrl = `${baseUrl}/v1/admin/students/${studentId}/documents/resume/stream`;
 
