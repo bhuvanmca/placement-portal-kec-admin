@@ -64,16 +64,18 @@
     }
     handle /api/v1/student/documents/*/stream {
         reverse_proxy student-service:8084 {
-            lb_try_duration 5s
-            fail_duration 30s
-            unhealthy_status 502 503 504
+            transport http {
+                read_timeout 30s
+                write_timeout 30s
+            }
         }
     }
     handle /api/v1/student/documents/* {
         reverse_proxy student-service:8084 {
-            lb_try_duration 5s
-            fail_duration 30s
-            unhealthy_status 502 503 504
+            transport http {
+                read_timeout 30s
+                write_timeout 30s
+            }
         }
     }
     handle /api/v1/student/* {
@@ -84,10 +86,20 @@
         }
     }
     handle /api/v1/admin/students/*/documents/*/stream {
-        reverse_proxy student-service:8084
+        reverse_proxy student-service:8084 {
+            transport http {
+                read_timeout 30s
+                write_timeout 30s
+            }
+        }
     }
     handle /api/v1/admin/students/*/documents/* {
-        reverse_proxy student-service:8084
+        reverse_proxy student-service:8084 {
+            transport http {
+                read_timeout 30s
+                write_timeout 30s
+            }
+        }
     }
     handle /api/v1/user/upload/profile-photo {
         reverse_proxy student-service:8084

@@ -133,8 +133,38 @@ export default function StudentProfilePage({
       return;
     }
 
-    // Open the browser-accessible URL directly — no blob proxy needed
-    window.open(url, "_blank");
+    try {
+      // Use the authenticated stream endpoint through the backend
+      // This is more reliable than presigned URLs (no expiry, no signature issues)
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const streamUrl = `${baseUrl}/v1/admin/students/${id}/documents/${docType}/stream`;
+
+      const response = await fetch(streamUrl, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        let msg = `Failed to load document (${response.status})`;
+        try {
+          const json = JSON.parse(text);
+          if (json.error) msg = json.error;
+        } catch { /* ignore parse error */ }
+        toast.error(msg);
+        return;
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank");
+      // Clean up blob URL after a delay to allow the new tab to load
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (err) {
+      toast.error("Failed to open document");
+    }
   };
 
   if (loading)

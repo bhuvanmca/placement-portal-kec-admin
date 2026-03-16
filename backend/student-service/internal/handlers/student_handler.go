@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -944,11 +945,16 @@ func (h *StudentHandler) StreamMyProfilePhoto(c *fiber.Ctx) error {
 	}
 
 	client := utils.GetS3Client()
-	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+
+	s3Ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	result, err := client.GetObject(s3Ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		fmt.Printf("StreamMyProfilePhoto: S3 GetObject error for bucket=%s key=%s: %v\n", bucket, key, err)
 		return c.Status(404).JSON(fiber.Map{"error": "Profile photo not found in storage"})
 	}
 	defer result.Body.Close()
@@ -1009,11 +1015,17 @@ func (h *StudentHandler) StreamMyDocument(c *fiber.Ctx) error {
 	}
 
 	client := utils.GetS3Client()
-	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+
+	// Use a 15-second timeout for S3 operations to prevent hanging
+	s3Ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	result, err := client.GetObject(s3Ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		fmt.Printf("StreamMyDocument: S3 GetObject error for bucket=%s key=%s: %v\n", bucket, key, err)
 		return c.Status(404).JSON(fiber.Map{"error": "Document not found in storage"})
 	}
 	defer result.Body.Close()
@@ -1030,6 +1042,7 @@ func (h *StudentHandler) StreamMyDocument(c *fiber.Ctx) error {
 
 	body, err := io.ReadAll(result.Body)
 	if err != nil {
+		fmt.Printf("StreamMyDocument: Failed to read S3 body for key=%s: %v\n", key, err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to read document"})
 	}
 
@@ -1088,11 +1101,17 @@ func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
 	}
 
 	client := utils.GetS3Client()
-	result, err := client.GetObject(c.Context(), &s3.GetObjectInput{
+
+	// Use a 15-second timeout for S3 operations to prevent hanging
+	s3Ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	result, err := client.GetObject(s3Ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		fmt.Printf("StreamStudentDocument: S3 GetObject error for bucket=%s key=%s: %v\n", bucket, key, err)
 		return c.Status(404).JSON(fiber.Map{"error": "Document not found in storage"})
 	}
 	defer result.Body.Close()
@@ -1110,6 +1129,7 @@ func (h *StudentHandler) StreamStudentDocument(c *fiber.Ctx) error {
 
 	body, err := io.ReadAll(result.Body)
 	if err != nil {
+		fmt.Printf("StreamStudentDocument: Failed to read S3 body for key=%s: %v\n", key, err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to read document"})
 	}
 
