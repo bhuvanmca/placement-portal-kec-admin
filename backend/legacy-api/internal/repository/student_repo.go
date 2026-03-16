@@ -240,8 +240,8 @@ func (r *StudentRepository) GetStudentFullProfile(ctx context.Context, userID in
 	query := `
         SELECT 
             u.id, u.email, u.is_blocked, u.last_login,
-            COALESCE(u.name, ''), sp.register_number, sp.department, COALESCE(dm.type, 'UG'), sp.batch_year, 
-            sp.student_type, sp.placement_willingness,
+            COALESCE(u.name, ''), COALESCE(sp.register_number, ''), COALESCE(sp.department, ''), COALESCE(dm.type, 'UG'), COALESCE(sp.batch_year, 0), 
+            COALESCE(sp.student_type, ''), COALESCE(sp.placement_willingness, ''),
             COALESCE(sp.mobile_number, ''), COALESCE(sp.gender, ''), COALESCE(sp.dob::text, ''),
             COALESCE(sp.address_line_1, ''), COALESCE(sp.address_line_2, ''), COALESCE(sp.state, ''),
             COALESCE(sp.pan_number, ''), COALESCE(sp.aadhar_number, ''),

@@ -40,6 +40,7 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   final _pgUniversityController = TextEditingController();
 
   bool _isLoading = true;
+  bool _hasError = false;
   String _departmentType = 'UG';
 
   @override
@@ -93,6 +94,10 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
   }
 
   Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
     try {
       final profile = await ref.read(studentServiceProvider).getProfile();
       if (mounted) {
@@ -102,9 +107,11 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
         });
       }
     } catch (e) {
+      debugPrint('Failed to load department type: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _hasError = true;
         });
       }
     }
@@ -266,7 +273,26 @@ class _AcademicDetailsScreenState extends ConsumerState<AcademicDetailsScreen> {
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
+            : _hasError
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Failed to load department info',
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadProfile,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : SingleChildScrollView(
                 padding: const EdgeInsets.all(AppConstants.spacingLarge),
                 child: Form(
                   key: _formKey,

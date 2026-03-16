@@ -35,7 +35,8 @@ class StudentService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
-      throw Exception('Failed to load profile');
+      final errorMsg = _parseError(response.body);
+      throw Exception('Failed to load profile: $errorMsg');
     }
   }
 
