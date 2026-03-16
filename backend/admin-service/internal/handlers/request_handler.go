@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
 	"github.com/placement-portal-kec/admin-service/internal/utils"
-	"github.com/gofiber/fiber/v2"
 )
 
 type RequestHandler struct {
