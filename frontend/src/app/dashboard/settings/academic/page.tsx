@@ -78,8 +78,8 @@ export default function AcademicConfigPage() {
       setDeptName('');
       setDeptCode('');
       fetchConfig();
-    } catch (error) {
-      toast.error('Failed to add department (Code might be duplicate)');
+    } catch (error: any) {
+      if (!error?.handled) toast.error(error?.message || 'Failed to add department');
     } finally {
       setAddingDept(false);
     }
@@ -111,8 +111,8 @@ export default function AcademicConfigPage() {
         toast.success('Department updated successfully');
         handleCancelEditDept();
         fetchConfig();
-    } catch (error) {
-        toast.error('Failed to update department');
+    } catch (error: any) {
+        if (!error?.handled) toast.error(error?.message || 'Failed to update department');
     } finally {
         setAddingDept(false);
     }
@@ -136,8 +136,8 @@ export default function AcademicConfigPage() {
       toast.success('Batch added successfully');
       setBatchYear('');
       fetchConfig();
-    } catch (error) {
-      toast.error('Failed to add batch (Year might be duplicate)');
+    } catch (error: any) {
+      if (!error?.handled) toast.error(error?.message || 'Failed to add batch');
     } finally {
       setAddingBatch(false);
     }
@@ -165,8 +165,8 @@ export default function AcademicConfigPage() {
         toast.success('Batch updated');
         handleCancelEditBatch();
         fetchConfig();
-    } catch (error) {
-        toast.error('Failed to update batch');
+    } catch (error: any) {
+        if (!error?.handled) toast.error(error?.message || 'Failed to update batch');
     } finally {
         setAddingBatch(false);
     }
