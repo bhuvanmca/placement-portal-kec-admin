@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/placement-portal-kec/admin-service/internal/models"
 )
 
 type ConfigRepository struct {
