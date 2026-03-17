@@ -637,8 +637,18 @@ export default function StudentsPage() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!isDeleting) setIsDeleteDialogOpen(open); }}>
-        <DialogContent className="sm:max-w-[425px]" onPointerDownOutside={(e) => { if (isDeleting) e.preventDefault(); }}>
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) setIsDeleteDialogOpen(open);
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-[425px]"
+          onPointerDownOutside={(e) => {
+            if (isDeleting) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
@@ -655,7 +665,11 @@ export default function StudentsPage() {
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
               {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
