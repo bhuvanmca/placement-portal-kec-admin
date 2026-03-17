@@ -106,7 +106,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _pageController = PageController();
 
     // Listen to FCM notifications for instant profile refresh
-    NotificationService.refreshTrigger.addListener(_handleProfileRefreshTrigger);
+    NotificationService.refreshTrigger.addListener(
+      _handleProfileRefreshTrigger,
+    );
 
     // Load auth token for authenticated image requests
     SharedPreferences.getInstance().then((prefs) {
@@ -203,7 +205,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   void dispose() {
-    NotificationService.refreshTrigger.removeListener(_handleProfileRefreshTrigger);
+    NotificationService.refreshTrigger.removeListener(
+      _handleProfileRefreshTrigger,
+    );
     _pageController.dispose();
     _mobileController.dispose();
     _dobController.dispose();
