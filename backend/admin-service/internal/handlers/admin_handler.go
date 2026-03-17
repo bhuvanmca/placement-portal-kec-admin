@@ -236,9 +236,17 @@ func BulkDeleteStudentsByIds(c *fiber.Ctx) error {
 
 	repo := repository.NewUserRepository(database.DB)
 
-	// 1. Cleanup S3 Folders
-	regNos, err := repo.GetRegisterNumbersByIDs(c.Context(), input.IDs)
-	if err == nil {
+	// 1. Collect register numbers for S3 cleanup before deleting from DB
+	regNos, _ := repo.GetRegisterNumbersByIDs(c.Context(), input.IDs)
+
+	// 2. Delete from DB first (fast, atomic)
+	count, err := repo.BulkDeleteStudentsByIds(c.Context(), input.IDs)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Bulk delete failed", "details": err.Error()})
+	}
+
+	// 3. Cleanup S3 folders asynchronously (non-blocking)
+	go func() {
 		for _, regNo := range regNos {
 			if regNo != "" {
 				folderPath := fmt.Sprintf("students/%s/", regNo)
@@ -247,13 +255,7 @@ func BulkDeleteStudentsByIds(c *fiber.Ctx) error {
 				}
 			}
 		}
-	}
-
-	// 2. Delete from DB
-	count, err := repo.BulkDeleteStudentsByIds(c.Context(), input.IDs)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Bulk delete failed", "details": err.Error()})
-	}
+	}()
 
 	return c.JSON(fiber.Map{
 		"message": "Selected students deleted successfully",

@@ -280,6 +280,7 @@ export default function StudentsPage() {
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<number | null>(null); // ID of student to delete (single)
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
 
@@ -311,6 +312,7 @@ export default function StudentsPage() {
   };
 
   const confirmDelete = async () => {
+    setIsDeleting(true);
     try {
       if (isBulkDeleteMode) {
         await studentService.bulkDeleteStudents(selectedStudents);
@@ -325,6 +327,7 @@ export default function StudentsPage() {
     } catch (e) {
       toast.error("Failed to delete");
     } finally {
+      setIsDeleting(false);
       setIsDeleteDialogOpen(false);
       setStudentToDelete(null);
       setIsBulkDeleteMode(false);
@@ -634,8 +637,8 @@ export default function StudentsPage() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => { if (!isDeleting) setIsDeleteDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-[425px]" onPointerDownOutside={(e) => { if (isDeleting) e.preventDefault(); }}>
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
@@ -648,11 +651,12 @@ export default function StudentsPage() {
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Delete
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

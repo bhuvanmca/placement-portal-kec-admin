@@ -148,6 +148,9 @@ func (h *RequestHandler) ReviewRequest(c *fiber.Ctx) error {
 			return c.Status(500).JSON(fiber.Map{"error": "Request approved but failed to update student record. Please contact super admin."})
 		}
 
+		// Invalidate student profile cache so the student app gets fresh data immediately
+		services.InvalidateCache(c.Context(), fmt.Sprintf("student:profile:%d", req.StudentID))
+
 		log.Printf("Request APPROVED for Student %d", req.StudentID)
 
 		// 3. Send approval email notification
