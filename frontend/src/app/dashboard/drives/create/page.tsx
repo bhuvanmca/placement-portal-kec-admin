@@ -456,7 +456,10 @@ export default function CreateDrivePage() {
 
     form.setValue("tenth_percentage", template.tenth_percentage || 0);
     form.setValue("twelfth_percentage", template.twelfth_percentage || 0);
-    form.setValue("diploma_percentage", (template as any).diploma_percentage || 0);
+    form.setValue(
+      "diploma_percentage",
+      (template as any).diploma_percentage || 0,
+    );
     form.setValue("ug_min_cgpa", template.ug_min_cgpa || 0);
     form.setValue("pg_min_cgpa", template.pg_min_cgpa || 0);
 

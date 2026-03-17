@@ -139,4 +139,3 @@ func (r *ConfigRepository) UpdateBatch(ctx context.Context, id int, year int) er
 	_, err := r.DB.Exec(ctx, query, year, id)
 	return err
 }
-

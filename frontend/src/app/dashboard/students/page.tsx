@@ -487,7 +487,7 @@ export default function StudentsPage() {
       {
         key: "backlogs",
         header: "History Backlogs",
-        getValue: (s) => s.history_of_backlogs ? "Yes" : "No",
+        getValue: (s) => (s.history_of_backlogs ? "Yes" : "No"),
       },
       {
         key: "resume",
