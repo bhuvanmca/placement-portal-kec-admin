@@ -172,6 +172,9 @@ class AdminService {
     String confirmPassword,
   ) async {
     final token = await _getToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Not authenticated. Please log in again.');
+    }
     final response = await _apiClient.put(
       Uri.parse('$baseUrl/v1/user/password'),
       headers: _authHeaders(token),
@@ -181,9 +184,17 @@ class AdminService {
         'confirm_password': confirmPassword,
       }),
     );
+
+    // Validate response is JSON from the actual backend (not a proxy/gateway default page)
+    Map<String, dynamic> body;
+    try {
+      body = jsonDecode(response.body);
+    } catch (_) {
+      throw Exception('Server error. Please try again later.');
+    }
+
     if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to change password');
+      throw Exception(body['error'] ?? 'Failed to change password');
     }
   }
 }

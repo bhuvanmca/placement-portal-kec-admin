@@ -269,6 +269,11 @@
         file_server
     }
 
+    # Default handler for unmatched API routes (must return error, not 200)
+    handle /api/* {
+        respond "Not Found" 404
+    }
+
     # Default handler
     handle /* {
         respond "Placement Portal API Gateway" 200
