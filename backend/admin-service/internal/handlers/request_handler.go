@@ -11,6 +11,7 @@ import (
 	"github.com/placement-portal-kec/admin-service/internal/database"
 	"github.com/placement-portal-kec/admin-service/internal/models"
 	"github.com/placement-portal-kec/admin-service/internal/repository"
+	"github.com/placement-portal-kec/admin-service/internal/services"
 	"github.com/placement-portal-kec/admin-service/internal/utils"
 )
 
@@ -152,6 +153,31 @@ func (h *RequestHandler) ReviewRequest(c *fiber.Ctx) error {
 		// 3. Send approval email notification
 		sendStatusEmail(req, "approved", "")
 
+		// 4. Send FCM push notification for instant update in student app
+		go func() {
+			var token string
+			_ = database.DB.QueryRow(context.Background(),
+				"SELECT fcm_token FROM users WHERE id = $1 AND fcm_token IS NOT NULL AND fcm_token != ''",
+				req.StudentID).Scan(&token)
+			if token == "" {
+				return
+			}
+			ns, err := services.NewNotificationService("firebase-service-account.json")
+			if err != nil {
+				log.Printf("Failed to init notification service for profile approval: %v", err)
+				return
+			}
+			fieldLabel := formatFieldName(req.FieldName)
+			title := "Profile Update Approved! ✅"
+			body := fmt.Sprintf("Your request to update %s has been approved. Your profile is now updated.", fieldLabel)
+			_, err = ns.SendMulticastNotification(context.Background(), []string{token}, title, body, map[string]string{
+				"type": "profile_update",
+			})
+			if err != nil {
+				log.Printf("Failed to send FCM for profile approval to student %d: %v", req.StudentID, err)
+			}
+		}()
+
 	case "reject":
 		req, err := h.Repo.GetRequestByID(id)
 		if err != nil {
@@ -169,6 +195,34 @@ func (h *RequestHandler) ReviewRequest(c *fiber.Ctx) error {
 
 		// Send rejection email notification
 		sendStatusEmail(req, "rejected", input.RejectionReason)
+
+		// Send FCM push notification for rejection
+		go func() {
+			var token string
+			_ = database.DB.QueryRow(context.Background(),
+				"SELECT fcm_token FROM users WHERE id = $1 AND fcm_token IS NOT NULL AND fcm_token != ''",
+				req.StudentID).Scan(&token)
+			if token == "" {
+				return
+			}
+			ns, err := services.NewNotificationService("firebase-service-account.json")
+			if err != nil {
+				log.Printf("Failed to init notification service for profile rejection: %v", err)
+				return
+			}
+			fieldLabel := formatFieldName(req.FieldName)
+			title := "Profile Update Rejected"
+			body := fmt.Sprintf("Your request to update %s has been rejected.", fieldLabel)
+			if input.RejectionReason != "" {
+				body += fmt.Sprintf(" Reason: %s", input.RejectionReason)
+			}
+			_, err = ns.SendMulticastNotification(context.Background(), []string{token}, title, body, map[string]string{
+				"type": "profile_update",
+			})
+			if err != nil {
+				log.Printf("Failed to send FCM for profile rejection to student %d: %v", req.StudentID, err)
+			}
+		}()
 
 	default:
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid action"})

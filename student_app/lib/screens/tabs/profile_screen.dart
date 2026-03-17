@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../services/notification_service.dart';
 import '../../services/student_service.dart';
 import '../../utils/constants.dart';
 import '../change_password_screen.dart';
@@ -104,6 +105,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
     _pageController = PageController();
 
+    // Listen to FCM notifications for instant profile refresh
+    NotificationService.refreshTrigger.addListener(_handleProfileRefreshTrigger);
+
     // Load auth token for authenticated image requests
     SharedPreferences.getInstance().then((prefs) {
       if (mounted) {
@@ -137,6 +141,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  void _handleProfileRefreshTrigger() {
+    if (mounted) {
+      ref.read(profileProvider.notifier).refreshQuietly();
+      _fetchPendingRequests();
+    }
   }
 
   /// Returns the set of field names that have pending requests for a given section
@@ -192,6 +203,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   void dispose() {
+    NotificationService.refreshTrigger.removeListener(_handleProfileRefreshTrigger);
     _pageController.dispose();
     _mobileController.dispose();
     _dobController.dispose();
