@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strconv"
@@ -106,7 +107,7 @@ func (h *RequestHandler) ReviewRequest(c *fiber.Ctx) error {
 	sendStatusEmail := func(req *models.StudentChangeRequest, status, adminComment string) {
 		go func() {
 			userRepo := repository.NewUserRepository(database.DB)
-			user, err := userRepo.GetUserByID(c.Context(), req.StudentID)
+			user, err := userRepo.GetUserByID(context.Background(), req.StudentID)
 			if err != nil {
 				log.Printf("WARNING: Could not fetch student %d email for request notification: %v", req.StudentID, err)
 				return
