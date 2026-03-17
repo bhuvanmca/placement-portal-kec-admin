@@ -32,6 +32,7 @@ type PlacementDrive struct {
 	// Additional Academic Eligibility
 	TenthPercentage     *float64 `json:"tenth_percentage"`
 	TwelfthPercentage   *float64 `json:"twelfth_percentage"`
+	DiplomaPercentage   *float64 `json:"diploma_percentage"`
 	UGMinCGPA           *float64 `json:"ug_min_cgpa"`
 	PGMinCGPA           *float64 `json:"pg_min_cgpa"`
 	UseAggregate        bool     `json:"use_aggregate"`
@@ -107,6 +108,7 @@ type CreateDriveInput struct {
 	// Additional Academic Eligibility
 	TenthPercentage     *float64 `json:"tenth_percentage"`
 	TwelfthPercentage   *float64 `json:"twelfth_percentage"`
+	DiplomaPercentage   *float64 `json:"diploma_percentage"`
 	UGMinCGPA           *float64 `json:"ug_min_cgpa"`
 	PGMinCGPA           *float64 `json:"pg_min_cgpa"`
 	UseAggregate        bool     `json:"use_aggregate"`

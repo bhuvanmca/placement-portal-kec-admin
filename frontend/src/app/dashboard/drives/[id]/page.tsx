@@ -1376,7 +1376,7 @@ export default function DriveDetailsPage({
                         )}
                         {visibleColumns.history_of_backlogs && (
                           <TableCell className="py-4 px-6 text-sm text-center text-gray-600">
-                            {student.history_of_backlogs}
+                            {student.history_of_backlogs ? "Yes" : "No"}
                           </TableCell>
                         )}
                         {visibleColumns.application_status && (

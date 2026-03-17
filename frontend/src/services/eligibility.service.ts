@@ -6,6 +6,7 @@ export interface EligibilityTemplate {
   min_cgpa: number;
   tenth_percentage: number | null;
   twelfth_percentage: number | null;
+  diploma_percentage: number | null;
   ug_min_cgpa: number | null;
   pg_min_cgpa: number | null;
   use_aggregate: boolean;
@@ -23,10 +24,9 @@ export interface CreateEligibilityTemplateInput {
   min_cgpa: number;
   tenth_percentage?: number | null;
   twelfth_percentage?: number | null;
+  diploma_percentage?: number | null;
   ug_min_cgpa?: number | null;
   pg_min_cgpa?: number | null;
-  use_aggregate: boolean;
-  aggregate_percentage?: number | null;
   max_backlogs_allowed: number;
   eligible_departments: string[];
   eligible_batches: number[];

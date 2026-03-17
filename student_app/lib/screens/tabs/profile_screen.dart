@@ -89,7 +89,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   );
 
   final _currentBacklogsController = TextEditingController();
-  final _historyBacklogsController = TextEditingController();
+  bool _hasHistoryOfBacklogs = false;
   final _gapYearsController = TextEditingController();
   final _gapReasonController = TextEditingController();
 
@@ -246,7 +246,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       c.dispose();
     }
     _currentBacklogsController.dispose();
-    _historyBacklogsController.dispose();
     _gapYearsController.dispose();
     _gapReasonController.dispose();
     _languageInputController.dispose();
@@ -338,9 +337,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _currentBacklogsController.text = _formatValueRaw(
         data['current_backlogs'],
       );
-      _historyBacklogsController.text = _formatValueRaw(
-        data['history_of_backlogs'],
-      );
+      _hasHistoryOfBacklogs = (data['history_of_backlogs'] ?? 0) > 0;
       _gapYearsController.text = _formatValueRaw(data['gap_years']);
       _gapReasonController.text = _formatValueRaw(data['gap_reason']);
     }
@@ -430,8 +427,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       } else if (section == 'Backlogs & History') {
         updateData['current_backlogs'] =
             int.tryParse(_currentBacklogsController.text) ?? 0;
-        updateData['history_of_backlogs'] =
-            int.tryParse(_historyBacklogsController.text) ?? 0;
+        updateData['history_of_backlogs'] = _hasHistoryOfBacklogs ? 1 : 0;
         updateData['gap_years'] = int.tryParse(_gapYearsController.text) ?? 0;
         updateData['gap_reason'] = _gapReasonController.text;
       }
@@ -2213,10 +2209,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         label: 'Current Backlogs',
                         type: TextInputType.number,
                       ),
-                      _buildEditTextField(
-                        controller: _historyBacklogsController,
-                        label: 'History of Backlogs',
-                        type: TextInputType.number,
+                      SwitchListTile(
+                        title: const Text('History of Backlogs'),
+                        value: _hasHistoryOfBacklogs,
+                        onChanged: (val) {
+                          setState(() {
+                            _hasHistoryOfBacklogs = val;
+                          });
+                        },
                       ),
                       _buildEditTextField(
                         controller: _gapYearsController,
@@ -2236,7 +2236,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       _buildDetailItem(
                         'History of Backlogs',
-                        data['history_of_backlogs'],
+                        (data['history_of_backlogs'] ?? 0) > 0 ? 'Yes' : 'No',
                       ),
                       _buildDetailItem('Gap Years', data['gap_years']),
                       _buildDetailItem('Gap Reason', data['gap_reason']),

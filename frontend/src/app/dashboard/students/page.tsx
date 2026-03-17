@@ -487,7 +487,7 @@ export default function StudentsPage() {
       {
         key: "backlogs",
         header: "History Backlogs",
-        getValue: (s) => s.history_of_backlogs || 0,
+        getValue: (s) => s.history_of_backlogs ? "Yes" : "No",
       },
       {
         key: "resume",
@@ -1400,7 +1400,7 @@ export default function StudentsPage() {
                           )}
                           {visibleColumns.historyBacklogs && (
                             <td className="py-3 px-4 text-gray-900 text-center">
-                              {student.history_of_backlogs || 0}
+                              {student.history_of_backlogs ? "Yes" : "No"}
                             </td>
                           )}
 

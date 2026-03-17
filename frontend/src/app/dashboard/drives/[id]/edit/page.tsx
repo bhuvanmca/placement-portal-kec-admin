@@ -87,10 +87,9 @@ const driveSchema = z.object({
   min_cgpa: z.coerce.number().min(0).max(10),
   tenth_percentage: z.coerce.number().min(0).max(100).optional(),
   twelfth_percentage: z.coerce.number().min(0).max(100).optional(),
+  diploma_percentage: z.coerce.number().min(0).max(100).optional(),
   ug_min_cgpa: z.coerce.number().min(0).max(10).optional(),
   pg_min_cgpa: z.coerce.number().min(0).max(10).optional(),
-  use_aggregate: z.boolean().default(false),
-  aggregate_percentage: z.coerce.number().min(0).max(100).optional(),
 
   max_backlogs_allowed: z.coerce.number().min(0),
   eligible_batches: z
@@ -268,10 +267,9 @@ export default function EditDrivePage({
           min_cgpa: drive.min_cgpa,
           tenth_percentage: drive.tenth_percentage ?? 0,
           twelfth_percentage: drive.twelfth_percentage ?? 0,
+          diploma_percentage: (drive as any).diploma_percentage ?? 0,
           ug_min_cgpa: drive.ug_min_cgpa ?? 0,
           pg_min_cgpa: drive.pg_min_cgpa ?? 0,
-          use_aggregate: drive.use_aggregate ?? false,
-          aggregate_percentage: drive.aggregate_percentage ?? 0,
 
           max_backlogs_allowed: drive.max_backlogs_allowed,
 
@@ -892,6 +890,15 @@ export default function EditDrivePage({
                         onWheel={(e: any) => e.currentTarget.blur()}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Diploma Percentage (Min)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        {...form.register("diploma_percentage")}
+                        onWheel={(e: any) => e.currentTarget.blur()}
+                      />
+                    </div>
 
                     <div className="space-y-2">
                       <Label>UG Min CGPA</Label>
@@ -930,7 +937,22 @@ export default function EditDrivePage({
                         step="0.01"
                         {...form.register("min_cgpa")}
                         onWheel={(e: any) => e.currentTarget.blur()}
+                        onChange={(e) => {
+                          form.setValue("min_cgpa", Number(e.target.value));
+                          const cgpa = Number(e.target.value);
+                          if (cgpa > 0) {
+                            const pct = Math.round(cgpa * 10 * 10) / 10;
+                            form.setValue("tenth_percentage", pct);
+                            form.setValue("twelfth_percentage", pct);
+                            form.setValue("diploma_percentage", pct);
+                            form.setValue("ug_min_cgpa", cgpa);
+                            form.setValue("pg_min_cgpa", cgpa);
+                          }
+                        }}
                       />
+                      <p className="text-[10px] text-muted-foreground">
+                        Auto-fills 10th, 12th, Diploma, UG &amp; PG fields
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Max Backlogs Allowed</Label>
@@ -940,39 +962,6 @@ export default function EditDrivePage({
                         onWheel={(e: any) => e.currentTarget.blur()}
                       />
                     </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 border p-4 rounded-lg bg-gray-50/50">
-                    <Controller
-                      name="use_aggregate"
-                      control={form.control}
-                      render={({ field }) => (
-                        <Checkbox
-                          id="use_aggregate"
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      )}
-                    />
-                    <div className="grid gap-1.5 leading-none">
-                      <label
-                        htmlFor="use_aggregate"
-                        className="text-sm font-medium leading-none"
-                      >
-                        Enable Aggregate Percentage Criteria
-                      </label>
-                    </div>
-                    {form.watch("use_aggregate") && (
-                      <div className="ml-auto w-32">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          {...form.register("aggregate_percentage")}
-                          placeholder="Min %"
-                          onWheel={(e: any) => e.currentTarget.blur()}
-                        />
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -28,7 +28,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
             offer_type, allow_placed_candidates,
             min_cgpa, max_backlogs_allowed, 
             
-            tenth_percentage, twelfth_percentage, ug_min_cgpa, pg_min_cgpa,
+            tenth_percentage, twelfth_percentage, diploma_percentage, ug_min_cgpa, pg_min_cgpa,
             use_aggregate, aggregate_percentage,
 
             rounds, attachments,
@@ -41,11 +41,10 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
             $7, $8,
             
             $9, $10, $11, $12,
-            $13, $14,
-            $15, $16,
-            $17, $18,
-            $19, $20,
-            $21, $22, $23, $24,
+            $13, $14, $15,
+            $16, $17,
+            $18, $19,
+            $20, $21, $22, $23,
             'open', NOW()
         ) RETURNING id
     `
@@ -61,7 +60,7 @@ func (r *DriveRepository) CreateDrive(ctx context.Context, drive models.Placemen
 		drive.OfferType, drive.AllowPlacedCandidates,
 		drive.MinCgpa, drive.MaxBacklogsAllowed,
 
-		drive.TenthPercentage, drive.TwelfthPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
+		drive.TenthPercentage, drive.TwelfthPercentage, drive.DiplomaPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
 		drive.UseAggregate, drive.AggregatePercentage,
 
 		drive.Rounds, drive.Attachments,
@@ -134,7 +133,7 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
             pd.drive_type, pd.company_category, pd.spoc_id,
             pd.offer_type, pd.allow_placed_candidates,
             pd.min_cgpa, pd.max_backlogs_allowed, 
-            pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
+            pd.tenth_percentage, pd.twelfth_percentage, pd.diploma_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
             pd.use_aggregate, pd.aggregate_percentage,
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb) as eligible_batches, 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb) as eligible_departments,
@@ -230,7 +229,7 @@ func (r *DriveRepository) GetDrives(ctx context.Context, filters map[string]inte
 			&d.DriveType, &d.CompanyCategory, &d.SpocID,
 			&d.OfferType, &d.AllowPlacedCandidates,
 			&d.MinCgpa, &d.MaxBacklogsAllowed,
-			&d.TenthPercentage, &d.TwelfthPercentage, &d.UGMinCGPA, &d.PGMinCGPA,
+			&d.TenthPercentage, &d.TwelfthPercentage, &d.DiplomaPercentage, &d.UGMinCGPA, &d.PGMinCGPA,
 			&d.UseAggregate, &d.AggregatePercentage,
 			&d.EligibleBatches, &d.EligibleDepartments,
 			&d.Rounds, &d.Attachments,
@@ -256,7 +255,8 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
             sp.department, COALESCE(dm.type, 'UG'), sp.batch_year, 
             COALESCE(d_ug.cgpa, 0.0), COALESCE(d_pg.cgpa, 0.0),
             COALESCE(sch.current_backlogs, 0),
-            COALESCE(sch.tenth_mark, 0.0), COALESCE(sch.twelfth_mark, 0.0)
+            COALESCE(sch.tenth_mark, 0.0), COALESCE(sch.twelfth_mark, 0.0),
+            COALESCE(sch.diploma_mark, 0.0), COALESCE(sp.student_type, 'Regular')
         FROM student_personal sp
         LEFT JOIN departments dm ON sp.department = dm.code
         LEFT JOIN student_degrees d_ug ON sp.user_id = d_ug.user_id AND d_ug.degree_level = 'UG'
@@ -268,14 +268,20 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 	var batch int
 	var ugCgpa, pgCgpa float64
 	var backlogs int
-	var tenthMark, twelfthMark float64
+	var tenthMark, twelfthMark, diplomaMark float64
+	var studentType string
 
 	err := r.DB.QueryRow(ctx, queryStudent, studentID).Scan(
 		&dept, &deptType, &batch, &ugCgpa, &pgCgpa, &backlogs, &tenthMark, &twelfthMark,
+		&diplomaMark, &studentType,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch student profile: %v", err)
 	}
+
+	// Use raw marks for separate eligibility checks:
+	// - twelfth_percentage check uses twelfthMark (skipped if student has no 12th, i.e. twelfthMark=0)
+	// - diploma_percentage check uses diplomaMark (skipped if student has no diploma, i.e. diplomaMark=0)
 
 	// B. Query Drives filtered by Batch + Department ONLY
 	// Eligibility (CGPA, backlogs, academic scores) is computed in SELECT, not filtered.
@@ -285,7 +291,7 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
             pd.drive_type, pd.company_category, pd.spoc_id,
             pd.offer_type, pd.allow_placed_candidates,
             pd.min_cgpa, pd.max_backlogs_allowed, 
-            pd.tenth_percentage, pd.twelfth_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
+            pd.tenth_percentage, pd.twelfth_percentage, pd.diploma_percentage, pd.ug_min_cgpa, pd.pg_min_cgpa,
             pd.use_aggregate, pd.aggregate_percentage,
             COALESCE((SELECT jsonb_agg(deb.batch_year) FROM drive_eligible_batches deb WHERE deb.drive_id = pd.id), '[]'::jsonb), 
             COALESCE((SELECT jsonb_agg(ded.department_code) FROM drive_eligible_departments ded WHERE ded.drive_id = pd.id), '[]'::jsonb),
@@ -302,7 +308,8 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 				COALESCE($2::numeric, 0) >= COALESCE(pd.min_cgpa, 0)
 				AND COALESCE($3::int, 0) <= COALESCE(pd.max_backlogs_allowed, 99)
 				AND (pd.tenth_percentage IS NULL OR pd.tenth_percentage = 0 OR COALESCE($4::numeric, 0) >= pd.tenth_percentage)
-				AND (pd.twelfth_percentage IS NULL OR pd.twelfth_percentage = 0 OR COALESCE($5::numeric, 0) >= pd.twelfth_percentage)
+				AND (pd.twelfth_percentage IS NULL OR pd.twelfth_percentage = 0 OR $5::numeric = 0 OR COALESCE($5::numeric, 0) >= pd.twelfth_percentage)
+				AND (pd.diploma_percentage IS NULL OR pd.diploma_percentage = 0 OR $10::numeric = 0 OR COALESCE($10::numeric, 0) >= pd.diploma_percentage)
 				AND (pd.ug_min_cgpa IS NULL OR pd.ug_min_cgpa = 0 OR COALESCE($2::numeric, 0) >= pd.ug_min_cgpa)
 				AND ($9::text != 'PG' OR pd.pg_min_cgpa IS NULL OR pd.pg_min_cgpa = 0 OR COALESCE($6::numeric, 0) >= pd.pg_min_cgpa)
 			) as is_eligible
@@ -315,8 +322,8 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 		AND (pd.allow_placed_candidates = TRUE OR NOT EXISTS (SELECT 1 FROM drive_applications da2 WHERE da2.student_id = $1 AND da2.status = 'placed'))
     `
 
-	args := []interface{}{studentID, ugCgpa, backlogs, tenthMark, twelfthMark, pgCgpa, dept, batch, deptType}
-	argCounter := 10
+	args := []interface{}{studentID, ugCgpa, backlogs, tenthMark, twelfthMark, pgCgpa, dept, batch, deptType, diplomaMark}
+	argCounter := 11
 
 	// Filters
 	if val, ok := filters["search"]; ok && val != "" {
@@ -366,7 +373,7 @@ func (r *DriveRepository) GetEligibleDrives(ctx context.Context, studentID int64
 			&d.DriveType, &d.CompanyCategory, &d.SpocID,
 			&d.OfferType, &d.AllowPlacedCandidates,
 			&d.MinCgpa, &d.MaxBacklogsAllowed,
-			&d.TenthPercentage, &d.TwelfthPercentage, &d.UGMinCGPA, &d.PGMinCGPA,
+			&d.TenthPercentage, &d.TwelfthPercentage, &d.DiplomaPercentage, &d.UGMinCGPA, &d.PGMinCGPA,
 			&d.UseAggregate, &d.AggregatePercentage,
 			&d.EligibleBatches, &d.EligibleDepartments,
 			&d.Rounds, &d.Attachments,
@@ -448,14 +455,14 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
             offer_type=$6, allow_placed_candidates=$7,
             min_cgpa=$8, max_backlogs_allowed=$9, 
             
-            tenth_percentage=$10, twelfth_percentage=$11, ug_min_cgpa=$12, pg_min_cgpa=$13,
-            use_aggregate=$14, aggregate_percentage=$15,
+            tenth_percentage=$10, twelfth_percentage=$11, diploma_percentage=$12, ug_min_cgpa=$13, pg_min_cgpa=$14,
+            use_aggregate=$15, aggregate_percentage=$16,
 
-            rounds=$16, attachments=$17,
-            drive_date=$18, deadline_date=$19,
-            website=$20, logo_url=$21, location=$22, location_type=$23,
-            status=$24
-        WHERE id = $25
+            rounds=$17, attachments=$18,
+            drive_date=$19, deadline_date=$20,
+            website=$21, logo_url=$22, location=$23, location_type=$24,
+            status=$25
+        WHERE id = $26
     `
 	// Note: We don't update 'posted_by' or 'created_at'
 	// ...
@@ -465,7 +472,7 @@ func (r *DriveRepository) UpdateDrive(ctx context.Context, id int64, drive *mode
 		drive.OfferType, drive.AllowPlacedCandidates,
 		drive.MinCgpa, drive.MaxBacklogsAllowed,
 
-		drive.TenthPercentage, drive.TwelfthPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
+		drive.TenthPercentage, drive.TwelfthPercentage, drive.DiplomaPercentage, drive.UGMinCGPA, drive.PGMinCGPA,
 		drive.UseAggregate, drive.AggregatePercentage,
 
 		drive.Rounds, drive.Attachments,
@@ -1084,14 +1091,14 @@ func (r *DriveRepository) GetEligibleStudentsPreview(ctx context.Context, input 
 			continue // Fails 10th
 		}
 
-		if s.StudentType == "regular" {
-			if input.TwelfthPercentage != nil && s.TwelfthMark < *input.TwelfthPercentage {
-				continue // Fails 12th
-			}
-		} else if s.StudentType == "lateral" {
-			if input.TwelfthPercentage != nil && s.DiplomaMark < *input.TwelfthPercentage {
-				continue // Fails lateral
-			}
+		// Check 12th marks (skip if student has no 12th, i.e. twelfthMark=0)
+		if input.TwelfthPercentage != nil && *input.TwelfthPercentage > 0 && s.TwelfthMark > 0 && s.TwelfthMark < *input.TwelfthPercentage {
+			continue // Fails 12th
+		}
+
+		// Check diploma marks (skip if student has no diploma, i.e. diplomaMark=0)
+		if input.DiplomaPercentage != nil && *input.DiplomaPercentage > 0 && s.DiplomaMark > 0 && s.DiplomaMark < *input.DiplomaPercentage {
+			continue // Fails diploma
 		}
 
 		// CGPA Handling - Support PG & UG explicit limits

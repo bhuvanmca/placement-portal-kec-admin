@@ -678,7 +678,7 @@ export default function StudentProfilePage({
                           History of Backlogs
                         </span>
                         <div className="text-2xl font-black text-gray-700">
-                          {student.history_of_backlogs}
+                          {student.history_of_backlogs ? "Yes" : "No"}
                         </div>
                       </div>
                     </div>
@@ -768,7 +768,7 @@ export default function StudentProfilePage({
                             History of Backlogs
                           </span>
                           <div className="text-2xl font-black text-gray-700">
-                            {student.history_of_backlogs}
+                            {student.history_of_backlogs ? "Yes" : "No"}
                           </div>
                         </div>
                       </>

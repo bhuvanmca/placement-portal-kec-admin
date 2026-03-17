@@ -141,6 +141,7 @@ func (h *DriveHandler) CreateDrive(c *fiber.Ctx) error {
 		MinCgpa:             input.MinCgpa,
 		TenthPercentage:     input.TenthPercentage,
 		TwelfthPercentage:   input.TwelfthPercentage,
+		DiplomaPercentage:   input.DiplomaPercentage,
 		UGMinCGPA:           input.UGMinCGPA,
 		PGMinCGPA:           input.PGMinCGPA,
 		UseAggregate:        input.UseAggregate,
@@ -568,6 +569,9 @@ func (h *DriveHandler) UpdateDrive(c *fiber.Ctx) error {
 	if input.TwelfthPercentage != nil {
 		drive.TwelfthPercentage = input.TwelfthPercentage
 	}
+	if input.DiplomaPercentage != nil {
+		drive.DiplomaPercentage = input.DiplomaPercentage
+	}
 	if input.UGMinCGPA != nil {
 		drive.UGMinCGPA = input.UGMinCGPA
 	}
@@ -837,6 +841,9 @@ func (h *DriveHandler) PatchDriveStatus(c *fiber.Ctx) error {
 	}
 	if input.TwelfthPercentage != nil {
 		drive.TwelfthPercentage = input.TwelfthPercentage
+	}
+	if input.DiplomaPercentage != nil {
+		drive.DiplomaPercentage = input.DiplomaPercentage
 	}
 	if input.UGMinCGPA != nil {
 		drive.UGMinCGPA = input.UGMinCGPA

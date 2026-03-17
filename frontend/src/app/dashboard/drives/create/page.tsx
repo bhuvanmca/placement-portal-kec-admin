@@ -118,10 +118,9 @@ const driveSchema = z.object({
   min_cgpa: z.coerce.number().min(0).max(10),
   tenth_percentage: z.coerce.number().min(0).max(100).optional(),
   twelfth_percentage: z.coerce.number().min(0).max(100).optional(),
+  diploma_percentage: z.coerce.number().min(0).max(100).optional(),
   ug_min_cgpa: z.coerce.number().min(0).max(10).optional(),
   pg_min_cgpa: z.coerce.number().min(0).max(10).optional(),
-  use_aggregate: z.boolean().default(false),
-  aggregate_percentage: z.coerce.number().min(0).max(100).optional(),
 
   max_backlogs_allowed: z.coerce.number().min(0),
   eligible_batches: z
@@ -351,10 +350,9 @@ export default function CreateDrivePage() {
       // New fields default
       tenth_percentage: 0,
       twelfth_percentage: 0,
+      diploma_percentage: 0,
       ug_min_cgpa: 0,
       pg_min_cgpa: 0,
-      use_aggregate: false,
-      aggregate_percentage: 0,
 
       eligible_batches: [],
       eligible_departments: [],
@@ -428,10 +426,9 @@ export default function CreateDrivePage() {
         min_cgpa: Number(currentValues.min_cgpa) || 0,
         tenth_percentage: Number(currentValues.tenth_percentage) || 0,
         twelfth_percentage: Number(currentValues.twelfth_percentage) || 0,
+        diploma_percentage: Number(currentValues.diploma_percentage) || 0,
         ug_min_cgpa: Number(currentValues.ug_min_cgpa) || 0,
         pg_min_cgpa: Number(currentValues.pg_min_cgpa) || 0,
-        use_aggregate: currentValues.use_aggregate,
-        aggregate_percentage: Number(currentValues.aggregate_percentage) || 0,
         max_backlogs_allowed: Number(currentValues.max_backlogs_allowed) || 0,
         eligible_departments: currentValues.eligible_departments,
         eligible_batches: currentValues.eligible_batches,
@@ -459,10 +456,9 @@ export default function CreateDrivePage() {
 
     form.setValue("tenth_percentage", template.tenth_percentage || 0);
     form.setValue("twelfth_percentage", template.twelfth_percentage || 0);
+    form.setValue("diploma_percentage", (template as any).diploma_percentage || 0);
     form.setValue("ug_min_cgpa", template.ug_min_cgpa || 0);
     form.setValue("pg_min_cgpa", template.pg_min_cgpa || 0);
-    form.setValue("use_aggregate", template.use_aggregate);
-    form.setValue("aggregate_percentage", template.aggregate_percentage || 0);
 
     toast.success("Template Applied!");
   };
@@ -497,10 +493,9 @@ export default function CreateDrivePage() {
       const payload = {
         tenth_percentage: Number(currentValues.tenth_percentage),
         twelfth_percentage: Number(currentValues.twelfth_percentage),
+        diploma_percentage: Number(currentValues.diploma_percentage),
         ug_min_cgpa: Number(currentValues.ug_min_cgpa),
         pg_min_cgpa: Number(currentValues.pg_min_cgpa),
-        use_aggregate: currentValues.use_aggregate,
-        aggregate_percentage: Number(currentValues.aggregate_percentage),
         min_cgpa: Number(currentValues.min_cgpa),
         max_backlogs_allowed: Number(currentValues.max_backlogs_allowed),
         eligible_departments: currentValues.eligible_departments,
@@ -1232,6 +1227,16 @@ export default function CreateDrivePage() {
                         onWheel={(e) => e.currentTarget.blur()}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Diploma Percentage (Min)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        {...form.register("diploma_percentage")}
+                        placeholder="e.g. 60"
+                        onWheel={(e) => e.currentTarget.blur()}
+                      />
+                    </div>
 
                     <div className="space-y-2">
                       <Label>UG Min CGPA</Label>
@@ -1268,7 +1273,7 @@ export default function CreateDrivePage() {
                   <Separator />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                    {/* Legacy Min CGPA (kept for compatibility or general cutoff) */}
+                    {/* Overall Min CGPA - auto-fills other fields */}
                     <div className="space-y-2">
                       <Label>Overall Min CGPA (General)</Label>
                       <Input
@@ -1276,9 +1281,21 @@ export default function CreateDrivePage() {
                         step="0.01"
                         {...form.register("min_cgpa")}
                         onWheel={(e) => e.currentTarget.blur()}
+                        onChange={(e) => {
+                          form.setValue("min_cgpa", Number(e.target.value));
+                          const cgpa = Number(e.target.value);
+                          if (cgpa > 0) {
+                            const pct = Math.round(cgpa * 10 * 10) / 10;
+                            form.setValue("tenth_percentage", pct);
+                            form.setValue("twelfth_percentage", pct);
+                            form.setValue("diploma_percentage", pct);
+                            form.setValue("ug_min_cgpa", cgpa);
+                            form.setValue("pg_min_cgpa", cgpa);
+                          }
+                        }}
                       />
                       <p className="text-[10px] text-muted-foreground">
-                        General cutoff if specific UG/PG not applied
+                        Auto-fills 10th, 12th, Diploma, UG &amp; PG fields
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -1289,43 +1306,6 @@ export default function CreateDrivePage() {
                         onWheel={(e) => e.currentTarget.blur()}
                       />
                     </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 border p-4 rounded-lg bg-gray-50/50">
-                    <Controller
-                      name="use_aggregate"
-                      control={form.control}
-                      render={({ field }) => (
-                        <Checkbox
-                          id="use_aggregate"
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      )}
-                    />
-                    <div className="grid gap-1.5 leading-none">
-                      <label
-                        htmlFor="use_aggregate"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Enable Aggregate Percentage Criteria
-                      </label>
-                      <p className="text-sm text-muted-foreground">
-                        Combines 10th and 12th marks into a single aggregate
-                        score.
-                      </p>
-                    </div>
-                    {form.watch("use_aggregate") && (
-                      <div className="ml-auto w-32 animate-in fade-in slide-in-from-left-2">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          {...form.register("aggregate_percentage")}
-                          placeholder="Min %"
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1980,7 +1960,7 @@ export default function CreateDrivePage() {
                         )}
                         {visibleColumns.history_backlogs && (
                           <TableCell className="text-right py-4">
-                            {s.history_of_backlogs}
+                            {s.history_of_backlogs ? "Yes" : "No"}
                           </TableCell>
                         )}
                         <TableCell className="text-right pr-6 py-4">

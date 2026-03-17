@@ -129,6 +129,7 @@ export interface Drive {
   min_cgpa: number;
   tenth_percentage?: number;
   twelfth_percentage?: number;
+  diploma_percentage?: number;
   ug_min_cgpa?: number;
   pg_min_cgpa?: number;
   use_aggregate?: boolean;
@@ -168,6 +169,7 @@ export interface CreateDriveInput {
   min_cgpa: number;
   tenth_percentage?: number;
   twelfth_percentage?: number;
+  diploma_percentage?: number;
   ug_min_cgpa?: number;
   pg_min_cgpa?: number;
   use_aggregate?: boolean;
