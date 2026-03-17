@@ -319,7 +319,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         final streamedResponse = await client.send(request);
 
         if (streamedResponse.statusCode != 200) {
-          throw Exception('Failed to download (Status: ${streamedResponse.statusCode})');
+          throw Exception(
+            'Failed to download (Status: ${streamedResponse.statusCode})',
+          );
         }
 
         final tempDir = await getTemporaryDirectory();
@@ -405,9 +407,10 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   Widget build(BuildContext context) {
     final drive = widget.drive;
     final bool isExpired = drive['deadline_date'] != null
-        ? DateTime.tryParse(drive['deadline_date'].toString())
-                ?.isBefore(DateTime.now()) ??
-            false
+        ? DateTime.tryParse(
+                drive['deadline_date'].toString(),
+              )?.isBefore(DateTime.now()) ??
+              false
         : false;
 
     final bool hasJobDescription =
