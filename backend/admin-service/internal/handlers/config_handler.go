@@ -89,7 +89,20 @@ func UpdateDepartment(c *fiber.Ctx) error {
 
 	repo := repository.NewConfigRepository(database.DB)
 	if err := repo.UpdateDepartment(c.Context(), id, input); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to update department", "details": err.Error()})
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "department not found") {
+			return c.Status(404).JSON(fiber.Map{"error": "Department not found"})
+		}
+		if strings.Contains(errMsg, "departments_code_key") {
+			return c.Status(409).JSON(fiber.Map{"error": "Department code '" + input.Code + "' already exists"})
+		}
+		if strings.Contains(errMsg, "departments_name_key") {
+			return c.Status(409).JSON(fiber.Map{"error": "Department name '" + input.Name + "' already exists"})
+		}
+		if strings.Contains(errMsg, "duplicate key") || strings.Contains(errMsg, "23505") {
+			return c.Status(409).JSON(fiber.Map{"error": "Department code or name already exists"})
+		}
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update department", "details": errMsg})
 	}
 	return c.JSON(fiber.Map{"message": "Department updated successfully"})
 }
