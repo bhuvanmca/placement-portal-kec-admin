@@ -27,6 +27,8 @@ export interface CreateEligibilityTemplateInput {
   diploma_percentage?: number | null;
   ug_min_cgpa?: number | null;
   pg_min_cgpa?: number | null;
+  use_aggregate: boolean;
+  aggregate_percentage?: number | null;
   max_backlogs_allowed: number;
   eligible_departments: string[];
   eligible_batches: number[];
