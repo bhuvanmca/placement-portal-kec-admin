@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import 'api_client.dart';
@@ -112,6 +113,11 @@ class AuthService {
     await prefs.remove('token');
     await prefs.remove('role');
     await prefs.remove('is_profile_complete');
+    await prefs.remove('onboarding_draft');
+    // Clear cached profile photos to prevent stale data for next user
+    try {
+      await DefaultCacheManager().emptyCache();
+    } catch (_) {}
     try {
       await FirebaseMessaging.instance.deleteToken();
     } catch (_) {}

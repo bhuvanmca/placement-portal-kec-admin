@@ -52,8 +52,6 @@ class OnboardingState {
   final String? resumeUrl;
   final String? aadharNumber;
   final String? panNumber;
-  final String? aadharDocUrl;
-  final String? panDocUrl;
 
   OnboardingState({
     this.firstName,
@@ -94,8 +92,6 @@ class OnboardingState {
     this.resumeUrl,
     this.aadharNumber,
     this.panNumber,
-    this.aadharDocUrl,
-    this.panDocUrl,
   });
 
   OnboardingState copyWith({
@@ -137,8 +133,6 @@ class OnboardingState {
     String? resumeUrl,
     String? aadharNumber,
     String? panNumber,
-    String? aadharDocUrl,
-    String? panDocUrl,
   }) {
     return OnboardingState(
       firstName: firstName ?? this.firstName,
@@ -179,8 +173,6 @@ class OnboardingState {
       resumeUrl: resumeUrl ?? this.resumeUrl,
       aadharNumber: aadharNumber ?? this.aadharNumber,
       panNumber: panNumber ?? this.panNumber,
-      aadharDocUrl: aadharDocUrl ?? this.aadharDocUrl,
-      panDocUrl: panDocUrl ?? this.panDocUrl,
     );
   }
 
@@ -224,8 +216,6 @@ class OnboardingState {
       'resume_url': resumeUrl,
       'aadhar_number': aadharNumber,
       'pan_number': panNumber,
-      'aadhar_card_url': aadharDocUrl,
-      'pan_card_url': panDocUrl,
     };
   }
 }
@@ -287,8 +277,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
           resumeUrl: map['resume_url'] as String?,
           aadharNumber: map['aadhar_number'] as String?,
           panNumber: map['pan_number'] as String?,
-          aadharDocUrl: map['aadhar_doc_url'] as String?,
-          panDocUrl: map['pan_doc_url'] as String?,
         );
       } catch (_) {
         // Corrupted data, ignore
@@ -402,15 +390,11 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     String? resume,
     String? aadharNumber,
     String? panNumber,
-    String? aadharDocUrl,
-    String? panDocUrl,
   }) {
     state = state.copyWith(
       resumeUrl: resume ?? state.resumeUrl,
       aadharNumber: aadharNumber ?? state.aadharNumber,
       panNumber: panNumber ?? state.panNumber,
-      aadharDocUrl: aadharDocUrl ?? state.aadharDocUrl,
-      panDocUrl: panDocUrl ?? state.panDocUrl,
     );
     _saveToPrefs();
   }

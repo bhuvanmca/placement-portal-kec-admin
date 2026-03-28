@@ -4,6 +4,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../utils/constants.dart';
+import 'profile_provider.dart';
+import 'onboarding_provider.dart';
 
 part 'auth_provider.g.dart';
 
@@ -98,6 +100,10 @@ class AuthController extends _$AuthController {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await ref.read(authServiceProvider).logout();
+      // Invalidate the profile provider to clear stale user data
+      ref.invalidate(profileProvider);
+      // Clear onboarding draft
+      ref.invalidate(onboardingProvider);
       return null;
     });
   }
