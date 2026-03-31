@@ -10,12 +10,14 @@ import 'notification_service.dart';
 /// Login response containing token and profile status
 class LoginResponse {
   final String token;
+  final String refreshToken;
   final String email;
   final String role;
   final bool isProfileComplete;
 
   LoginResponse({
     required this.token,
+    required this.refreshToken,
     required this.email,
     required this.role,
     required this.isProfileComplete,
@@ -24,6 +26,7 @@ class LoginResponse {
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
       token: json['token'] ?? '',
+      refreshToken: json['refresh_token'] ?? '',
       email: json['email'] ?? '',
       role: json['role'] ?? 'student',
       isProfileComplete: json['is_profile_complete'] ?? false,
@@ -61,6 +64,9 @@ class AuthService {
         if (data['token'] != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', data['token']);
+          if (data['refresh_token'] != null) {
+            await prefs.setString('refresh_token', data['refresh_token']);
+          }
           await prefs.setString('role', data['role'] ?? 'student');
           await prefs.setBool(
             'is_profile_complete',
@@ -111,6 +117,7 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await prefs.remove('refresh_token');
     await prefs.remove('role');
     await prefs.remove('is_profile_complete');
     await prefs.remove('onboarding_draft');

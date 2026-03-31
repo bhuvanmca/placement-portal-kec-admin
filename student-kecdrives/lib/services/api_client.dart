@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,16 +37,68 @@ class ApiClient {
     _consecutiveFailures = 0;
   }
 
+  // Track if a refresh is already in progress
+  bool _isRefreshing = false;
+  final List<Completer<String?>> _refreshQueue = [];
+
+  /// Attempt to refresh the access token using the stored refresh token
+  Future<String?> _refreshAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('refresh_token');
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+
+    try {
+      final url = Uri.parse(
+        '${AppConstants.baseUrl}${AppConstants.loginRoute}'.replaceFirst('/login', '/refresh'),
+      );
+      final response = await _client
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refresh_token': refreshToken}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final newToken = data['token'] as String?;
+        if (newToken != null) {
+          await prefs.setString('token', newToken);
+          return newToken;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _handleError(dynamic error, [http.Response? response]) async {
     // Check if device is online first
     if (!await _isOnline()) {
       return; // Handled by ConnectivityOverlay
     }
 
-    // Handle expired/invalid JWT
+    // Handle expired/invalid JWT — attempt refresh first
     if (response != null && response.statusCode == 401) {
+      if (!_isRefreshing) {
+        _isRefreshing = true;
+        final newToken = await _refreshAccessToken();
+        _isRefreshing = false;
+
+        if (newToken != null) {
+          // Notify queued requests
+          for (final completer in _refreshQueue) {
+            completer.complete(newToken);
+          }
+          _refreshQueue.clear();
+          // Don't throw — the caller will retry
+          return;
+        }
+      }
+
+      // Refresh failed or no refresh token — clear everything
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('token');
+      await prefs.remove('refresh_token');
       await prefs.remove('role');
       await prefs.remove('is_profile_complete');
       throw Exception('Session expired. Please log in again.');
