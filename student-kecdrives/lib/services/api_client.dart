@@ -49,7 +49,10 @@ class ApiClient {
 
     try {
       final url = Uri.parse(
-        '${AppConstants.baseUrl}${AppConstants.loginRoute}'.replaceFirst('/login', '/refresh'),
+        '${AppConstants.baseUrl}${AppConstants.loginRoute}'.replaceFirst(
+          '/login',
+          '/refresh',
+        ),
       );
       final response = await _client
           .post(
