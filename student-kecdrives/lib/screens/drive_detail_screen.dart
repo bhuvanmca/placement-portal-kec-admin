@@ -21,28 +21,76 @@ class DriveDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<DriveDetailScreen> createState() => _DriveDetailScreenState();
 }
 
-class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
+class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
+    with WidgetsBindingObserver {
   late String _userStatus;
   late bool _isEligible;
   List<int> _selectedRoleIds = [];
+  late Map<String, dynamic> _drive;
 
   @override
   void initState() {
     super.initState();
-    _userStatus = widget.drive['user_status'] ?? '';
-    _isEligible = widget.drive['is_eligible'] == true;
+    WidgetsBinding.instance.addObserver(this);
+    _drive = Map<String, dynamic>.from(widget.drive);
+    _userStatus = _drive['user_status'] ?? '';
+    _isEligible = _drive['is_eligible'] == true;
 
     // Initialize selected roles if already applied
-    if (widget.drive['user_applied_role_ids'] != null) {
+    if (_drive['user_applied_role_ids'] != null) {
       _selectedRoleIds = List<int>.from(
-        (widget.drive['user_applied_role_ids'] as List).map((e) => e as int),
+        (_drive['user_applied_role_ids'] as List).map((e) => e as int),
       );
+    }
+
+    // Refresh drive data from API on open to get latest status
+    Future.microtask(() => _syncFromProvider());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When app returns to foreground, sync latest status from provider
+    if (state == AppLifecycleState.resumed) {
+      _syncFromProvider();
+    }
+  }
+
+  /// Sync local state from the provider's drive list (which has fresh API data)
+  void _syncFromProvider() {
+    final paginatedState = ref.read(driveListProvider);
+    final drives = paginatedState.drives;
+    final driveId = _drive['id'];
+    final match = drives.cast<Map<String, dynamic>?>().firstWhere(
+      (d) => d?['id'] == driveId,
+      orElse: () => null,
+    );
+    if (match != null && mounted) {
+      final newStatus = (match['user_status'] as String?) ?? '';
+      final newEligible = match['is_eligible'] == true;
+      if (newStatus != _userStatus || newEligible != _isEligible) {
+        setState(() {
+          _drive = Map<String, dynamic>.from(match);
+          _userStatus = newStatus;
+          _isEligible = newEligible;
+          if (_drive['user_applied_role_ids'] != null) {
+            _selectedRoleIds = List<int>.from(
+              (_drive['user_applied_role_ids'] as List).map((e) => e as int),
+            );
+          }
+        });
+      }
     }
   }
 
   Future<void> _handleRequestToAttend() async {
     // Validation: If roles exist, at least one must be selected
-    final List roles = widget.drive['roles'] ?? [];
+    final List roles = _drive['roles'] ?? [];
     if (roles.isNotEmpty && _selectedRoleIds.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -58,7 +106,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     try {
       final driveService = ref.read(driveServiceProvider);
       await driveService.applyForDrive(
-        widget.drive['id'],
+        _drive['id'],
         roleIds: _selectedRoleIds.isNotEmpty ? _selectedRoleIds : null,
         requestToAttend: true,
       );
@@ -66,6 +114,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         setState(() {
           _userStatus = 'request_to_attend';
         });
+        ref.invalidate(driveListProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Request submitted! Admin will be notified.'),
@@ -89,7 +138,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     // HapticFeedback.selectionClick();
 
     // 1. Validation: If roles exist, at least one must be selected
-    final List roles = widget.drive['roles'] ?? [];
+    final List roles = _drive['roles'] ?? [];
     if (roles.isNotEmpty && _selectedRoleIds.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,7 +157,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       final driveService = ref.read(driveServiceProvider);
       // Pass selected roles (can be empty list if no roles defined)
       await driveService.applyForDrive(
-        widget.drive['id'],
+        _drive['id'],
         roleIds: _selectedRoleIds.isNotEmpty ? _selectedRoleIds : null,
       );
 
@@ -116,6 +165,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         _userStatus = 'opted_in';
       });
       ref.invalidate(driveListProvider);
+      // Wait for provider to rebuild, then sync local state
+      await Future.delayed(const Duration(milliseconds: 500));
+      _syncFromProvider();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -143,13 +195,16 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
 
     try {
       final driveService = ref.read(driveServiceProvider);
-      await driveService.withdrawFromDrive(widget.drive['id'], reason: reason);
+      await driveService.withdrawFromDrive(_drive['id'], reason: reason);
 
       setState(() {
         _userStatus = 'opted_out';
         _selectedRoleIds = []; // Clear selection on opt out
       });
       ref.invalidate(driveListProvider);
+      // Wait for provider to rebuild, then sync local state
+      await Future.delayed(const Duration(milliseconds: 500));
+      _syncFromProvider();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -405,7 +460,38 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final drive = widget.drive;
+    // Watch the provider so we auto-rebuild when drive list refreshes
+    final paginatedState = ref.watch(driveListProvider);
+    // Auto-sync local state from the latest provider data
+    final driveId = _drive['id'];
+    final freshDrive = paginatedState.drives
+        .cast<Map<String, dynamic>?>()
+        .firstWhere((d) => d?['id'] == driveId, orElse: () => null);
+    if (freshDrive != null) {
+      final newStatus = (freshDrive['user_status'] as String?) ?? '';
+      final newEligible = freshDrive['is_eligible'] == true;
+      if (newStatus != _userStatus || newEligible != _isEligible) {
+        // Schedule state update after build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _drive = Map<String, dynamic>.from(freshDrive);
+              _userStatus = newStatus;
+              _isEligible = newEligible;
+              if (_drive['user_applied_role_ids'] != null) {
+                _selectedRoleIds = List<int>.from(
+                  (_drive['user_applied_role_ids'] as List).map(
+                    (e) => e as int,
+                  ),
+                );
+              }
+            });
+          }
+        });
+      }
+    }
+
+    final drive = _drive;
     final bool isExpired = drive['deadline_date'] != null
         ? DateTime.tryParse(
                 drive['deadline_date'].toString(),
@@ -688,9 +774,8 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
   }
 
   String _getShortlistedLabel() {
-    final roundResults =
-        widget.drive['user_round_results'] as List<dynamic>? ?? [];
-    final rounds = widget.drive['rounds'] as List<dynamic>? ?? [];
+    final roundResults = _drive['user_round_results'] as List<dynamic>? ?? [];
+    final rounds = _drive['rounds'] as List<dynamic>? ?? [];
     final totalRounds = rounds.length;
 
     if (roundResults.isEmpty || totalRounds == 0) {
@@ -1115,6 +1200,58 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
       );
     }
 
+    if (_userStatus == 'shortlisted') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          _getShortlistedLabel(),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFFF59E0B),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    if (_userStatus == 'rejected') {
+      final remarks = _drive['user_remarks'] ?? '';
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          children: [
+            const Text(
+              'Not Cleared',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+            if (remarks.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                remarks,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     if (isExpired) {
       return Container(
         width: double.infinity,
@@ -1168,7 +1305,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
           ),
         );
       } else if (_userStatus == 'rejected') {
-        final remarks = widget.drive['user_remarks'] ?? '';
+        final remarks = _drive['user_remarks'] ?? '';
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
