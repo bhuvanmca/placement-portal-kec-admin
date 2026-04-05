@@ -1,6 +1,6 @@
 {
-    "name": "student_app",
-    "short_name": "student_app",
+    "name": "KEC Drives",
+    "short_name": "KEC Drives",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -17,7 +17,7 @@ class LoadingScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(32.0),
               child: Image.asset(
-                'assets/images/kec_logo.png',
+                'assets/images/kecdrives_logo.png',
                 // Adjust width to match how native splash manages it.
                 // Usually native splash centers the image at original scale or contained.
                 // We'll use contain with a reasonable width constraint.

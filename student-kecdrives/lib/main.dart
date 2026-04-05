@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'router/router.dart';
 
 import 'package:firebase_core/firebase_core.dart'; // [NEW]
+import 'firebase_options.dart';
 import 'services/notification_service.dart';
 import 'widgets/server_error_overlay.dart'; // [NEW]
 import 'services/connectivity_service.dart'; // [NEW]
@@ -17,7 +18,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if not already initialized
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Persist notification
   await NotificationStorageService.saveNotification(message);
@@ -30,7 +31,9 @@ void main() async {
   await dotenv.load(fileName: ".env");
 
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
     // CRITICAL: Register background message handler BEFORE any app logic
     // This allows notifications when app is completely terminated
@@ -62,7 +65,7 @@ class StudentApp extends ConsumerWidget {
 
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'KEC Student Portal',
+      title: 'KEC Drives',
       themeMode: themeMode,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

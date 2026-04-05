@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-  <application android:label="student_app" android:name="${applicationName}" android:icon="@mipmap/ic_launcher" android:enableOnBackInvokedCallback="true">
+  <application android:label="KEC Drives" android:name="${applicationName}" android:icon="@mipmap/ic_launcher" android:enableOnBackInvokedCallback="true">
 
     <!-- FCM Default Notification Channel for Android 8+ -->
     <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="placement_channel" />

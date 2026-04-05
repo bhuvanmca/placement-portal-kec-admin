@@ -103,15 +103,15 @@ Single entry point for all API requests providing routing, authentication, rate 
 
 Your **Go API (Fiber) + Caddy** already provides all API Gateway features:
 
-| Feature | Implementation |
-|---------|----------------|
+| Feature         | Implementation                                     |
+| --------------- | -------------------------------------------------- |
 | Request Routing | Caddy → API routes, Fiber handles internal routing |
-| Authentication | JWT middleware in Fiber |
-| Rate Limiting | Can add to Caddy |
-| CORS | Fiber CORS middleware |
-| Logging | Fiber logger |
-| SSL/TLS | Caddy auto-HTTPS |
-| Load Balancing | Caddy built-in |
+| Authentication  | JWT middleware in Fiber                            |
+| Rate Limiting   | Can add to Caddy                                   |
+| CORS            | Fiber CORS middleware                              |
+| Logging         | Fiber logger                                       |
+| SSL/TLS         | Caddy auto-HTTPS                                   |
+| Load Balancing  | Caddy built-in                                     |
 
 **Verdict:** Your Go API IS your API Gateway ✅
 
@@ -145,13 +145,13 @@ Distributes requests across multiple servers to prevent overload and improve ava
 
 **Load Balancing Algorithms:**
 
-| Algorithm | Description | Best For | Recommended? |
-|-----------|-------------|----------|--------------|
-| **Round Robin** | Sequential distribution | Equal server capacity | ✅ **YES** (Start here) |
+| Algorithm         | Description                    | Best For              | Recommended?                      |
+| ----------------- | ------------------------------ | --------------------- | --------------------------------- |
+| **Round Robin**   | Sequential distribution        | Equal server capacity | ✅ **YES** (Start here)            |
 | Least Connections | Server with fewest connections | Varying request times | ✅ Use if Round Robin insufficient |
-| IP Hash | Same client → same server | Session persistence | ❌ Not needed (stateless JWT) |
-| Random | Random selection | Simple distribution | ❌ Less predictable |
-| Weighted | Based on server capacity | Different specs | ⚠️ Only if servers differ |
+| IP Hash           | Same client → same server      | Session persistence   | ❌ Not needed (stateless JWT)      |
+| Random            | Random selection               | Simple distribution   | ❌ Less predictable                |
+| Weighted          | Based on server capacity       | Different specs       | ⚠️ Only if servers differ          |
 
 **Choice:** **Round Robin** - Simple, effective, works perfectly when all Docker containers are identical.
 
@@ -174,12 +174,12 @@ Distributes requests across multiple servers to prevent overload and improve ava
 
 **Alternatives:**
 
-| Solution | Cost | Pros | Cons |
-|----------|------|------|------|
-| Cloudflare Tunnel | FREE | All features, unlimited | Requires Cloudflare domain |
-| Ngrok | $8/mo | Simple setup | Limited bandwidth (free tier) |
-| Tailscale | FREE | Secure mesh VPN | Requires client on devices |
-| Port Forwarding | FREE | Direct connection | Need firewall access ❌ |
+| Solution          | Cost  | Pros                    | Cons                          |
+| ----------------- | ----- | ----------------------- | ----------------------------- |
+| Cloudflare Tunnel | FREE  | All features, unlimited | Requires Cloudflare domain    |
+| Ngrok             | $8/mo | Simple setup            | Limited bandwidth (free tier) |
+| Tailscale         | FREE  | Secure mesh VPN         | Requires client on devices    |
+| Port Forwarding   | FREE  | Direct connection       | Need firewall access ❌        |
 
 ---
 
@@ -560,13 +560,13 @@ api.yourdomain.com {
 
 ## Cost Analysis
 
-| Service | Cost | Notes |
-|---------|------|-------|
-| Ubuntu VM | College-provided | FREE |
-| Cloudflare Tunnel | FREE | Unlimited bandwidth |
-| Docker/Garage | FREE | Open source |
-| Domain | ~$10-15/year | For professional URL |
-| **Total Monthly** | **$0-1** | Extremely cost-effective |
+| Service           | Cost             | Notes                    |
+| ----------------- | ---------------- | ------------------------ |
+| Ubuntu VM         | College-provided | FREE                     |
+| Cloudflare Tunnel | FREE             | Unlimited bandwidth      |
+| Docker/Garage     | FREE             | Open source              |
+| Domain            | ~$10-15/year     | For professional URL     |
+| **Total Monthly** | **$0-1**         | Extremely cost-effective |
 
 **No paid services required!**
 
@@ -574,17 +574,17 @@ api.yourdomain.com {
 
 ## Decision Matrix
 
-| Component | Solution | Why |
-|-----------|----------|-----|
-| **Reverse Proxy** | Caddy | Auto-HTTPS, simple config, built-in load balancing |
-| **API Gateway** | Go API + Caddy | Already have all features |
-| **Load Balancer** | Caddy | Built-in, Round Robin |
-| **Container Orchestration** | Docker Compose | Simple, sufficient for single VM |
-| **Internet Exposure** | Cloudflare Tunnel | Free, secure, works behind firewall |
-| **SSL/TLS** | Caddy + Cloudflare | Automatic, zero config |
-| **Rate Limiting** | Caddy | Simple, effective |
-| **Authentication** | JWT in Go API | Stateless, scalable |
-| **Load Balancing Algorithm** | Round Robin | Simple, effective for equal containers |
+| Component                    | Solution           | Why                                                |
+| ---------------------------- | ------------------ | -------------------------------------------------- |
+| **Reverse Proxy**            | Caddy              | Auto-HTTPS, simple config, built-in load balancing |
+| **API Gateway**              | Go API + Caddy     | Already have all features                          |
+| **Load Balancer**            | Caddy              | Built-in, Round Robin                              |
+| **Container Orchestration**  | Docker Compose     | Simple, sufficient for single VM                   |
+| **Internet Exposure**        | Cloudflare Tunnel  | Free, secure, works behind firewall                |
+| **SSL/TLS**                  | Caddy + Cloudflare | Automatic, zero config                             |
+| **Rate Limiting**            | Caddy              | Simple, effective                                  |
+| **Authentication**           | JWT in Go API      | Stateless, scalable                                |
+| **Load Balancing Algorithm** | Round Robin        | Simple, effective for equal containers             |
 
 ---
 

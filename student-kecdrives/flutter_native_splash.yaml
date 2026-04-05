@@ -4,11 +4,11 @@ flutter_native_splash:
   color_dark: "#FFFFFF"
   
   # The image to use - will be centered and properly scaled
-  image: assets/images/kec_logo.png
+  image: assets/images/kecdrives_logo.png
   
   # Android 12+ specific settings
   android_12:
-    image: assets/images/kec_logo.png
+    image: assets/images/kecdrives_logo.png
     color: "#FFFFFF"
     color_dark: "#FFFFFF"
   

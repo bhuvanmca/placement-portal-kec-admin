@@ -49,6 +49,7 @@ dependencies:
   flutter_image_compress: ^2.3.0
   http_parser: ^4.1.2
   firebase_core: ^4.4.0
+  firebase_analytics: ^12.2.0
   firebase_messaging: ^16.1.1
   flutter_local_notifications: ^19.5.0
   cached_network_image: ^3.4.1
@@ -69,6 +70,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
   riverpod_generator: ^4.0.0+1
   build_runner: ^2.10.5
   custom_lint: ^0.8.1
@@ -115,3 +117,19 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/kecdrives_logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/kecdrives_logo.png"
+  web:
+    generate: true
+    image_path: "assets/images/kecdrives_logo.png"
+  windows:
+    generate: true
+    image_path: "assets/images/kecdrives_logo.png"
+  macos:
+    generate: true
+    image_path: "assets/images/kecdrives_logo.png"

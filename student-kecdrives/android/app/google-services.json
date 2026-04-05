@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "809946260534",
-    "project_id": "placement-portal-kec",
-    "storage_bucket": "placement-portal-kec.firebasestorage.app"
+    "project_number": "304917805175",
+    "project_id": "kecdrives-fcm",
+    "storage_bucket": "kecdrives-fcm.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:809946260534:android:c06d98786448d81e436497",
+        "mobilesdk_app_id": "1:304917805175:android:fb423a61bcba6fd275ae72",
         "android_client_info": {
           "package_name": "com.kongu.placement_portal_kec"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBYTidtpaZKaOlyQfoO2kEncgvE-KiKkDc"
+          "current_key": "AIzaSyACZyQQ7ptEQfUL7QPhw7HgmTWYyQUiHew"
         }
       ],
       "services": {
