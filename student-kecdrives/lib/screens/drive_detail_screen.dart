@@ -687,6 +687,32 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
     );
   }
 
+  String _getShortlistedLabel() {
+    final roundResults =
+        widget.drive['user_round_results'] as List<dynamic>? ?? [];
+    final rounds = widget.drive['rounds'] as List<dynamic>? ?? [];
+    final totalRounds = rounds.length;
+
+    if (roundResults.isEmpty || totalRounds == 0) {
+      return 'Shortlisted';
+    }
+
+    int latestCleared = 0;
+    for (final r in roundResults) {
+      final result = r['result'] as String? ?? '';
+      final idx = r['round_index'] as int? ?? 0;
+      if (result == 'cleared' && idx + 1 > latestCleared) {
+        latestCleared = idx + 1;
+      }
+    }
+
+    if (latestCleared > 0) {
+      return 'Shortlisted - Round $latestCleared/$totalRounds';
+    }
+
+    return 'Shortlisted';
+  }
+
   Widget _buildStatusBadge(String status) {
     String label;
     Color color;
@@ -704,12 +730,12 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen> {
         icon = Icons.cancel_outlined;
         break;
       case 'shortlisted':
-        label = 'Shortlisted';
+        label = _getShortlistedLabel();
         color = const Color(0xFFF59E0B);
         icon = Icons.star_outline;
         break;
       case 'rejected':
-        label = 'Rejected';
+        label = 'Not Cleared';
         color = const Color(0xFFEF4444);
         icon = Icons.cancel;
         break;

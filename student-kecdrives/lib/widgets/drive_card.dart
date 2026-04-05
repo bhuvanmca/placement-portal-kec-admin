@@ -275,12 +275,16 @@ class DriveCard extends StatelessWidget {
         );
       case 'shortlisted':
         return _StatusConfig(
-          'Shortlisted',
+          _getShortlistedLabel(),
           const Color(0xFFF59E0B),
           Icons.star_outline,
         );
       case 'rejected':
-        return _StatusConfig('Rejected', const Color(0xFFEF4444), Icons.cancel);
+        return _StatusConfig(
+          'Not Cleared',
+          const Color(0xFFEF4444),
+          Icons.cancel,
+        );
       case 'placed':
         return _StatusConfig('Placed', const Color(0xFF059669), Icons.verified);
       case 'request_to_attend':
@@ -303,6 +307,32 @@ class DriveCard extends StatelessWidget {
           Icons.block,
         );
     }
+  }
+
+  String _getShortlistedLabel() {
+    final roundResults = drive['user_round_results'] as List<dynamic>? ?? [];
+    final rounds = drive['rounds'] as List<dynamic>? ?? [];
+    final totalRounds = rounds.length;
+
+    if (roundResults.isEmpty || totalRounds == 0) {
+      return 'Shortlisted';
+    }
+
+    // Find the latest cleared round (highest round_index with result == 'cleared')
+    int latestCleared = 0;
+    for (final r in roundResults) {
+      final result = r['result'] as String? ?? '';
+      final idx = r['round_index'] as int? ?? 0;
+      if (result == 'cleared' && idx + 1 > latestCleared) {
+        latestCleared = idx + 1;
+      }
+    }
+
+    if (latestCleared > 0) {
+      return 'Shortlisted - Round $latestCleared/$totalRounds';
+    }
+
+    return 'Shortlisted';
   }
 
   Widget _buildInfoChip(BuildContext context, IconData icon, String text) {
