@@ -77,10 +77,12 @@ class _PlacedScreenState extends ConsumerState<PlacedScreen>
       if (_searchQuery.isEmpty) return true;
 
       final companyName = (d['company_name'] ?? '').toString().toLowerCase();
-      final jobRole = (d['job_role'] ?? '').toString().toLowerCase();
+      final roles = (d['roles'] as List? ?? [])
+          .map((r) => (r['role_name'] ?? '').toString().toLowerCase())
+          .toList();
 
       return companyName.contains(_searchQuery) ||
-          jobRole.contains(_searchQuery);
+          roles.any((r) => r.contains(_searchQuery));
     }).toList();
 
     return Scaffold(

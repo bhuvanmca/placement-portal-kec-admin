@@ -32,6 +32,7 @@ class AdminService {
     String? department,
     int? batchYear,
     String? search,
+    String searchType = 'name',
     String sortBy = 'register_number',
     String sortOrder = 'asc',
   }) async {
@@ -41,6 +42,7 @@ class AdminService {
       'limit': '$limit',
       'sortBy': sortBy,
       'sortOrder': sortOrder,
+      'searchType': searchType,
     };
     if (department != null && department.isNotEmpty) {
       params['dept'] = department;

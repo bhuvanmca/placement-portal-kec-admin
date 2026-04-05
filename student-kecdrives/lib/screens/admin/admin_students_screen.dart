@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,18 +19,46 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   int _page = 1;
   int _total = 0;
   static const int _limit = 20;
+  String _searchType = 'name';
+  Timer? _debounce;
+
+  static const Map<String, String> _searchTypes = {
+    'name': 'Name',
+    'register_number': 'Reg No',
+    'phone': 'Phone',
+  };
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() => setState(() {}));
+    _searchController.addListener(_onSearchChanged);
     _loadStudents();
+  }
+
+  String _getStudentName(dynamic s) {
+    // Try full_name first (from users.name), then build from parts
+    final fullName = (s['full_name'] ?? '').toString().trim();
+    if (fullName.isNotEmpty) return fullName;
+    final first = (s['first_name'] ?? '').toString().trim();
+    final last = (s['last_name'] ?? '').toString().trim();
+    final combined = '$first $last'.trim();
+    if (combined.isNotEmpty) return combined;
+    return 'Unknown';
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {});
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      _loadStudents(refresh: true);
+    });
   }
 
   Future<void> _loadStudents({bool refresh = false}) async {
@@ -44,6 +73,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
             search: _searchController.text.trim().isNotEmpty
                 ? _searchController.text.trim()
                 : null,
+            searchType: _searchType,
           );
       if (mounted) {
         setState(() {
@@ -60,7 +90,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   Future<void> _toggleBlock(dynamic student) async {
     final id = student['id'] as int;
     final isBlocked = student['is_blocked'] == true;
-    final name = student['name'] ?? 'Student';
+    final name = _getStudentName(student);
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -133,36 +163,82 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
+          // Search bar with dropdown
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by name or register number…',
-                hintStyle: GoogleFonts.geist(fontSize: 14),
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          _loadStudents(refresh: true);
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Theme.of(context).dividerColor),
+            child: Row(
+              children: [
+                // Search type dropdown
+                Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _searchType,
+                      isDense: true,
+                      style: GoogleFonts.geist(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                      items: _searchTypes.entries.map((e) {
+                        return DropdownMenuItem(
+                          value: e.key,
+                          child: Text(e.value),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _searchType = value);
+                          if (_searchController.text.trim().isNotEmpty) {
+                            _loadStudents(refresh: true);
+                          }
+                        }
+                      },
+                    ),
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                const SizedBox(width: 8),
+                // Search field
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search by ${_searchTypes[_searchType]?.toLowerCase()}…',
+                      hintStyle: GoogleFonts.geist(fontSize: 14),
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                _loadStudents(refresh: true);
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).cardColor,
+                    ),
+                    onSubmitted: (_) => _loadStudents(refresh: true),
+                  ),
                 ),
-                filled: true,
-                fillColor: Theme.of(context).cardColor,
-              ),
-              onSubmitted: (_) => _loadStudents(refresh: true),
+              ],
             ),
           ),
 
@@ -212,7 +288,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                               ),
                             ),
                             title: Text(
-                              s['name'] ?? 'Unknown',
+                              _getStudentName(s),
                               style: GoogleFonts.geist(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,

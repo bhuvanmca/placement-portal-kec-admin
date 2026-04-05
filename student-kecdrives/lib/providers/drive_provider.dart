@@ -220,6 +220,9 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
 
   final drives = paginatedState.drives;
   final results = drives.where((drive) {
+    // Exclude placed drives from main drives screen (they go to Placed tab)
+    if (drive['user_status'] == 'placed') return false;
+
     // 1. Status/Section Filter (Tabs)
     final currentSection = getDriveSection(drive);
     final isEligible = drive['is_eligible'] == true;
@@ -365,6 +368,9 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   int notEligible = 0;
 
   for (var drive in drives) {
+    // Skip placed drives (they go to Placed tab)
+    if (drive['user_status'] == 'placed') continue;
+
     final section = getDriveSection(drive);
     switch (section) {
       case 'Upcoming':
