@@ -14,11 +14,13 @@ class AdminStudentsScreen extends ConsumerStatefulWidget {
 
 class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   List<dynamic> _students = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   int _page = 1;
   int _total = 0;
-  static const int _limit = 20;
+  static const int _limit = 100;
   String _searchType = 'name';
   Timer? _debounce;
 
@@ -32,6 +34,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
     _loadStudents();
   }
 
@@ -50,7 +53,46 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _students.length < _total) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    setState(() => _isLoadingMore = true);
+    _page++;
+    try {
+      final data = await ref
+          .read(adminServiceProvider)
+          .getStudents(
+            page: _page,
+            limit: _limit,
+            search: _searchController.text.trim().isNotEmpty
+                ? _searchController.text.trim()
+                : null,
+            searchType: _searchType,
+          );
+      if (mounted) {
+        setState(() {
+          _students.addAll(data['data'] ?? []);
+          _total = data['meta']?['total'] ?? 0;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _page--;
+        setState(() => _isLoadingMore = false);
+      }
+    }
   }
 
   void _onSearchChanged() {
@@ -62,7 +104,10 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
   }
 
   Future<void> _loadStudents({bool refresh = false}) async {
-    if (refresh) _page = 1;
+    if (refresh) {
+      _page = 1;
+      _students = [];
+    }
     setState(() => _isLoading = true);
     try {
       final data = await ref
@@ -77,7 +122,11 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
           );
       if (mounted) {
         setState(() {
-          _students = data['data'] ?? [];
+          if (refresh || _page == 1) {
+            _students = data['data'] ?? [];
+          } else {
+            _students.addAll(data['data'] ?? []);
+          }
           _total = data['meta']?['total'] ?? 0;
           _isLoading = false;
         });
@@ -148,7 +197,7 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalPages = (_total / _limit).ceil();
+    final bool hasMore = _students.length < _total;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -256,9 +305,20 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                 : RefreshIndicator(
                     onRefresh: () => _loadStudents(refresh: true),
                     child: ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _students.length,
+                      itemCount: _students.length + (hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (index >= _students.length) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Center(
+                              child: _isLoadingMore
+                                  ? const CircularProgressIndicator()
+                                  : const SizedBox.shrink(),
+                            ),
+                          );
+                        }
                         final s = _students[index];
                         final isBlocked = s['is_blocked'] == true;
                         return Container(
@@ -313,39 +373,6 @@ class _AdminStudentsScreenState extends ConsumerState<AdminStudentsScreen> {
                     ),
                   ),
           ),
-
-          // Pagination
-          if (!_isLoading && totalPages > 1)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: _page > 1
-                        ? () {
-                            _page--;
-                            _loadStudents();
-                          }
-                        : null,
-                  ),
-                  Text(
-                    'Page $_page of $totalPages',
-                    style: GoogleFonts.geist(fontSize: 13),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed: _page < totalPages
-                        ? () {
-                            _page++;
-                            _loadStudents();
-                          }
-                        : null,
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

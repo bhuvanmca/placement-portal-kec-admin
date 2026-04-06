@@ -55,9 +55,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // When app returns to foreground, sync latest status from provider
+    // When app returns to foreground, refresh from API then sync local state
     if (state == AppLifecycleState.resumed) {
-      _syncFromProvider();
+      ref.read(driveListProvider.notifier).refresh();
     }
   }
 
