@@ -65,7 +65,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
   void _handleRefreshTrigger() {
     if (mounted) {
       _refresh();
-      final notifType = NotificationService.refreshTrigger.value;
+      // Extract type before the ':timestamp' suffix
+      final raw = NotificationService.refreshTrigger.value;
+      final notifType = raw.contains(':') ? raw.split(':').first : raw;
       String message;
       switch (notifType) {
         case 'new_drive':

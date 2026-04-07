@@ -76,8 +76,10 @@ class NotificationService {
       NotificationStorageService.saveNotification(message);
 
       // Pass the notification type so UI can show appropriate snackbar
+      // Append timestamp to guarantee ValueNotifier fires even for same type
       final notifType = message.data['type'] ?? 'unknown';
-      refreshTrigger.value = notifType;
+      refreshTrigger.value =
+          '$notifType:${DateTime.now().millisecondsSinceEpoch}';
       _showLocalNotification(message);
     });
 
@@ -91,7 +93,8 @@ class NotificationService {
       NotificationStorageService.saveNotification(message);
 
       final notifType = message.data['type'] ?? 'unknown';
-      refreshTrigger.value = notifType;
+      refreshTrigger.value =
+          '$notifType:${DateTime.now().millisecondsSinceEpoch}';
     });
 
     // 6. Check if app was opened from a terminated state via notification
@@ -106,7 +109,8 @@ class NotificationService {
       NotificationStorageService.saveNotification(initialMessage);
 
       final notifType = initialMessage.data['type'] ?? 'unknown';
-      refreshTrigger.value = notifType;
+      refreshTrigger.value =
+          '$notifType:${DateTime.now().millisecondsSinceEpoch}';
     }
 
     // 7. Listen for token refreshes
@@ -122,7 +126,7 @@ class NotificationService {
       final data = jsonDecode(payload) as Map<String, dynamic>;
       final type = data['type'] ?? 'unknown';
       // Trigger a refresh so relevant screens update
-      refreshTrigger.value = type;
+      refreshTrigger.value = '$type:${DateTime.now().millisecondsSinceEpoch}';
     } catch (e) {
       log('Error parsing notification payload: $e');
     }
