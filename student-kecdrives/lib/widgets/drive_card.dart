@@ -287,6 +287,12 @@ class DriveCard extends StatelessWidget {
         );
       case 'placed':
         return _StatusConfig('Placed', const Color(0xFF059669), Icons.verified);
+      case 'not_placed':
+        return _StatusConfig(
+          'Not Placed',
+          const Color(0xFF6B7280),
+          Icons.remove_circle_outline,
+        );
       case 'request_to_attend':
         return _StatusConfig(
           'Requested',

@@ -220,8 +220,8 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
 
   final drives = paginatedState.drives;
   final results = drives.where((drive) {
-    // Exclude placed drives from main drives screen (they go to Placed tab)
-    if (drive['user_status'] == 'placed') return false;
+    // Placed drives now appear in BOTH the Placed tab AND their section tab
+    // (Upcoming/Closed/Completed) so the student can see the drive history.
 
     // 1. Status/Section Filter (Tabs)
     final currentSection = getDriveSection(drive);
@@ -368,9 +368,7 @@ final driveStatsProvider = Provider.autoDispose<Map<String, int>>((ref) {
   int notEligible = 0;
 
   for (var drive in drives) {
-    // Skip placed drives (they go to Placed tab)
-    if (drive['user_status'] == 'placed') continue;
-
+    // Placed drives now count in their section tab too
     final section = getDriveSection(drive);
     switch (section) {
       case 'Upcoming':

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/drive_provider.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/drive_card.dart';
 import '../../widgets/haptic_refresh_indicator.dart';
 
@@ -24,6 +25,7 @@ class _PlacedScreenState extends ConsumerState<PlacedScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    NotificationService.refreshTrigger.addListener(_handleRefreshTrigger);
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.toLowerCase();
@@ -34,8 +36,15 @@ class _PlacedScreenState extends ConsumerState<PlacedScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    NotificationService.refreshTrigger.removeListener(_handleRefreshTrigger);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _handleRefreshTrigger() {
+    if (mounted) {
+      _refresh();
+    }
   }
 
   @override

@@ -13,8 +13,9 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  // Notifier to trigger UI refresh
-  static final ValueNotifier<bool> refreshTrigger = ValueNotifier(false);
+  // Notifier to trigger UI refresh — carries the notification type
+  // e.g. 'new_drive', 'drive_update', 'drive_request_status', 'drive_cancelled', 'drive_on_hold'
+  static final ValueNotifier<String> refreshTrigger = ValueNotifier('');
 
   // Random for unique notification IDs
   static final Random _random = Random();
@@ -74,8 +75,9 @@ class NotificationService {
       // Save to local storage
       NotificationStorageService.saveNotification(message);
 
-      refreshTrigger.value =
-          !refreshTrigger.value; // Toggle to trigger listener
+      // Pass the notification type so UI can show appropriate snackbar
+      final notifType = message.data['type'] ?? 'unknown';
+      refreshTrigger.value = notifType;
       _showLocalNotification(message);
     });
 
@@ -88,7 +90,8 @@ class NotificationService {
       // Save to storage in case it wasn't saved by background handler
       NotificationStorageService.saveNotification(message);
 
-      refreshTrigger.value = !refreshTrigger.value;
+      final notifType = message.data['type'] ?? 'unknown';
+      refreshTrigger.value = notifType;
     });
 
     // 6. Check if app was opened from a terminated state via notification
@@ -102,7 +105,8 @@ class NotificationService {
       // Save to storage
       NotificationStorageService.saveNotification(initialMessage);
 
-      refreshTrigger.value = !refreshTrigger.value;
+      final notifType = initialMessage.data['type'] ?? 'unknown';
+      refreshTrigger.value = notifType;
     }
 
     // 7. Listen for token refreshes
@@ -116,11 +120,9 @@ class NotificationService {
     if (payload == null) return;
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      final type = data['type'];
-      if (type == 'new_drive') {
-        // Trigger a refresh so drives screen updates
-        refreshTrigger.value = !refreshTrigger.value;
-      }
+      final type = data['type'] ?? 'unknown';
+      // Trigger a refresh so relevant screens update
+      refreshTrigger.value = type;
     } catch (e) {
       log('Error parsing notification payload: $e');
     }

@@ -65,11 +65,30 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
   void _handleRefreshTrigger() {
     if (mounted) {
       _refresh();
+      final notifType = NotificationService.refreshTrigger.value;
+      String message;
+      switch (notifType) {
+        case 'new_drive':
+          message = 'New drive posted! List updated.';
+          break;
+        case 'drive_update':
+        case 'drive_request_status':
+          message = 'Drive status updated!';
+          break;
+        case 'drive_cancelled':
+          message = 'A drive has been cancelled.';
+          break;
+        case 'drive_on_hold':
+          message = 'A drive has been put on hold.';
+          break;
+        default:
+          message = 'Drives updated!';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New drive posted! List updated.'),
+        SnackBar(
+          content: Text(message),
           backgroundColor: AppConstants.successColor,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
