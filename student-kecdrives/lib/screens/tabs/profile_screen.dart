@@ -55,6 +55,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _leetcodeController = TextEditingController();
   final _panNumberController = TextEditingController();
   final _aadharNumberController = TextEditingController();
+  final _pincodeController = TextEditingController();
+  final _fatherOccupationController = TextEditingController();
+  final _fatherMobileController = TextEditingController();
+  final _motherMobileController = TextEditingController();
+  final _guardianMobileController = TextEditingController();
+  final _alternateEmailController = TextEditingController();
+  final _admissionYearController = TextEditingController();
+  final _countryCodeController = TextEditingController();
+  String? _selectedResidenceType;
 
   final _tenthMarkController = TextEditingController();
   final _tenthBoardController = TextEditingController();
@@ -73,6 +82,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _ugYearPassController = TextEditingController();
   final _ugInstitutionController = TextEditingController();
   final _ugUniversityController = TextEditingController();
+  final _ugDegreeNameController = TextEditingController();
+  final _ugSpecialisationController = TextEditingController();
   final List<TextEditingController> _ugSemControllers = List.generate(
     10,
     (_) => TextEditingController(),
@@ -81,6 +92,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _pgYearPassController = TextEditingController();
   final _pgInstitutionController = TextEditingController();
   final _pgUniversityController = TextEditingController();
+  final _pgDegreeNameController = TextEditingController();
+  final _pgSpecialisationController = TextEditingController();
   final List<TextEditingController> _pgSemControllers = List.generate(
     8,
     (_) => TextEditingController(),
@@ -176,12 +189,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'ug_year_pass',
         'ug_institution',
         'ug_university',
+        'ug_degree_name',
+        'ug_specialisation',
+        'admission_year',
       ],
       'Postgraduate (PG)': [
         'pg_cgpa',
         'pg_year_pass',
         'pg_institution',
         'pg_university',
+        'pg_degree_name',
+        'pg_specialisation',
       ],
       'Backlogs & History': [
         'current_backlogs',
@@ -190,8 +208,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         'gap_reason',
       ],
       'Identity': ['dob', 'gender', 'aadhar_number', 'pan_number'],
-      'Contact Details': ['mobile_number'],
-      'Address': ['address_line_1', 'address_line_2', 'state'],
+      'Contact Details': ['mobile_number', 'country_code', 'alternate_email'],
+      'Address': [
+        'address_line_1',
+        'address_line_2',
+        'state',
+        'pincode',
+        'residence_type',
+      ],
+      'Family Details': [
+        'father_occupation',
+        'father_mobile',
+        'mother_mobile',
+        'guardian_mobile',
+      ],
     };
     final fields = sectionFields[section] ?? [];
     return fields.where((f) => _pendingRequests.containsKey(f)).toSet();
@@ -217,6 +247,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _leetcodeController.dispose();
     _panNumberController.dispose();
     _aadharNumberController.dispose();
+    _pincodeController.dispose();
+    _fatherOccupationController.dispose();
+    _fatherMobileController.dispose();
+    _motherMobileController.dispose();
+    _guardianMobileController.dispose();
+    _alternateEmailController.dispose();
+    _admissionYearController.dispose();
+    _countryCodeController.dispose();
     _tenthMarkController.dispose();
     _tenthBoardController.dispose();
     _tenthInstitutionController.dispose();
@@ -233,6 +271,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _ugYearPassController.dispose();
     _ugInstitutionController.dispose();
     _ugUniversityController.dispose();
+    _ugDegreeNameController.dispose();
+    _ugSpecialisationController.dispose();
     for (var c in _ugSemControllers) {
       c.dispose();
     }
@@ -240,6 +280,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _pgYearPassController.dispose();
     _pgInstitutionController.dispose();
     _pgUniversityController.dispose();
+    _pgDegreeNameController.dispose();
+    _pgSpecialisationController.dispose();
     for (var c in _pgSemControllers) {
       c.dispose();
     }
@@ -272,15 +314,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _initializeSectionFields(String section, Map<String, dynamic> data) {
     if (section == 'Contact Details') {
       _mobileController.text = _formatValueRaw(data['mobile_number']);
+      _countryCodeController.text = _formatValueRaw(data['country_code']);
+      _alternateEmailController.text = _formatValueRaw(data['alternate_email']);
     } else if (section == 'Address') {
       _addressLine1Controller.text = _formatValueRaw(data['address_line_1']);
       _addressLine2Controller.text = _formatValueRaw(data['address_line_2']);
       _stateController.text = _formatValueRaw(data['state']);
+      _pincodeController.text = _formatValueRaw(data['pincode']);
+      _selectedResidenceType = data['residence_type'];
     } else if (section == 'Identity') {
       _dobController.text = _formatValueRaw(data['dob']);
       _selectedGender = data['gender'];
       _aadharNumberController.text = _formatValueRaw(data['aadhar_number']);
       _panNumberController.text = _formatValueRaw(data['pan_number']);
+    } else if (section == 'Family Details') {
+      _fatherOccupationController.text = _formatValueRaw(
+        data['father_occupation'],
+      );
+      _fatherMobileController.text = _formatValueRaw(data['father_mobile']);
+      _motherMobileController.text = _formatValueRaw(data['mother_mobile']);
+      _guardianMobileController.text = _formatValueRaw(data['guardian_mobile']);
     } else if (section == 'Social Links') {
       final social = data['social_links'] as Map<String, dynamic>? ?? {};
       _linkedinController.text = _formatValueRaw(social['linkedin']);
@@ -320,6 +373,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _ugYearPassController.text = _formatValueRaw(data['ug_year_pass']);
       _ugInstitutionController.text = _formatValueRaw(data['ug_institution']);
       _ugUniversityController.text = _formatValueRaw(data['ug_university']);
+      _ugDegreeNameController.text = _formatValueRaw(data['ug_degree_name']);
+      _ugSpecialisationController.text = _formatValueRaw(
+        data['ug_specialisation'],
+      );
+      _admissionYearController.text = _formatValueRaw(data['admission_year']);
       for (int i = 0; i < 10; i++) {
         _ugSemControllers[i].text = _formatValueRaw(data['ug_gpa_s${i + 1}']);
       }
@@ -328,6 +386,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _pgYearPassController.text = _formatValueRaw(data['pg_year_pass']);
       _pgInstitutionController.text = _formatValueRaw(data['pg_institution']);
       _pgUniversityController.text = _formatValueRaw(data['pg_university']);
+      _pgDegreeNameController.text = _formatValueRaw(data['pg_degree_name']);
+      _pgSpecialisationController.text = _formatValueRaw(
+        data['pg_specialisation'],
+      );
       for (int i = 0; i < 8; i++) {
         _pgSemControllers[i].text = _formatValueRaw(data['pg_gpa_s${i + 1}']);
       }
@@ -364,15 +426,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       if (section == 'Contact Details') {
         updateData['mobile_number'] = _mobileController.text;
+        updateData['country_code'] = _countryCodeController.text;
+        updateData['alternate_email'] = _alternateEmailController.text;
       } else if (section == 'Address') {
         updateData['address_line_1'] = _addressLine1Controller.text;
         updateData['address_line_2'] = _addressLine2Controller.text;
         updateData['state'] = _stateController.text;
+        updateData['pincode'] = _pincodeController.text;
+        updateData['residence_type'] = _selectedResidenceType ?? '';
       } else if (section == 'Identity') {
         updateData['dob'] = _dobController.text;
         updateData['gender'] = _selectedGender;
         updateData['aadhar_number'] = _aadharNumberController.text;
         updateData['pan_number'] = _panNumberController.text;
+      } else if (section == 'Family Details') {
+        updateData['father_occupation'] = _fatherOccupationController.text;
+        updateData['father_mobile'] = _fatherMobileController.text;
+        updateData['mother_mobile'] = _motherMobileController.text;
+        updateData['guardian_mobile'] = _guardianMobileController.text;
       } else if (section == 'Social Links') {
         updateData['social_links'] = {
           'linkedin': _linkedinController.text,
@@ -408,6 +479,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             int.tryParse(_ugYearPassController.text) ?? 0;
         updateData['ug_institution'] = _ugInstitutionController.text;
         updateData['ug_university'] = _ugUniversityController.text;
+        updateData['ug_degree_name'] = _ugDegreeNameController.text;
+        updateData['ug_specialisation'] = _ugSpecialisationController.text;
+        updateData['admission_year'] =
+            int.tryParse(_admissionYearController.text) ?? 0;
         for (int i = 0; i < 10; i++) {
           updateData['ug_gpa_s${i + 1}'] =
               double.tryParse(_ugSemControllers[i].text) ?? 0.0;
@@ -418,6 +493,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             int.tryParse(_pgYearPassController.text) ?? 0;
         updateData['pg_institution'] = _pgInstitutionController.text;
         updateData['pg_university'] = _pgUniversityController.text;
+        updateData['pg_degree_name'] = _pgDegreeNameController.text;
+        updateData['pg_specialisation'] = _pgSpecialisationController.text;
         for (int i = 0; i < 8; i++) {
           updateData['pg_gpa_s${i + 1}'] =
               double.tryParse(_pgSemControllers[i].text) ?? 0.0;
@@ -1268,14 +1345,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _editingSection == 'Contact Details'
                   ? [
                       _buildEditTextField(
+                        controller: _countryCodeController,
+                        label: 'Country Code',
+                        type: TextInputType.phone,
+                      ),
+                      _buildEditTextField(
                         controller: _mobileController,
                         label: 'Mobile Number',
                         type: TextInputType.phone,
                       ),
+                      _buildEditTextField(
+                        controller: _alternateEmailController,
+                        label: 'Alternate Email',
+                        type: TextInputType.emailAddress,
+                      ),
                     ]
                   : [
                       _buildDetailItem('Email', data['email']),
+                      _buildDetailItem('Country Code', data['country_code']),
                       _buildDetailItem('Mobile Number', data['mobile_number']),
+                      _buildDetailItem(
+                        'Alternate Email',
+                        data['alternate_email'],
+                      ),
                     ],
               onEdit: () => _startEditing('Contact Details', data),
               onSave: () => _saveSection('Contact Details', data),
@@ -1299,6 +1391,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         controller: _stateController,
                         label: 'State',
                       ),
+                      _buildEditTextField(
+                        controller: _pincodeController,
+                        label: 'Pincode',
+                        type: TextInputType.number,
+                      ),
+                      _buildEditDropdown(
+                        'Residence Type',
+                        ['Day Scholar', 'Hostel'],
+                        _selectedResidenceType,
+                        (val) => setState(() => _selectedResidenceType = val),
+                      ),
                     ]
                   : [
                       _buildDetailItem(
@@ -1310,6 +1413,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         data['address_line_2'],
                       ),
                       _buildDetailItem('State', data['state']),
+                      _buildDetailItem('Pincode', data['pincode']),
+                      _buildDetailItem(
+                        'Residence Type',
+                        data['residence_type'],
+                      ),
                     ],
               onEdit: () => _startEditing('Address', data),
               onSave: () => _saveSection('Address', data),
@@ -1345,6 +1453,56 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ],
               onEdit: () => _startEditing('Identity', data),
               onSave: () => _saveSection('Identity', data),
+              onCancel: _cancelEditing,
+            ),
+
+            // Family Details
+            _buildSectionCard(
+              'Family Details',
+              _editingSection == 'Family Details'
+                  ? [
+                      _buildEditTextField(
+                        controller: _fatherOccupationController,
+                        label: 'Father\'s Occupation',
+                      ),
+                      _buildEditTextField(
+                        controller: _fatherMobileController,
+                        label: 'Father\'s Mobile',
+                        type: TextInputType.phone,
+                      ),
+                      _buildEditTextField(
+                        controller: _motherMobileController,
+                        label: 'Mother\'s Mobile',
+                        type: TextInputType.phone,
+                      ),
+                      _buildEditTextField(
+                        controller: _guardianMobileController,
+                        label: 'Guardian Mobile',
+                        type: TextInputType.phone,
+                      ),
+                    ]
+                  : [
+                      _buildDetailItem('Father\'s Name', data['father_name']),
+                      _buildDetailItem(
+                        'Father\'s Occupation',
+                        data['father_occupation'],
+                      ),
+                      _buildDetailItem(
+                        'Father\'s Mobile',
+                        data['father_mobile'],
+                      ),
+                      _buildDetailItem('Mother\'s Name', data['mother_name']),
+                      _buildDetailItem(
+                        'Mother\'s Mobile',
+                        data['mother_mobile'],
+                      ),
+                      _buildDetailItem(
+                        'Guardian Mobile',
+                        data['guardian_mobile'],
+                      ),
+                    ],
+              onEdit: () => _startEditing('Family Details', data),
+              onSave: () => _saveSection('Family Details', data),
               onCancel: _cancelEditing,
             ),
 
@@ -1966,6 +2124,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _editingSection == 'Undergraduate (UG)'
                   ? [
                       _buildEditTextField(
+                        controller: _ugDegreeNameController,
+                        label: 'Degree Name',
+                      ),
+                      _buildEditTextField(
+                        controller: _ugSpecialisationController,
+                        label: 'Specialisation',
+                      ),
+                      _buildEditTextField(
                         controller: _ugCgpaController,
                         label: 'CGPA',
                         type: const TextInputType.numberWithOptions(
@@ -1985,6 +2151,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         label: 'Year of Passing',
                         type: TextInputType.number,
                       ),
+                      _buildEditTextField(
+                        controller: _admissionYearController,
+                        label: 'Admission Year',
+                        type: TextInputType.number,
+                      ),
                       for (int i = 0; i < 10; i++)
                         _buildEditTextField(
                           controller: _ugSemControllers[i],
@@ -1995,10 +2166,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                     ]
                   : [
+                      _buildDetailItem('Degree Name', data['ug_degree_name']),
+                      _buildDetailItem(
+                        'Specialisation',
+                        data['ug_specialisation'],
+                      ),
                       _buildDetailItem('CGPA', data['ug_cgpa']),
                       _buildDetailItem('Institution', data['ug_institution']),
                       _buildDetailItem('University', data['ug_university']),
                       _buildDetailItem('Year of Passing', data['ug_year_pass']),
+                      _buildDetailItem(
+                        'Admission Year',
+                        data['admission_year'],
+                      ),
                       for (int i = 1; i <= 10; i++)
                         _buildDetailItem(
                           'Semester $i GPA',
@@ -2018,6 +2198,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 'Postgraduate (PG)',
                 _editingSection == 'Postgraduate (PG)'
                     ? [
+                        _buildEditTextField(
+                          controller: _pgDegreeNameController,
+                          label: 'Degree Name',
+                        ),
+                        _buildEditTextField(
+                          controller: _pgSpecialisationController,
+                          label: 'Specialisation',
+                        ),
                         _buildEditTextField(
                           controller: _pgCgpaController,
                           label: 'CGPA',
@@ -2048,6 +2236,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                       ]
                     : [
+                        _buildDetailItem('Degree Name', data['pg_degree_name']),
+                        _buildDetailItem(
+                          'Specialisation',
+                          data['pg_specialisation'],
+                        ),
                         _buildDetailItem('CGPA', data['pg_cgpa']),
                         _buildDetailItem('Institution', data['pg_institution']),
                         _buildDetailItem('University', data['pg_university']),

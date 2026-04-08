@@ -1070,7 +1070,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${r['name']} (${Formatters.formatDateTime(r['date'])})',
+                        r['date'] != null && r['date'].toString().isNotEmpty
+                            ? '${r['name']} — ${Formatters.formatDateTime(r['date'])}'
+                            : '${r['name']}',
                         style: const TextStyle(fontSize: 14),
                       ),
                     ),
