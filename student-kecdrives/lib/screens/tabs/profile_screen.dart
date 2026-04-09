@@ -19,6 +19,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../services/notification_service.dart';
 import '../../services/student_service.dart';
+import '../../providers/drive_provider.dart';
 import '../../utils/constants.dart';
 import '../change_password_screen.dart';
 import '../../widgets/haptic_refresh_indicator.dart';
@@ -84,6 +85,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _ugUniversityController = TextEditingController();
   final _ugDegreeNameController = TextEditingController();
   final _ugSpecialisationController = TextEditingController();
+  final _ugSpecialisationMinorController = TextEditingController();
   final List<TextEditingController> _ugSemControllers = List.generate(
     10,
     (_) => TextEditingController(),
@@ -94,6 +96,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _pgUniversityController = TextEditingController();
   final _pgDegreeNameController = TextEditingController();
   final _pgSpecialisationController = TextEditingController();
+  final _pgSpecialisationMinorController = TextEditingController();
   final List<TextEditingController> _pgSemControllers = List.generate(
     8,
     (_) => TextEditingController(),
@@ -106,6 +109,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   List<String> _languageSkills = [];
   final _languageInputController = TextEditingController();
+  Map<String, List<String>> _languageProficiency = {};
+  final _langProfInputController = TextEditingController();
+  final _internshipCountController = TextEditingController();
+  final _internshipCompaniesController = TextEditingController();
+  final _academicInternshipCountController = TextEditingController();
+  final _academicInternshipCompaniesController = TextEditingController();
   String? _selectedGender;
 
   // Pending requests tracking - maps field_name to request info
@@ -341,6 +350,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _leetcodeController.text = _formatValueRaw(social['leetcode']);
     } else if (section == 'Skills & Documents') {
       _languageSkills = List<String>.from(data['language_skills'] ?? []);
+      final profMap =
+          data['language_proficiency'] as Map<String, dynamic>? ?? {};
+      _languageProficiency = profMap.map(
+        (k, v) => MapEntry(k, List<String>.from(v ?? [])),
+      );
+    } else if (section == 'Internships') {
+      _internshipCountController.text = _formatValueRaw(
+        data['internship_count'],
+      );
+      _internshipCompaniesController.text = _formatValueRaw(
+        data['internship_companies'],
+      );
+      _academicInternshipCountController.text = _formatValueRaw(
+        data['academic_internship_count'],
+      );
+      _academicInternshipCompaniesController.text = _formatValueRaw(
+        data['academic_internship_companies'],
+      );
     } else if (section == '10th Standard') {
       _tenthMarkController.text = _formatValueRaw(data['tenth_mark']);
       _tenthBoardController.text = _formatValueRaw(data['tenth_board']);
@@ -377,6 +404,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _ugSpecialisationController.text = _formatValueRaw(
         data['ug_specialisation'],
       );
+      _ugSpecialisationMinorController.text = _formatValueRaw(
+        data['ug_specialisation_minor'],
+      );
       _admissionYearController.text = _formatValueRaw(data['admission_year']);
       for (int i = 0; i < 10; i++) {
         _ugSemControllers[i].text = _formatValueRaw(data['ug_gpa_s${i + 1}']);
@@ -389,6 +419,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _pgDegreeNameController.text = _formatValueRaw(data['pg_degree_name']);
       _pgSpecialisationController.text = _formatValueRaw(
         data['pg_specialisation'],
+      );
+      _pgSpecialisationMinorController.text = _formatValueRaw(
+        data['pg_specialisation_minor'],
       );
       for (int i = 0; i < 8; i++) {
         _pgSemControllers[i].text = _formatValueRaw(data['pg_gpa_s${i + 1}']);
@@ -452,6 +485,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         };
       } else if (section == 'Skills & Documents') {
         updateData['language_skills'] = _languageSkills;
+        updateData['language_proficiency'] = _languageProficiency;
+      } else if (section == 'Internships') {
+        updateData['internship_count'] =
+            int.tryParse(_internshipCountController.text) ?? 0;
+        updateData['internship_companies'] =
+            _internshipCompaniesController.text;
+        updateData['academic_internship_count'] =
+            int.tryParse(_academicInternshipCountController.text) ?? 0;
+        updateData['academic_internship_companies'] =
+            _academicInternshipCompaniesController.text;
       } else if (section == '10th Standard') {
         updateData['tenth_mark'] =
             double.tryParse(_tenthMarkController.text) ?? 0.0;
@@ -481,6 +524,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         updateData['ug_university'] = _ugUniversityController.text;
         updateData['ug_degree_name'] = _ugDegreeNameController.text;
         updateData['ug_specialisation'] = _ugSpecialisationController.text;
+        updateData['ug_specialisation_minor'] =
+            _ugSpecialisationMinorController.text;
         updateData['admission_year'] =
             int.tryParse(_admissionYearController.text) ?? 0;
         for (int i = 0; i < 10; i++) {
@@ -495,6 +540,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         updateData['pg_university'] = _pgUniversityController.text;
         updateData['pg_degree_name'] = _pgDegreeNameController.text;
         updateData['pg_specialisation'] = _pgSpecialisationController.text;
+        updateData['pg_specialisation_minor'] =
+            _pgSpecialisationMinorController.text;
         for (int i = 0; i < 8; i++) {
           updateData['pg_gpa_s${i + 1}'] =
               double.tryParse(_pgSemControllers[i].text) ?? 0.0;
@@ -1622,6 +1669,92 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 .toList(),
                           ),
                         ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Language Proficiency',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final category in ['speak', 'read', 'write'])
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Can ${category[0].toUpperCase()}${category.substring(1)}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: (_languageProficiency[category] ?? [])
+                                    .map(
+                                      (lang) => Chip(
+                                        label: Text(
+                                          lang,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                        onDeleted: () {
+                                          setState(() {
+                                            _languageProficiency[category]
+                                                ?.remove(lang);
+                                          });
+                                        },
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildEditTextField(
+                                      controller: _langProfInputController,
+                                      label: 'Add language',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    onPressed: () {
+                                      final lang = _langProfInputController.text
+                                          .trim();
+                                      if (lang.isNotEmpty) {
+                                        setState(() {
+                                          _languageProficiency.putIfAbsent(
+                                            category,
+                                            () => [],
+                                          );
+                                          if (!_languageProficiency[category]!
+                                              .contains(lang)) {
+                                            _languageProficiency[category]!.add(
+                                              lang,
+                                            );
+                                          }
+                                          _langProfInputController.clear();
+                                        });
+                                      }
+                                    },
+                                    icon: Icon(
+                                      Icons.add_circle,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       _isUploadingResume
                           ? const Padding(
                               padding: EdgeInsets.symmetric(vertical: 8),
@@ -1690,6 +1823,64 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         if (data['resume_url'] != null &&
                             data['resume_url'].toString().isNotEmpty)
                           const SizedBox(height: 16),
+                      ],
+                      if (data['language_proficiency'] != null &&
+                          (data['language_proficiency'] as Map).isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        for (final category in ['speak', 'read', 'write'])
+                          if ((data['language_proficiency'][category] as List?)
+                                  ?.isNotEmpty ??
+                              false)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Can ${category[0].toUpperCase()}${category.substring(1)}',
+                                    style: TextStyle(
+                                      color:
+                                          (Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color ??
+                                          Colors.grey),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children:
+                                        (data['language_proficiency'][category]
+                                                as List)
+                                            .map(
+                                              (lang) => Chip(
+                                                label: Text(
+                                                  lang.toString(),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                                backgroundColor: Theme.of(
+                                                  context,
+                                                ).scaffoldBackgroundColor,
+                                                side: BorderSide(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).dividerColor,
+                                                ),
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                              ),
+                                            )
+                                            .toList(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        const SizedBox(height: 8),
                       ],
                       if (data['resume_url'] != null &&
                           data['resume_url'].toString().isNotEmpty) ...[
@@ -1801,6 +1992,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ],
               onEdit: () => _startEditing('Skills & Documents', data),
               onSave: () => _saveSection('Skills & Documents', data),
+              onCancel: _cancelEditing,
+            ),
+
+            // Internships
+            _buildSectionCard(
+              'Internships',
+              _editingSection == 'Internships'
+                  ? [
+                      _buildEditTextField(
+                        controller: _internshipCountController,
+                        label: 'Industry Internship Count',
+                        type: TextInputType.number,
+                      ),
+                      _buildEditTextField(
+                        controller: _internshipCompaniesController,
+                        label: 'Industry Companies (comma separated)',
+                        maxLines: 2,
+                      ),
+                      _buildEditTextField(
+                        controller: _academicInternshipCountController,
+                        label: 'Academic Internship Count',
+                        type: TextInputType.number,
+                      ),
+                      _buildEditTextField(
+                        controller: _academicInternshipCompaniesController,
+                        label: 'Academic Companies (comma separated)',
+                        maxLines: 2,
+                      ),
+                    ]
+                  : [
+                      _buildDetailItem(
+                        'Industry Internships',
+                        data['internship_count'],
+                      ),
+                      _buildDetailItem(
+                        'Industry Companies',
+                        data['internship_companies'],
+                      ),
+                      _buildDetailItem(
+                        'Academic Internships',
+                        data['academic_internship_count'],
+                      ),
+                      _buildDetailItem(
+                        'Academic Companies',
+                        data['academic_internship_companies'],
+                      ),
+                    ],
+              onEdit: () => _startEditing('Internships', data),
+              onSave: () => _saveSection('Internships', data),
               onCancel: _cancelEditing,
             ),
 
@@ -2132,6 +2372,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         label: 'Specialisation',
                       ),
                       _buildEditTextField(
+                        controller: _ugSpecialisationMinorController,
+                        label: 'Specialisation (Minor)',
+                      ),
+                      _buildEditTextField(
                         controller: _ugCgpaController,
                         label: 'CGPA',
                         type: const TextInputType.numberWithOptions(
@@ -2171,6 +2415,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         'Specialisation',
                         data['ug_specialisation'],
                       ),
+                      _buildDetailItem(
+                        'Specialisation (Minor)',
+                        data['ug_specialisation_minor'],
+                      ),
                       _buildDetailItem('CGPA', data['ug_cgpa']),
                       _buildDetailItem('Institution', data['ug_institution']),
                       _buildDetailItem('University', data['ug_university']),
@@ -2207,6 +2455,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           label: 'Specialisation',
                         ),
                         _buildEditTextField(
+                          controller: _pgSpecialisationMinorController,
+                          label: 'Specialisation (Minor)',
+                        ),
+                        _buildEditTextField(
                           controller: _pgCgpaController,
                           label: 'CGPA',
                           type: const TextInputType.numberWithOptions(
@@ -2240,6 +2492,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         _buildDetailItem(
                           'Specialisation',
                           data['pg_specialisation'],
+                        ),
+                        _buildDetailItem(
+                          'Specialisation (Minor)',
+                          data['pg_specialisation_minor'],
                         ),
                         _buildDetailItem('CGPA', data['pg_cgpa']),
                         _buildDetailItem('Institution', data['pg_institution']),
@@ -2570,10 +2826,122 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
             const SizedBox(height: 24),
+            _buildApplicationHistory(ref),
           ],
         );
       },
     );
+  }
+
+  Widget _buildApplicationHistory(WidgetRef ref) {
+    final driveService = ref.read(driveServiceProvider);
+    return FutureBuilder<List<dynamic>>(
+      future: driveService.getApplications(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final apps = snapshot.data!;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Application History',
+              style: GoogleFonts.geist(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...apps.map((app) {
+              final status = (app['status'] ?? '').toString();
+              final statusColor = _getStatusColor(status);
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? Theme.of(context).cardColor : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            app['company_name']?.toString() ??
+                                app['company']?.toString() ??
+                                'Unknown',
+                            style: GoogleFonts.geist(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (app['role'] != null || app['job_role'] != null)
+                            Text(
+                              (app['role'] ?? app['job_role']).toString(),
+                              style: GoogleFonts.geist(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        status.replaceAll('_', ' ').toUpperCase(),
+                        style: GoogleFonts.geist(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'applied':
+      case 'opted_in':
+        return Colors.green;
+      case 'opted_out':
+        return Colors.orange;
+      case 'not_eligible':
+        return Colors.red;
+      case 'attended':
+        return Colors.purple;
+      case 'placed':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildStatCard(String title, dynamic value, MaterialColor color) {
