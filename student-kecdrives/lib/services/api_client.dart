@@ -74,39 +74,46 @@ class ApiClient {
     return null;
   }
 
+  /// Public method to refresh the token (used by upload methods that bypass ApiClient)
+  Future<String?> refreshToken() => _refreshAccessToken();
+
+  /// Ensures only one refresh happens at a time. Returns the new token or null.
+  Future<String?> _ensureTokenRefreshed() async {
+    if (_isRefreshing) {
+      // Another request is already refreshing — wait for it
+      final completer = Completer<String?>();
+      _refreshQueue.add(completer);
+      return completer.future;
+    }
+
+    _isRefreshing = true;
+    final newToken = await _refreshAccessToken();
+    _isRefreshing = false;
+
+    // Notify all queued requests
+    for (final completer in _refreshQueue) {
+      completer.complete(newToken);
+    }
+    _refreshQueue.clear();
+
+    return newToken;
+  }
+
+  /// Replaces the Authorization header with the new token
+  Map<String, String> _withNewToken(Map<String, String>? headers, String token) {
+    final updated = Map<String, String>.from(headers ?? {});
+    updated['Authorization'] = 'Bearer $token';
+    return updated;
+  }
+
   Future<void> _handleError(dynamic error, [http.Response? response]) async {
     // Check if device is online first
     if (!await _isOnline()) {
       return; // Handled by ConnectivityOverlay
     }
 
-    // Handle expired/invalid JWT — attempt refresh first
-    if (response != null && response.statusCode == 401) {
-      if (!_isRefreshing) {
-        _isRefreshing = true;
-        final newToken = await _refreshAccessToken();
-        _isRefreshing = false;
-
-        if (newToken != null) {
-          // Notify queued requests
-          for (final completer in _refreshQueue) {
-            completer.complete(newToken);
-          }
-          _refreshQueue.clear();
-          // Don't throw — the caller will retry
-          return;
-        }
-      }
-
-      // Refresh failed or no refresh token — clear everything
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('token');
-      await prefs.remove('refresh_token');
-      await prefs.remove('role');
-      await prefs.remove('is_profile_complete');
-      throw Exception('Session expired. Please log in again.');
-    }
-
+    // 401 is handled separately in each HTTP method (retry logic)
+    // This handles server errors only
     bool isServerIssue = false;
 
     if (error is SocketException || error is TimeoutException) {
@@ -141,12 +148,38 @@ class ApiClient {
     }
   }
 
+  /// Handles 401 by refreshing the token and retrying once.
+  /// Returns null if refresh failed (session expired).
+  Future<http.Response?> _handle401AndRetry(
+    Future<http.Response> Function(Map<String, String>? headers) retryFn,
+    Map<String, String>? headers,
+  ) async {
+    final newToken = await _ensureTokenRefreshed();
+    if (newToken != null) {
+      final retryHeaders = _withNewToken(headers, newToken);
+      return retryFn(retryHeaders);
+    }
+    // Refresh failed — clear session
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('refresh_token');
+    await prefs.remove('role');
+    await prefs.remove('is_profile_complete');
+    throw Exception('Session expired. Please log in again.');
+  }
+
   Future<http.Response> get(Uri url, {Map<String, String>? headers}) async {
     try {
-      final response = await _client
+      var response = await _client
           .get(url, headers: headers)
           .timeout(_timeout);
-      if (response.statusCode == 401) await _handleError(null, response);
+      if (response.statusCode == 401) {
+        final retried = await _handle401AndRetry(
+          (h) => _client.get(url, headers: h).timeout(_timeout),
+          headers,
+        );
+        if (retried != null) response = retried;
+      }
       if (response.statusCode >= 500) {
         await _handleError(null, response);
       } else {
@@ -154,6 +187,7 @@ class ApiClient {
       }
       return response;
     } catch (e) {
+      if (e is Exception && e.toString().contains('Session expired')) rethrow;
       await _handleError(e);
       if (e is SocketException ||
           e is http.ClientException ||
@@ -172,10 +206,16 @@ class ApiClient {
     Object? body,
   }) async {
     try {
-      final response = await _client
+      var response = await _client
           .post(url, headers: headers, body: body)
           .timeout(_timeout);
-      if (response.statusCode == 401) await _handleError(null, response);
+      if (response.statusCode == 401) {
+        final retried = await _handle401AndRetry(
+          (h) => _client.post(url, headers: h, body: body).timeout(_timeout),
+          headers,
+        );
+        if (retried != null) response = retried;
+      }
       if (response.statusCode >= 500) {
         await _handleError(null, response);
       } else {
@@ -183,6 +223,7 @@ class ApiClient {
       }
       return response;
     } catch (e) {
+      if (e is Exception && e.toString().contains('Session expired')) rethrow;
       await _handleError(e);
       if (e is SocketException ||
           e is http.ClientException ||
@@ -201,10 +242,16 @@ class ApiClient {
     Object? body,
   }) async {
     try {
-      final response = await _client
+      var response = await _client
           .put(url, headers: headers, body: body)
           .timeout(_timeout);
-      if (response.statusCode == 401) await _handleError(null, response);
+      if (response.statusCode == 401) {
+        final retried = await _handle401AndRetry(
+          (h) => _client.put(url, headers: h, body: body).timeout(_timeout),
+          headers,
+        );
+        if (retried != null) response = retried;
+      }
       if (response.statusCode >= 500) {
         await _handleError(null, response);
       } else {
@@ -212,6 +259,7 @@ class ApiClient {
       }
       return response;
     } catch (e) {
+      if (e is Exception && e.toString().contains('Session expired')) rethrow;
       await _handleError(e);
       if (e is SocketException ||
           e is http.ClientException ||
@@ -226,10 +274,16 @@ class ApiClient {
 
   Future<http.Response> delete(Uri url, {Map<String, String>? headers}) async {
     try {
-      final response = await _client
+      var response = await _client
           .delete(url, headers: headers)
           .timeout(_timeout);
-      if (response.statusCode == 401) await _handleError(null, response);
+      if (response.statusCode == 401) {
+        final retried = await _handle401AndRetry(
+          (h) => _client.delete(url, headers: h).timeout(_timeout),
+          headers,
+        );
+        if (retried != null) response = retried;
+      }
       if (response.statusCode >= 500) {
         await _handleError(null, response);
       } else {
@@ -237,6 +291,7 @@ class ApiClient {
       }
       return response;
     } catch (e) {
+      if (e is Exception && e.toString().contains('Session expired')) rethrow;
       await _handleError(e);
       if (e is SocketException ||
           e is http.ClientException ||
@@ -255,10 +310,16 @@ class ApiClient {
     Object? body,
   }) async {
     try {
-      final response = await _client
+      var response = await _client
           .patch(url, headers: headers, body: body)
           .timeout(_timeout);
-      if (response.statusCode == 401) await _handleError(null, response);
+      if (response.statusCode == 401) {
+        final retried = await _handle401AndRetry(
+          (h) => _client.patch(url, headers: h, body: body).timeout(_timeout),
+          headers,
+        );
+        if (retried != null) response = retried;
+      }
       if (response.statusCode >= 500) {
         await _handleError(null, response);
       } else {
@@ -266,6 +327,7 @@ class ApiClient {
       }
       return response;
     } catch (e) {
+      if (e is Exception && e.toString().contains('Session expired')) rethrow;
       await _handleError(e);
       if (e is SocketException ||
           e is http.ClientException ||

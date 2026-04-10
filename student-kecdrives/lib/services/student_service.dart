@@ -40,27 +40,32 @@ class StudentService {
     }
   }
 
-  // Upload Document
+  // Upload Document (with token refresh on 401)
   Future<String> uploadFile(String filePath, String docType) async {
-    final token = await _getToken();
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/v1/student/upload?type=$docType'),
-    );
+    Future<http.Response> sendUpload(String token) async {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/v1/student/upload?type=$docType'),
+      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(
+        await http.MultipartFile.fromPath('file', filePath),
+      );
+      var streamedResponse = await request.send();
+      return http.Response.fromStream(streamedResponse);
+    }
 
-    request.headers['Authorization'] = 'Bearer $token';
+    var token = await _getToken() ?? '';
+    var response = await sendUpload(token);
 
-    // Add file
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file',
-        filePath,
-        // contentType: MediaType('application', 'pdf'), // Optional: Detect type if needed, usually inferred
-      ),
-    );
-
-    var streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
+    // Retry once with a refreshed token on 401
+    if (response.statusCode == 401) {
+      final newToken = await _apiClient.refreshToken();
+      if (newToken != null) {
+        token = newToken;
+        response = await sendUpload(token);
+      }
+    }
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);

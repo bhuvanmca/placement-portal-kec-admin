@@ -57,7 +57,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // When app returns to foreground, refresh from API then sync local state
     if (state == AppLifecycleState.resumed) {
-      ref.read(driveListProvider.notifier).refresh();
+      ref.read(driveListProvider.notifier).refresh().then((_) {
+        if (mounted) _syncFromProvider();
+      });
     }
   }
 
@@ -85,6 +87,15 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
           }
         });
       }
+    } else if (match == null && mounted && !paginatedState.isLoading) {
+      // Drive no longer exists (deleted by admin) — navigate back
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This drive has been removed.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      Navigator.of(context).pop();
     }
   }
 
@@ -124,12 +135,26 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit request: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        final errorMsg = e.toString().toLowerCase();
+        if (errorMsg.contains('no longer exists') ||
+            errorMsg.contains('not found') ||
+            errorMsg.contains('deleted')) {
+          ref.invalidate(driveListProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This drive has been removed.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.of(context).pop();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to submit request: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -179,9 +204,23 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to opt in: $e')));
+        final errorMsg = e.toString().toLowerCase();
+        if (errorMsg.contains('no longer exists') ||
+            errorMsg.contains('not found') ||
+            errorMsg.contains('deleted')) {
+          ref.invalidate(driveListProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This drive has been removed.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.of(context).pop();
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to opt in: $e')));
+        }
       }
     }
   }
@@ -213,9 +252,23 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to opt out: $e')));
+        final errorMsg = e.toString().toLowerCase();
+        if (errorMsg.contains('no longer exists') ||
+            errorMsg.contains('not found') ||
+            errorMsg.contains('deleted')) {
+          ref.invalidate(driveListProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This drive has been removed.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.of(context).pop();
+        } else {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to opt out: $e')));
+        }
       }
     }
   }

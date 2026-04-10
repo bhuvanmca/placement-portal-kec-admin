@@ -157,7 +157,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
         'social_links': state.socialLinks ?? {},
         'placement_willingness': state.placementWillingness ?? 'Interested',
         // Documents & Identity
-        'profile_photo_url': state.profilePhotoUrl ?? '',
+        // profile_photo_url is NOT sent here — the upload endpoint
+        // already persists the raw S3 URL to the DB. Sending the
+        // client-side URL (streaming endpoint) would overwrite it.
+        'profile_photo_url': '',
         'resume_url': state.resumeUrl ?? '',
         'aadhar_number': state.aadharNumber ?? '',
         'pan_number': state.panNumber ?? '',
