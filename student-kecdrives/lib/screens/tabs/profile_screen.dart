@@ -2439,9 +2439,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               onCancel: _cancelEditing,
             ),
 
-            // PG
-            if (data['department_type'] == 'PG' ||
-                (data['pg_cgpa'] != null && data['pg_cgpa'] > 0))
+            // PG — only for PG departments (MCA, MSC, MBA)
+            if (data['department_type'] == 'PG')
               _buildSectionCard(
                 'Postgraduate (PG)',
                 _editingSection == 'Postgraduate (PG)'
