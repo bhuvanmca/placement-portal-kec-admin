@@ -10,10 +10,6 @@ class AppConstants {
   static String apiBaseUrl =
       dotenv.env['API_BASE_URL'] ?? 'https://app.api-kecdrives.com/api';
 
-  // WebSocket URL for chat (wss:// for production, ws:// for local dev)
-  static String wsBaseUrl =
-      dotenv.env['WS_BASE_URL'] ?? 'wss://app.api-kecdrives.com/ws';
-
   // Storage URL for file downloads (Garage via Cloudflare)
   static String storageBaseUrl =
       dotenv.env['STORAGE_BASE_URL'] ?? 'https://app.api-kecdrives.com/storage';

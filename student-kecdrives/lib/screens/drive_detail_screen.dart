@@ -6,11 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/formatters.dart';
 import '../../providers/drive_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class DriveDetailScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> drive;
@@ -591,13 +592,60 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
                   if (hasJobDescription)
                     _buildDetailCard(
                       'Job Description',
-                      Text(
-                        drive['job_description'],
-                        style: TextStyle(
-                          height: 1.5,
-                          color:
-                              (Theme.of(context).textTheme.bodyMedium?.color ??
-                              Colors.black87),
+                      MarkdownBody(
+                        data: drive['job_description'],
+                        selectable: true,
+                        onTapLink: (text, href, title) {
+                          if (href != null) {
+                            launchUrl(
+                              Uri.parse(href),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            height: 1.5,
+                            color:
+                                (Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color ??
+                                Colors.black87),
+                          ),
+                          h1: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                (Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color ??
+                                Colors.black87),
+                          ),
+                          h2: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                (Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color ??
+                                Colors.black87),
+                          ),
+                          h3: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                (Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color ??
+                                Colors.black87),
+                          ),
+                          listBullet: TextStyle(
+                            color:
+                                (Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color ??
+                                Colors.black87),
+                          ),
                         ),
                       ),
                     )
