@@ -955,6 +955,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return value.toString();
   }
 
+  String _formatStudentType(dynamic value) {
+    switch (value?.toString()) {
+      case 'Regular':
+        return 'Regular';
+      case 'Lateral_12th':
+        return 'Lateral (12th + Diploma)';
+      case 'Lateral_Diploma':
+        return 'Lateral (Diploma Only)';
+      default:
+        return _formatValue(value);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1188,7 +1201,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Batch ${_formatValue(data['batch_year'])} • ${_formatValue(data['student_type'])}',
+                                'Batch ${_formatValue(data['batch_year'])} • ${_formatStudentType(data['student_type'])}',
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color:
