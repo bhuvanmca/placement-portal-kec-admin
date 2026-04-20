@@ -392,7 +392,11 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
     }
   }
 
-  Future<void> _openAttachment(String url, String fileName) async {
+  Future<void> _openAttachment(
+    int driveId,
+    int attachmentIndex,
+    String fileName,
+  ) async {
     try {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -404,25 +408,19 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
         );
       }
 
-      final validUrl = AppConstants.sanitizeUrl(url);
-      String downloadUrl = validUrl;
-      if (!downloadUrl.startsWith('http://') &&
-          !downloadUrl.startsWith('https://')) {
-        downloadUrl = 'https://$downloadUrl';
-      }
+      // Use the streaming endpoint which fetches directly from S3 on the server.
+      // This is more reliable than the public storage URL and handles encoding properly.
+      final streamUrl =
+          '${AppConstants.apiBaseUrl}/v1/drives/$driveId/attachments/$attachmentIndex/stream';
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
       final client = http.Client();
       try {
-        final request = http.Request('GET', Uri.parse(downloadUrl));
-        // Only add auth header for API endpoints, NOT for storage URLs.
-        // Garage S3 API rejects non-S3 Authorization headers with 400.
-        final isStorageUrl = downloadUrl.contains('/storage/');
-        if (!isStorageUrl) {
-          final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('token');
-          if (token != null && token.isNotEmpty) {
-            request.headers['Authorization'] = 'Bearer $token';
-          }
+        final request = http.Request('GET', Uri.parse(streamUrl));
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
         }
 
         final streamedResponse = await client.send(request);
@@ -1191,55 +1189,49 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
         (drive['attachments'] as List).isEmpty) {
       return const SizedBox.shrink();
     }
+    final attachments = drive['attachments'] as List;
+    final driveId = drive['id'] as int;
     return _buildDetailCard(
       'Attachments',
       Column(
-        children: (drive['attachments'] as List)
-            .map(
-              (a) => Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey.shade900
-                      : Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: (Theme.of(context).brightness == Brightness.dark
-                        ? Colors.grey[800]
-                        : Colors.grey[200])!,
-                  ),
-                ),
-                child: InkWell(
-                  onTap: () => _openAttachment(a['url'], a['name']),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.attachment,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            a['name'],
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                        const Icon(
-                          Icons.open_in_new,
-                          color: Colors.grey,
-                          size: 16,
-                        ),
-                      ],
+        children: attachments.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final a = entry.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade900
+                  : Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: (Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[800]
+                    : Colors.grey[200])!,
+              ),
+            ),
+            child: InkWell(
+              onTap: () => _openAttachment(driveId, idx, a['name']),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.attachment, color: Colors.blue, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        a['name'],
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
                     ),
-                  ),
+                    const Icon(Icons.open_in_new, color: Colors.grey, size: 16),
+                  ],
                 ),
               ),
-            )
-            .toList(),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

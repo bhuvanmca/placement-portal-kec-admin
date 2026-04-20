@@ -83,6 +83,9 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
         case 'drive_on_hold':
           message = 'A drive has been put on hold.';
           break;
+        case 'not_eligible':
+          message = 'You are not eligible for a drive. Check details.';
+          break;
         default:
           message = 'Drives updated!';
       }
