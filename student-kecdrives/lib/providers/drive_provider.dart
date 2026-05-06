@@ -120,6 +120,7 @@ final driveListProvider =
 
 // --- Filter Logic ---
 
+
 class DriveFilter {
   final String status;
   final String searchQuery;
@@ -218,8 +219,14 @@ final filteredDrivesProvider = Provider.autoDispose<AsyncValue<List<dynamic>>>((
     return AsyncValue.error(paginatedState.error!, StackTrace.current);
   }
 
+
   final drives = paginatedState.drives;
   final results = drives.where((drive) {
+    // If 'All' is selected, skip status filtering
+    if (filter.status == 'All') {
+      // Show all drives
+      return true;
+    }
     // Placed drives now appear in BOTH the Placed tab AND their section tab
     // (Upcoming/Closed/Completed) so the student can see the drive history.
 

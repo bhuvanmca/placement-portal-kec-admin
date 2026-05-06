@@ -162,6 +162,7 @@ class DriveCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (!isEligible) _buildIneligibilityReasons(context),
                 ],
               ),
             ),
@@ -210,7 +211,7 @@ class DriveCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
-                      'Due ${Formatters.timeUntil(drive['deadline_date'])}',
+                      'Due ${Formatters.timeUntil(drive['deadline_date'])}, ${Formatters.formatTimeOnly(drive['deadline_date'])}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.orange[700],
@@ -224,6 +225,64 @@ class DriveCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildIneligibilityReasons(BuildContext context) {
+    final List reasons = drive['ineligibility_reasons'] ?? [];
+    if (reasons.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFECACA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.info_outline, size: 13, color: Color(0xFFDC2626)),
+              const SizedBox(width: 5),
+              Text(
+                'Not eligible because:',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFDC2626),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...reasons.map<Widget>(
+            (r) => Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '• ',
+                    style: TextStyle(fontSize: 11, color: Color(0xFFEF4444)),
+                  ),
+                  Expanded(
+                    child: Text(
+                      r.toString(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF991B1B),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

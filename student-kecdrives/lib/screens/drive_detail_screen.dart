@@ -401,9 +401,9 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Downloading document...'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: const Text('Downloading document...'),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -503,7 +503,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
                   Colors.black),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           content,
         ],
       ),
@@ -992,7 +992,7 @@ class _DriveDetailScreenState extends ConsumerState<DriveDetailScreen>
           _buildDetailRow(
             Icons.timer_outlined,
             'Deadline',
-            '${Formatters.formatDateOnly(drive['deadline_date'])} (${Formatters.timeUntil(drive['deadline_date'])})',
+            '${Formatters.formatDateTime(drive['deadline_date'])} (${Formatters.timeUntil(drive['deadline_date'])})',
           ),
         ],
       ),

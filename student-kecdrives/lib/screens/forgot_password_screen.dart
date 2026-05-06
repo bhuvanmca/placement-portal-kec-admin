@@ -82,9 +82,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppConstants.spacingLarge),
+          padding: EdgeInsets.all(AppConstants.spacingLarge),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
+            constraints: BoxConstraints(maxWidth: 400),
             child: Form(
               key: _formKey,
               child: Column(
@@ -96,7 +96,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     size: 80,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                   Text(
                     'Reset Your Password',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -105,7 +105,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     'Enter your email address and we\'ll send you an OTP to reset your password',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -115,18 +115,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: 32),
                   // Email Field
                   TextFormField(
                     controller: _emailController,
-                    autofillHints: const [AutofillHints.email],
+                    autofillHints: [AutofillHints.email],
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _sendOTP(),
                     decoration: InputDecoration(
                       labelText: 'Email Address',
                       hintText: 'you@kongu.edu',
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      prefixIcon: Icon(Icons.email_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(
                           AppConstants.borderRadius,
@@ -163,7 +163,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                   AppButton(
                     label: 'Send OTP',
                     isLoading: _isLoading,

@@ -360,7 +360,8 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
     final drivesAsync = ref.watch(filteredDrivesProvider);
     final stats = ref.watch(driveStatsProvider);
     final currentFilters = ref.watch(driveFilterProvider);
-    final pillMap = stats;
+    // Add 'All' as the first pill
+    final pillMap = {'All': stats.values.fold<int>(0, (a, b) => a + b), ...stats};
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -490,7 +491,7 @@ class _DrivesScreenState extends ConsumerState<DrivesScreen>
               itemBuilder: (context, index) {
                 final name = pillMap.keys.elementAt(index);
                 final count = pillMap.values.elementAt(index);
-                final isSelected = currentFilters.status == name;
+                final isSelected = currentFilters.status == name || (name == 'All' && currentFilters.status == 'All');
 
                 return Stack(
                   clipBehavior: Clip.none,

@@ -90,9 +90,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Colors.white, // Matches the exact white of the login image
         body: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppConstants.spacingLarge),
+            padding: EdgeInsets.all(AppConstants.spacingLarge),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
+              constraints: BoxConstraints(maxWidth: 400),
               child: AutofillGroup(
                 child: Form(
                   key: _formKey,
@@ -102,25 +102,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       // Header Image - Login Image
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 40.0),
+                        padding: EdgeInsets.only(bottom: 40.0),
                         child: Image.asset(
-                          'assets/images/login_image.png', // [MODIFIED] New login image
-                          height:
-                              150, // Increased height slightly for better visibility
+                          'assets/images/login_image.png',
+                          height: 150,
                           fit: BoxFit.contain,
                         ),
                       ),
                       TextFormField(
                         controller: _emailController,
-                        autofillHints: const [AutofillHints.email],
+                        autofillHints: [AutofillHints.email],
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         cursorColor: theme.colorScheme.primary,
-                        style: const TextStyle(color: Colors.black),
+                        style: TextStyle(color: Colors.black),
                         decoration: InputDecoration(
                           labelText: 'Email',
                           hintText: 'student@kongu.edu',
-                          prefixIcon: const Icon(Icons.email_outlined),
+                          prefixIcon: Icon(Icons.email_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(
                               AppConstants.borderRadius,
@@ -155,18 +154,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordController,
-                        autofillHints: const [AutofillHints.password],
+                        autofillHints: [AutofillHints.password],
                         obscureText: _obscurePassword,
                         textInputAction: TextInputAction.go,
                         onFieldSubmitted: (_) => _submit(),
                         cursorColor: theme.colorScheme.primary,
-                        style: const TextStyle(color: Colors.black),
+                        style: TextStyle(color: Colors.black),
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
+                          prefixIcon: Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword
