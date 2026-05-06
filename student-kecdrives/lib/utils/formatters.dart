@@ -46,7 +46,7 @@ class Formatters {
     }
   }
 
-  /// Relative time for deadlines: "Today", "Tomorrow", "in 3 days", "2 days ago"
+  /// Relative time for deadlines: "Today, 10:00 AM", "Tomorrow, 05:30 PM", "in 3 days"
   static String timeUntil(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '';
     try {
@@ -56,13 +56,20 @@ class Formatters {
       final targetDay = DateTime(target.year, target.month, target.day);
       final diff = targetDay.difference(today).inDays;
 
-      if (diff == 0) return 'Today';
-      if (diff == 1) return 'Tomorrow';
-      if (diff == -1) return 'Yesterday';
-      if (diff > 1 && diff <= 30) return 'in $diff days';
-      if (diff < -1 && diff >= -30) return '${-diff} days ago';
-      // Fallback to date
-      return formatDateOnly(dateStr);
+      final hour = target.hour > 12
+          ? target.hour - 12
+          : (target.hour == 0 ? 12 : target.hour);
+      final minute = target.minute.toString().padLeft(2, '0');
+      final period = target.hour >= 12 ? 'PM' : 'AM';
+      final timeStr = '$hour:$minute $period';
+
+      if (diff == 0) return 'Today, $timeStr';
+      if (diff == 1) return 'Tomorrow, $timeStr';
+      if (diff == -1) return 'Yesterday, $timeStr';
+      if (diff > 1 && diff <= 30) return 'in $diff days, $timeStr';
+      if (diff < -1 && diff >= -30) return '${-diff} days ago, $timeStr';
+      // Fallback to date with time
+      return '${formatDateOnly(dateStr)}, $timeStr';
     } catch (e) {
       return '';
     }
